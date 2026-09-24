@@ -24,3 +24,6 @@ Thumbs.db
 # Supabase CLI local state (contains pooler connection string — never commit)
 supabase/.temp/
 supabase/.branches/
+
+.vercel
+.env*

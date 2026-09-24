@@ -15,6 +15,7 @@ import { getSupabaseEnv } from "./env";
 const PROTECTED_PREFIXES: ReadonlyArray<{ prefix: string; roles?: UserRole[] }> = [
   { prefix: "/mypage" },
   { prefix: "/instructor-profile-edit", roles: ["INSTRUCTOR"] },
+  { prefix: "/open-requests", roles: ["INSTRUCTOR"] },
   { prefix: "/requester-profile-edit", roles: ["COMPANY", "INDIVIDUAL"] },
   { prefix: "/post-request", roles: ["COMPANY", "INDIVIDUAL"] },
   { prefix: "/admin", roles: ["ADMIN"] },
