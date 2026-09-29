@@ -9,6 +9,8 @@ export type MineHandoffPayload = {
   returnPath: "/open-requests";
   nonce: string;
   exp: number;
+  /** Kenshu training-field names mapped from the person's Mine skills (may be empty). */
+  fields?: string[];
 };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -19,6 +21,15 @@ function getSecret() {
     throw new Error("MINE_HANDOFF_SECRET must contain at least 32 characters.");
   }
   return secret;
+}
+
+function isValidFields(fields: unknown): boolean {
+  if (fields === undefined) return true; // older Mine: skill sync is skipped
+  return (
+    Array.isArray(fields) &&
+    fields.length <= 60 &&
+    fields.every((field) => typeof field === "string" && field.length > 0 && field.length <= 100)
+  );
 }
 
 export function verifyMineHandoffToken(token: string): MineHandoffPayload {
@@ -47,7 +58,8 @@ export function verifyMineHandoffToken(token: string): MineHandoffPayload {
     !UUID_PATTERN.test(payload.nonce) ||
     typeof payload.exp !== "number" ||
     payload.exp <= now ||
-    payload.exp > now + 180
+    payload.exp > now + 180 ||
+    !isValidFields(payload.fields)
   ) {
     throw new Error("invalid_payload");
   }
