@@ -97,9 +97,10 @@ export class FakeStore implements MineHandoffStore, MatchCountStore {
     remove.forEach((x) => set.delete(x));
     this.synced.set(id, set);
   }
-  async listOpenRequestIds(ids: string[]) {
+  async listRecommendedOpenRequestIds(instructorId: string) {
+    const ids = this.expertise.get(instructorId) ?? new Set<string>();
     return this.requests
-      .filter((r) => r.target === null && r.status === "pending" && ids.includes(r.field))
+      .filter((r) => r.target === null && r.status === "pending" && ids.has(r.field))
       .map((r) => r.id);
   }
   async listRespondedRequestIds(instructorId: string, requestIds: string[]) {

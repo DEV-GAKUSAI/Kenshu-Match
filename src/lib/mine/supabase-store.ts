@@ -148,16 +148,33 @@ export function createSupabaseMineStore(admin: SupabaseClient): MineHandoffStore
         fail(error);
       }
     },
-    async listOpenRequestIds(subcategoryIds) {
-      const { data, error } = await admin
-        .from("training_requests")
-        .select("request_id")
-        .is("target_instructor_id", null)
-        .eq("status", "pending")
-        .in("expertise_field", subcategoryIds)
-        .limit(5000);
-      fail(error);
-      return (data ?? []).map((row) => row.request_id as string);
+    async listRecommendedOpenRequestIds(instructorId) {
+      const [{ data: profile, error: profileError }, { data: expertise, error: expertiseError }, { data: requests, error: requestsError }] = await Promise.all([
+        admin.from("instructor_profiles").select("work_style, desired_rate_min").eq("id", instructorId).maybeSingle(),
+        admin.from("instructor_expertise").select("subcategory_id").eq("instructor_id", instructorId),
+        admin
+          .from("training_requests")
+          .select("request_id, expertise_field, preferred_format, budget")
+          .is("target_instructor_id", null)
+          .eq("status", "pending")
+          .limit(5000),
+      ]);
+      fail(profileError);
+      fail(expertiseError);
+      fail(requestsError);
+      const expertiseIds = new Set((expertise ?? []).map((row) => row.subcategory_id as string));
+      return (requests ?? [])
+        .filter((request) => {
+          const fieldMatches = request.expertise_field && expertiseIds.has(request.expertise_field as string);
+          const formatMatches =
+            request.preferred_format === "both" ||
+            (request.preferred_format === "online" && (profile?.work_style === "ONLINE" || profile?.work_style === "HYBRID")) ||
+            (request.preferred_format === "offline" && (profile?.work_style === "ONSITE" || profile?.work_style === "HYBRID"));
+          const budgetMatches =
+            request.budget != null && profile?.desired_rate_min != null && Number(request.budget) >= Number(profile.desired_rate_min);
+          return fieldMatches || formatMatches || budgetMatches;
+        })
+        .map((request) => request.request_id as string);
     },
     async listRespondedRequestIds(instructorId, requestIds) {
       const responded: string[] = [];

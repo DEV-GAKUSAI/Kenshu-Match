@@ -1,11 +1,10 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 
-/** Database access needed to count matching open requests (implemented in supabase-store.ts). */
+/** Database access needed to count the same recommendations shown to an instructor. */
 export interface MatchCountStore {
   getLinkedKenshuUserId(mineUserId: string): Promise<string | null>;
-  getExpertiseIds(instructorId: string): Promise<string[]>;
-  /** Broadcast requests an instructor can browse: pending, not directed at one person, in these fields. */
-  listOpenRequestIds(subcategoryIds: string[]): Promise<string[]>;
+  /** Open, broadcast requests that Kenshu Link would show in the instructor's おすすめ tab. */
+  listRecommendedOpenRequestIds(instructorId: string): Promise<string[]>;
   /** Of these requests, the ones this instructor has already answered. */
   listRespondedRequestIds(instructorId: string, requestIds: string[]): Promise<string[]>;
 }
@@ -13,9 +12,7 @@ export interface MatchCountStore {
 export async function countMatchingOpenRequests(store: MatchCountStore, mineUserId: string): Promise<number> {
   const kenshuUserId = await store.getLinkedKenshuUserId(mineUserId);
   if (!kenshuUserId) return 0;
-  const expertiseIds = await store.getExpertiseIds(kenshuUserId);
-  if (!expertiseIds.length) return 0;
-  const open = await store.listOpenRequestIds(expertiseIds);
+  const open = await store.listRecommendedOpenRequestIds(kenshuUserId);
   if (!open.length) return 0;
   const responded = new Set(await store.listRespondedRequestIds(kenshuUserId, open));
   return open.filter((id) => !responded.has(id)).length;
