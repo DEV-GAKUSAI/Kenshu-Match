@@ -8,7 +8,8 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
  * 1. Booking ticket, Kenshu Link → Mine (in the URL fragment of
  *    <Mine>/book/kenshulink#t=<ticket>):
  *      base64url(JSON payload) "." base64url(HMAC-SHA256(secret, payload part))
- *    typ "mine_booking" keeps it apart from the sign-in ticket.
+ *    typ "mine_booking" keeps it apart from the sign-in ticket. With "bid"
+ *    (a Mine booking id) the page opens that booking to change or cancel it.
  * 2. Event message, Mine → Kenshu Link (POST /api/mine/booking-events):
  *      X-Mine-Timestamp: <unix seconds>
  *      X-Mine-Signature: v1=<hex HMAC-SHA256(secret, "<timestamp>.<body>")>
@@ -25,10 +26,12 @@ export type BookingTicket = {
   ref: string;
   nonce: string;
   exp: number;
+  /** Mine booking id: open this booking to change or cancel it (Phase 3d). */
+  bid?: string;
 };
 
 export function createBookingTicket(
-  input: { mineUserId: string; org: string; name: string; responseId: string },
+  input: { mineUserId: string; org: string; name: string; responseId: string; bookingId?: string },
   secret: string,
   nowSeconds: number,
 ): string {
@@ -40,6 +43,7 @@ export function createBookingTicket(
     ref: input.responseId,
     nonce: randomUUID(),
     exp: nowSeconds + BOOKING_TICKET_SECONDS,
+    ...(input.bookingId ? { bid: input.bookingId } : {}),
   };
   const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const signature = createHmac("sha256", secret).update(encoded).digest("base64url");

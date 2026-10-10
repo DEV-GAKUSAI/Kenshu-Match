@@ -20,6 +20,23 @@ void test("booking ticket has Mine's format and a 30-minute life", () => {
   assert.equal(payload.org, "テスト株式会社");
   assert.equal(payload.exp, NOW + 1800);
   assert.match(payload.nonce, /^[0-9a-f-]{36}$/);
+  assert.equal("bid" in payload, false);
+});
+
+void test("a ticket for changing a meeting carries Mine's booking id", () => {
+  const token = createBookingTicket(
+    {
+      mineUserId: "11111111-1111-4111-8111-111111111111",
+      org: "テスト株式会社",
+      name: "",
+      responseId: "22222222-2222-4222-8222-222222222222",
+      bookingId: "44444444-4444-4444-8444-444444444444",
+    },
+    SECRET,
+    NOW,
+  );
+  const payload = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString("utf8"));
+  assert.equal(payload.bid, "44444444-4444-4444-8444-444444444444");
 });
 
 void test("Mine messages: valid signature and time only", () => {
