@@ -180,6 +180,29 @@ export type OpenRequestPublicPreviewRow = {
   participant_count: number | null;
 };
 
+/** A meeting booked on the instructor's Mine page (sent by Mine; see 124_kenshu_mine_meetings.sql). */
+export type KenshuMineMeetingRow = {
+  booking_id: string;
+  response_id: string;
+  request_id: string;
+  requester_id: string;
+  instructor_id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string;
+  time_zone: string;
+  meeting_type: "google_meet" | "in_person" | "none" | "zoom";
+  meeting_url: string | null;
+  meeting_status: "none" | "pending" | "ready" | "failed";
+  place: string | null;
+  status: "confirmed" | "change_requested" | "cancelled";
+  proposed_starts_at: string | null;
+  proposed_ends_at: string | null;
+  proposed_by: "host" | "guest" | null;
+  version: string;
+  received_at: string;
+};
+
 // @supabase/postgrest-js's GenericTable/GenericView require a Relationships
 // field structurally (even when empty) or the generic client's type
 // inference silently collapses every query result to `never`.
@@ -208,6 +231,7 @@ export type Database = {
       instructor_responses: TableDef<InstructorResponseRow>;
       training_reviews: TableDef<TrainingReviewRow>;
       contact_unlocks: TableDef<ContactUnlockRow>;
+      kenshu_mine_meetings: TableDef<KenshuMineMeetingRow>;
     };
     Views: {
       instructor_public_directory: ViewDef<InstructorPublicDirectoryRow>;
