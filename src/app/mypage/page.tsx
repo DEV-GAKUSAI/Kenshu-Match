@@ -22,6 +22,8 @@ import { submitReview, replyToReview } from "@/lib/requests/reviews";
 import { finalizeResponse } from "@/lib/requests/actions";
 import type { InstructorResponseRow, TrainingRequestRow, TrainingReviewRow } from "@/types/database";
 import type { CurrentUser } from "@/lib/auth/auth";
+import { BookMineMeetingButton, MineMeetingLine, useMineLinkedInstructors, useMineMeetings } from "@/components/mine/MineMeeting";
+import type { KenshuMineMeetingRow } from "@/types/database";
 import "./mypage.css";
 
 const FORMAT_LABEL: Record<string, string> = { online: "オンライン", offline: "対面", both: "オンライン・対面" };
@@ -110,17 +112,20 @@ function InstructorRequestCard({
   r,
   userId,
   requester,
+  meetings,
   onChanged,
 }: {
   r: ReqWithJoins;
   userId: string;
   requester: { name?: string; email?: string; phone?: string | null } | undefined;
+  meetings: Record<string, KenshuMineMeetingRow>;
   onChanged: () => void;
 }) {
   const { showToast } = useToast();
   const myResponse = (r.instructor_responses || []).find((x) => x.instructor_id === userId) || null;
   const st = instructorDisplayStatus(r, myResponse);
   const review = (r.training_reviews || [])[0] || null;
+  const meeting = myResponse ? meetings[myResponse.response_id] : undefined;
 
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quotePrice, setQuotePrice] = useState("");
@@ -206,6 +211,8 @@ function InstructorRequestCard({
         </div>
       )}
 
+      {meeting && <MineMeetingLine meeting={meeting} />}
+
       {!myResponse && r.status === "pending" && (
         <>
           <div className="request-card__actions">
@@ -274,6 +281,7 @@ function InstructorRequestCard({
 }
 
 function InstructorMypage({ user }: { user: CurrentUser }) {
+  const { byResponse: meetings } = useMineMeetings(user.id);
   const [all, setAll] = useState<ReqWithJoins[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [requesterMap, setRequesterMap] = useState<Record<string, { name?: string; email?: string; phone?: string | null; company_name?: string | null }>>({});
@@ -360,7 +368,7 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
         </div>
       )}
       {filtered.map((r) => (
-        <InstructorRequestCard key={r.request_id} r={r} userId={user.id} requester={requesterMap[r.requester_id]} onChanged={load} />
+        <InstructorRequestCard key={r.request_id} r={r} userId={user.id} requester={requesterMap[r.requester_id]} meetings={meetings} onChanged={load} />
       ))}
     </>
   );
@@ -451,15 +459,39 @@ function RequesterRequestCard({
   r,
   userId,
   instructorMap,
+  meetings,
+  mineLinked,
   onChanged,
 }: {
   r: ReqWithJoins;
   userId: string;
   instructorMap: Record<string, { name?: string | null; contact_email?: string | null; contact_phone?: string | null }>;
+  meetings: Record<string, KenshuMineMeetingRow>;
+  mineLinked: Set<string>;
   onChanged: () => void;
 }) {
   const { showToast } = useToast();
   const st = requesterDisplayStatus(r);
+  const requestOpen = r.status !== "cancelled" && r.status !== "completed";
+  /** Meeting line + 「面談を予約」 for one instructor reply (Mine booking, Phase 3c). */
+  const meetingBlock = (response: InstructorResponseRow) => {
+    const meeting = meetings[response.response_id];
+    const canBook =
+      requestOpen &&
+      (response.action === "accept" || response.action === "quote") &&
+      mineLinked.has(response.instructor_id) &&
+      (!meeting || meeting.status === "cancelled");
+    return (
+      <>
+        {meeting && <MineMeetingLine meeting={meeting} />}
+        {canBook && (
+          <div className="request-card__actions" style={{ marginTop: 8 }}>
+            <BookMineMeetingButton responseId={response.response_id} disabled={busy} />
+          </div>
+        )}
+      </>
+    );
+  };
   const isBroadcast = !r.target_instructor_id;
   const resp = (r.instructor_responses || [])[0] || null;
   const selectedResp = (r.instructor_responses || []).find((x) => x.is_selected);
@@ -565,6 +597,7 @@ function RequesterRequestCard({
                       </span>
                     )}
                     <p style={{ margin: "4px 0 8px" }}>{a.message || "（メッセージなし）"}</p>
+                    {meetingBlock(a)}
                     <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => handleFinalizeApplicant(a.response_id, a.instructor_id)}>
                       この講師に決定する
                     </button>
@@ -593,6 +626,7 @@ function RequesterRequestCard({
               講師の返信をお待ちください。
             </p>
           )}
+          {resp && meetingBlock(resp)}
 
           {st.key === "quoted" && resp && (
             <div className="request-card__actions">
@@ -613,6 +647,10 @@ function RequesterRequestCard({
             依頼をキャンセルする
           </button>
         </div>
+      )}
+
+      {isBroadcast && selectedResp && st.key !== "pending" && st.key !== "quoted" && meetings[selectedResp.response_id] && (
+        <MineMeetingLine meeting={meetings[selectedResp.response_id]} />
       )}
 
       {st.key === "accepted" && (
@@ -674,6 +712,7 @@ function RequesterRequestCard({
 }
 
 function RequesterMypage({ user }: { user: CurrentUser }) {
+  const { byResponse: meetings } = useMineMeetings(user.id);
   const [all, setAll] = useState<ReqWithJoins[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [instructorMap, setInstructorMap] = useState<Record<string, { name?: string | null; contact_email?: string | null; contact_phone?: string | null }>>({});
@@ -720,6 +759,9 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
     if (currentTab === "all") return all;
     return all.filter((r) => requesterDisplayStatus(r).key === currentTab);
   }, [all, currentTab]);
+  const mineLinked = useMineLinkedInstructors(
+    (all || []).flatMap((r) => (r.instructor_responses || []).map((x) => x.instructor_id)),
+  );
 
   const tabs = [
     ["all", "すべて"],
@@ -769,7 +811,15 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
         </div>
       )}
       {filtered.map((r) => (
-        <RequesterRequestCard key={r.request_id} r={r} userId={user.id} instructorMap={instructorMap} onChanged={load} />
+        <RequesterRequestCard
+          key={r.request_id}
+          r={r}
+          userId={user.id}
+          instructorMap={instructorMap}
+          meetings={meetings}
+          mineLinked={mineLinked}
+          onChanged={load}
+        />
       ))}
     </>
   );
