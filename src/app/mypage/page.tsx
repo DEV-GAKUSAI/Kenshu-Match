@@ -211,7 +211,7 @@ function InstructorRequestCard({
         </div>
       )}
 
-      {meeting && <MineMeetingLine meeting={meeting} />}
+      {meeting && <MineMeetingLine meeting={meeting} viewer="instructor" />}
 
       {!myResponse && r.status === "pending" && (
         <>
@@ -480,13 +480,19 @@ function RequesterRequestCard({
       requestOpen &&
       (response.action === "accept" || response.action === "quote") &&
       mineLinked.has(response.instructor_id) &&
-      (!meeting || meeting.status === "cancelled");
+      (!meeting || meeting.status === "cancelled" || Date.parse(meeting.ends_at) <= Date.now());
+    // Mine Phase 3d: change the time or cancel an upcoming meeting.
+    const canChange = !!meeting && meeting.status !== "cancelled" && Date.parse(meeting.ends_at) > Date.now();
     return (
       <>
-        {meeting && <MineMeetingLine meeting={meeting} />}
-        {canBook && (
+        {meeting && <MineMeetingLine meeting={meeting} viewer="requester" />}
+        {(canBook || canChange) && (
           <div className="request-card__actions" style={{ marginTop: 8 }}>
-            <BookMineMeetingButton responseId={response.response_id} disabled={busy} />
+            {canChange && meeting ? (
+              <BookMineMeetingButton responseId={response.response_id} bookingId={meeting.booking_id} disabled={busy} />
+            ) : (
+              <BookMineMeetingButton responseId={response.response_id} disabled={busy} />
+            )}
           </div>
         )}
       </>
@@ -650,7 +656,7 @@ function RequesterRequestCard({
       )}
 
       {isBroadcast && selectedResp && st.key !== "pending" && st.key !== "quoted" && meetings[selectedResp.response_id] && (
-        <MineMeetingLine meeting={meetings[selectedResp.response_id]} />
+        meetingBlock(selectedResp)
       )}
 
       {st.key === "accepted" && (

@@ -69,9 +69,36 @@ export function useMineLinkedInstructors(instructorIds: string[]) {
 
 const TYPE_LABEL: Record<string, string> = { google_meet: "Google Meet", in_person: "対面", none: "", zoom: "Zoom" };
 
+/**
+ * What a pending time change says, for the company (requester) or the
+ * instructor. In Mine's terms the instructor is the "host" and the company
+ * the "guest".
+ */
+function proposalText(meeting: KenshuMineMeetingRow, viewer: "requester" | "instructor"): string | null {
+  if (meeting.status !== "change_requested" || !meeting.proposed_starts_at || !meeting.proposed_ends_at) return null;
+  const when = formatMeetingTimeClient(meeting.proposed_starts_at, meeting.proposed_ends_at, meeting.time_zone);
+  const fromInstructor = meeting.proposed_by === "host";
+  if (viewer === "requester") {
+    return fromInstructor
+      ? `講師から ${when} への日程変更の提案があります。「日程変更・キャンセル」から承認か辞退をしてください。`
+      : `${when} への日程変更を依頼中です（講師の返答待ち。それまでは今の日時のままです）。`;
+  }
+  return fromInstructor
+    ? `${when} への日程変更を提案中です（依頼者の返答待ち）。`
+    : `依頼者から ${when} への日程変更の依頼があります。Mine の「予約ページ」の予約一覧から承認か辞退をしてください。`;
+}
+
 /** 「面談：10月12日(月) 10:00〜10:30 ［Google Meet に参加］」 */
-export function MineMeetingLine({ meeting }: { meeting: KenshuMineMeetingRow }) {
+export function MineMeetingLine({
+  meeting,
+  viewer,
+}: {
+  meeting: KenshuMineMeetingRow;
+  /** Who is looking: the company that booked, or the instructor. */
+  viewer: "requester" | "instructor";
+}) {
   const when = formatMeetingTimeClient(meeting.starts_at, meeting.ends_at, meeting.time_zone);
+  const proposal = proposalText(meeting, viewer);
   if (meeting.status === "cancelled") {
     return (
       <div className="request-card__response" style={{ marginTop: 8 }}>
@@ -95,15 +122,28 @@ export function MineMeetingLine({ meeting }: { meeting: KenshuMineMeetingRow }) 
         ) : (
           <div style={{ marginTop: 4, fontSize: 12 }}>会議URLは準備中です。準備ができるとここに表示されます。</div>
         ))}
-      {meeting.status === "change_requested" && (
-        <div style={{ marginTop: 4, fontSize: 12 }}>日程の変更を相談中です。</div>
+      {proposal && <div style={{ marginTop: 4, fontSize: 12 }}>{proposal}</div>}
+      {viewer === "instructor" && !proposal && (
+        <div style={{ marginTop: 4, fontSize: 12 }}>日程の変更・キャンセルは Mine の「予約ページ」の予約一覧からできます。</div>
       )}
     </div>
   );
 }
 
-/** 「面談を予約」: asks Kenshu Link's server for a signed Mine booking link and opens it in a new tab. */
-export function BookMineMeetingButton({ responseId, disabled }: { responseId: string; disabled?: boolean }) {
+/**
+ * 「面談を予約」 (or, with bookingId, 「日程変更・キャンセル」): asks Kenshu
+ * Link's server for a signed Mine link and opens it in a new tab.
+ */
+export function BookMineMeetingButton({
+  responseId,
+  bookingId,
+  disabled,
+}: {
+  responseId: string;
+  /** An existing meeting to change or cancel (Mine booking id). */
+  bookingId?: string;
+  disabled?: boolean;
+}) {
   const { showToast } = useToast();
   const [busy, setBusy] = useState(false);
 
@@ -115,7 +155,7 @@ export function BookMineMeetingButton({ responseId, disabled }: { responseId: st
       const response = await fetch("/api/mine/booking-ticket", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ responseId }),
+        body: JSON.stringify(bookingId ? { responseId, bookingId } : { responseId }),
       });
       const body = (await response.json().catch(() => ({}))) as { url?: string; message?: string };
       if (!response.ok || !body.url) {
@@ -139,7 +179,7 @@ export function BookMineMeetingButton({ responseId, disabled }: { responseId: st
 
   return (
     <button type="button" className="btn btn--ghost btn--sm" disabled={disabled || busy} onClick={() => void open()}>
-      {busy ? "準備中…" : "面談を予約"}
+      {busy ? "準備中…" : bookingId ? "日程変更・キャンセル" : "面談を予約"}
     </button>
   );
 }
