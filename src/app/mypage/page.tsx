@@ -525,6 +525,15 @@ function RequesterRequestCard({
   }
 
   async function handleCancel() {
+    // A meeting booked through Mine must be cancelled first (the card hides its buttons once the request is cancelled).
+    const hasUpcomingMeeting = (r.instructor_responses || []).some((x) => {
+      const m = meetings[x.response_id];
+      return !!m && m.status !== "cancelled" && Date.parse(m.ends_at) > Date.now();
+    });
+    if (hasUpcomingMeeting) {
+      showToast("予約済みの面談があります。先に「日程変更・キャンセル」から面談をキャンセルしてください。");
+      return;
+    }
     const reason = prompt("キャンセル理由を入力してください（任意）") || null;
     setBusy(true);
     const { error } = await cancelRequest(r.request_id, reason);
@@ -610,6 +619,14 @@ function RequesterRequestCard({
                   </div>
                 );
               })}
+              {/* Instructors have applied but none is chosen yet: the request can still be cancelled. */}
+              {st.key === "quoted" && (
+                <div className="request-card__actions">
+                  <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={handleCancel}>
+                    依頼をキャンセルする
+                  </button>
+                </div>
+              )}
             </div>
           ) : null}
         </>
