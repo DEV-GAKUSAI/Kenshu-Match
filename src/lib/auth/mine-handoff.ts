@@ -6,7 +6,8 @@ export type MineHandoffPayload = {
   sub: string;
   email: string;
   name: string;
-  returnPath: "/open-requests";
+  /** The open-requests list, or one 案件 opened from Mine 予約一覧 (Mine meeting 10/13 #4). */
+  returnPath: "/open-requests" | `/request-detail?id=${string}`;
   nonce: string;
   exp: number;
   /** Kenshu training-field names mapped from the person's Mine skills (may be empty). */
@@ -21,6 +22,13 @@ function getSecret() {
     throw new Error("MINE_HANDOFF_SECRET must contain at least 32 characters.");
   }
   return secret;
+}
+
+/** Only these landing pages are allowed, so a ticket can never redirect elsewhere. */
+export function isAllowedReturnPath(value: unknown): boolean {
+  if (value === "/open-requests") return true;
+  if (typeof value !== "string" || !value.startsWith("/request-detail?id=")) return false;
+  return UUID_PATTERN.test(value.slice("/request-detail?id=".length));
 }
 
 function isValidFields(fields: unknown): boolean {
@@ -53,7 +61,7 @@ export function verifyMineHandoffToken(token: string): MineHandoffPayload {
     !payload.email.includes("@") ||
     typeof payload.name !== "string" ||
     payload.name.trim().length === 0 ||
-    payload.returnPath !== "/open-requests" ||
+    !isAllowedReturnPath(payload.returnPath) ||
     typeof payload.nonce !== "string" ||
     !UUID_PATTERN.test(payload.nonce) ||
     typeof payload.exp !== "number" ||
