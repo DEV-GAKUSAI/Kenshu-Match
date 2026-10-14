@@ -23,6 +23,22 @@ void test("booking ticket has Mine's format and a 30-minute life", () => {
   assert.equal("bid" in payload, false);
 });
 
+void test("a ticket carries the request id so Mine can link back to the 案件", () => {
+  const token = createBookingTicket(
+    {
+      mineUserId: "11111111-1111-4111-8111-111111111111",
+      org: "テスト株式会社",
+      name: "",
+      responseId: "22222222-2222-4222-8222-222222222222",
+      requestId: "55555555-5555-4555-8555-555555555555",
+    },
+    SECRET,
+    NOW,
+  );
+  const payload = JSON.parse(Buffer.from(token.split(".")[0], "base64url").toString("utf8"));
+  assert.equal(payload.rid, "55555555-5555-4555-8555-555555555555");
+});
+
 void test("a ticket for changing a meeting carries Mine's booking id", () => {
   const token = createBookingTicket(
     {

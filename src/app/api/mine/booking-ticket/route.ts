@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
   const org = (profile?.company_name ?? "").trim() || personName || "ケンシュウリンクの利用者";
 
   const ticket = createBookingTicket(
-    { mineUserId: link.mine_user_id, org, name: personName, responseId, bookingId: bookingId ?? undefined },
+    { mineUserId: link.mine_user_id, org, name: personName, responseId, bookingId: bookingId ?? undefined, requestId: response.request_id },
     secret,
     Math.floor(Date.now() / 1000),
   );
