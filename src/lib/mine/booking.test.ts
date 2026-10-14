@@ -66,6 +66,7 @@ const event = {
   proposed_starts_at: null,
   proposed_ends_at: null,
   proposed_by: null,
+  change_reason: null,
   version: "2026-10-09T08:00:00.000000Z",
 };
 
@@ -75,5 +76,11 @@ void test("meeting events are validated strictly", () => {
   assert.equal(parseMeetingEvent({ ...event, status: "deleted" }), null);
   assert.equal(parseMeetingEvent({ ...event, ends_at: event.starts_at }), null);
   assert.equal(parseMeetingEvent({ ...event, v: 2 }), null);
+  // The reason for a time change: optional, trimmed, up to 500 characters.
+  assert.equal(parseMeetingEvent(event)?.change_reason, null);
+  assert.equal(parseMeetingEvent({ ...event, change_reason: "  都合により  " })?.change_reason, "都合により");
+  assert.equal(parseMeetingEvent({ ...event, change_reason: "   " })?.change_reason, null);
+  assert.equal(parseMeetingEvent({ ...event, change_reason: "あ".repeat(501) }), null);
+  assert.equal(parseMeetingEvent({ ...event, change_reason: 5 }), null);
   assert.equal(formatMeetingTime(event.starts_at, event.ends_at, "Asia/Tokyo"), "10月12日(月) 10:00〜10:30");
 });

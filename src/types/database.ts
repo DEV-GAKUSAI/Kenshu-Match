@@ -199,6 +199,7 @@ export type KenshuMineMeetingRow = {
   proposed_starts_at: string | null;
   proposed_ends_at: string | null;
   proposed_by: "host" | "guest" | null;
+  change_reason: string | null;
   version: string;
   received_at: string;
 };

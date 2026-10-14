@@ -85,6 +85,8 @@ export type MeetingEvent = {
   proposed_starts_at: string | null;
   proposed_ends_at: string | null;
   proposed_by: "host" | "guest" | null;
+  /** Why a new time was proposed (only while the proposal waits). */
+  change_reason: string | null;
   version: string;
 };
 
@@ -112,6 +114,7 @@ export function parseMeetingEvent(raw: unknown): MeetingEvent | null {
   if (e.place !== null && e.place !== undefined && (typeof e.place !== "string" || e.place.length > 200)) return null;
   if (!isOptionalIso(e.proposed_starts_at) || !isOptionalIso(e.proposed_ends_at)) return null;
   if (e.proposed_by !== null && e.proposed_by !== undefined && !oneOf(e.proposed_by, ["host", "guest"] as const)) return null;
+  if (e.change_reason !== null && e.change_reason !== undefined && (typeof e.change_reason !== "string" || e.change_reason.length > 500)) return null;
   if (typeof e.version !== "string" || !isIso(e.version)) return null;
   return {
     booking_id: e.booking_id,
@@ -129,6 +132,7 @@ export function parseMeetingEvent(raw: unknown): MeetingEvent | null {
     proposed_starts_at: (e.proposed_starts_at as string | null | undefined) ?? null,
     proposed_ends_at: (e.proposed_ends_at as string | null | undefined) ?? null,
     proposed_by: (e.proposed_by as "host" | "guest" | null | undefined) ?? null,
+    change_reason: ((e.change_reason as string | null | undefined) ?? "").trim() || null,
     version: e.version,
   };
 }
