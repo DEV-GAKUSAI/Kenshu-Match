@@ -28,10 +28,12 @@ export type BookingTicket = {
   exp: number;
   /** Mine booking id: open this booking to change or cancel it (Phase 3d). */
   bid?: string;
+  /** Kenshu Link request (案件) id: Mine's 「ケンシュウリンクに戻る」 goes back to it. */
+  rid?: string;
 };
 
 export function createBookingTicket(
-  input: { mineUserId: string; org: string; name: string; responseId: string; bookingId?: string },
+  input: { mineUserId: string; org: string; name: string; responseId: string; bookingId?: string; requestId?: string },
   secret: string,
   nowSeconds: number,
 ): string {
@@ -44,6 +46,7 @@ export function createBookingTicket(
     nonce: randomUUID(),
     exp: nowSeconds + BOOKING_TICKET_SECONDS,
     ...(input.bookingId ? { bid: input.bookingId } : {}),
+    ...(input.requestId ? { rid: input.requestId } : {}),
   };
   const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const signature = createHmac("sha256", secret).update(encoded).digest("base64url");
