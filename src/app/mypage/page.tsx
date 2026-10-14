@@ -22,6 +22,7 @@ import { submitReview, replyToReview } from "@/lib/requests/reviews";
 import { finalizeResponse } from "@/lib/requests/actions";
 import type { InstructorResponseRow, TrainingRequestRow, TrainingReviewRow } from "@/types/database";
 import type { CurrentUser } from "@/lib/auth/auth";
+import { ApplicantRow, applicantPriority } from "@/components/mine/ApplicantRow";
 import { BookMineMeetingButton, MineMeetingLine, useMineLinkedInstructors, useMineMeetings } from "@/components/mine/MineMeeting";
 import type { KenshuMineMeetingRow } from "@/types/database";
 import "./mypage.css";
@@ -474,7 +475,7 @@ function RequesterRequestCard({
   const st = requesterDisplayStatus(r);
   const requestOpen = r.status !== "cancelled" && r.status !== "completed";
   /** Meeting line + 「面談を予約」 for one instructor reply (Mine booking, Phase 3c). */
-  const meetingBlock = (response: InstructorResponseRow) => {
+  const meetingParts = (response: InstructorResponseRow) => {
     const meeting = meetings[response.response_id];
     const canBook =
       requestOpen &&
@@ -490,6 +491,10 @@ function RequesterRequestCard({
       ) : canBook ? (
         <BookMineMeetingButton responseId={response.response_id} disabled={busy} />
       ) : null;
+    return { meeting, button, canChange };
+  };
+  const meetingBlock = (response: InstructorResponseRow) => {
+    const { meeting, button, canChange } = meetingParts(response);
     return (
       <>
         {meeting && <MineMeetingLine meeting={meeting} viewer="requester" actions={canChange ? button : undefined} />}
@@ -503,8 +508,16 @@ function RequesterRequestCard({
   const instr = instructorMap[r.target_instructor_id || (selectedResp || resp)?.instructor_id || ""] || {};
   const review = (r.training_reviews || [])[0] || null;
   const applicants = isBroadcast ? (r.instructor_responses || []).filter((x) => x.action === "accept" || x.action === "quote") : [];
+  // Applicants as closed rows: the ones that need an answer first, then NEW, then the rest.
+  const sortedApplicants = [...applicants].sort(
+    (x, y) => applicantPriority(x, meetings[x.response_id]) - applicantPriority(y, meetings[y.response_id]),
+  );
+  const newApplicants = applicants.filter((x) => x.requester_seen_at === null).length;
+  const answerNeeded = applicants.filter((x) => applicantPriority(x, meetings[x.response_id]) === 0).length;
 
   const [busy, setBusy] = useState(false);
+  // The applicants of a 公募依頼 stay closed until the company opens them (there can be many).
+  const [listOpen, setListOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState("");
@@ -598,34 +611,70 @@ function RequesterRequestCard({
             </>
           ) : st.key === "pending" || st.key === "quoted" ? (
             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
-              {applicants.map((a) => {
-                const aInstr = instructorMap[a.instructor_id] || {};
-                return (
-                  <div className="request-card__response" key={a.response_id}>
-                    <strong>
-                      {aInstr.name || "講師"} 先生：{a.action === "accept" ? "承諾" : `見積り ¥${Number(a.quote_price || 0).toLocaleString()}`}
-                    </strong>
-                    {a.requester_seen_at === null && (
-                      <span className="status-badge status-badge--rejected" style={{ marginLeft: 6, fontSize: 10 }}>
-                        NEW
-                      </span>
-                    )}
-                    <p style={{ margin: "4px 0 8px" }}>{a.message || "（メッセージなし）"}</p>
-                    {meetingBlock(a)}
-                    <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => handleFinalizeApplicant(a.response_id, a.instructor_id)}>
-                      この講師に決定する
-                    </button>
-                  </div>
-                );
-              })}
-              {/* Instructors have applied but none is chosen yet: the request can still be cancelled. */}
-              {st.key === "quoted" && (
-                <div className="request-card__actions">
-                  <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={handleCancel}>
-                    依頼をキャンセルする
-                  </button>
-                </div>
-              )}
+              <button
+                type="button"
+                aria-expanded={listOpen}
+                onClick={() => setListOpen((value) => !value)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  width: "100%",
+                  padding: "10px 12px",
+                  background: "var(--color-bg)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "var(--radius-s)",
+                  cursor: "pointer",
+                  font: "inherit",
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  color: "var(--color-ink)",
+                  textAlign: "left",
+                }}
+              >
+                <span>応募した講師（{applicants.length}名）</span>
+                {newApplicants > 0 && (
+                  <span className="status-badge status-badge--rejected" style={{ fontSize: 10 }}>
+                    NEW {newApplicants}
+                  </span>
+                )}
+                {answerNeeded > 0 && (
+                  <span style={{ padding: "2px 8px", borderRadius: "var(--radius-pill)", background: "#FFF1DB", color: "#9A5B0C", fontSize: 11 }}>
+                    返事が必要 {answerNeeded}
+                  </span>
+                )}
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  style={{ marginLeft: "auto", color: "var(--color-ink-soft)", transform: listOpen ? "rotate(180deg)" : undefined, transition: "transform .15s" }}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {listOpen &&
+                sortedApplicants.map((a) => {
+                  const { meeting, button } = meetingParts(a);
+                  return (
+                    <ApplicantRow
+                      key={a.response_id}
+                      name={instructorMap[a.instructor_id]?.name || "講師"}
+                      response={a}
+                      meeting={meeting}
+                      meetingButton={button}
+                      busy={busy}
+                      onDecide={() => handleFinalizeApplicant(a.response_id, a.instructor_id)}
+                      // While nobody is chosen yet the whole request can still be cancelled.
+                      onCancelRequest={st.key === "quoted" ? handleCancel : undefined}
+                    />
+                  );
+                })}
             </div>
           ) : null}
         </>
