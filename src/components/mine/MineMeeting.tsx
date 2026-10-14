@@ -93,15 +93,26 @@ export function MineMeetingLine({
   meeting,
   viewer,
   actions,
+  compact = false,
 }: {
   meeting: KenshuMineMeetingRow;
   /** Who is looking: the company that booked, or the instructor. */
   viewer: "requester" | "instructor";
   /** The company's buttons (「日程変更・キャンセル」), shown next to the Meet button. */
   actions?: ReactNode;
+  /** Details only (no box, no buttons): used inside the opened applicant row. */
+  compact?: boolean;
 }) {
   const when = formatMeetingTimeClient(meeting.starts_at, meeting.ends_at, meeting.time_zone);
   const proposal = proposalText(meeting, viewer);
+  if (compact && meeting.status === "cancelled") {
+    return (
+      <div style={{ color: "var(--color-ink-soft)" }}>
+        面談：キャンセルされました
+        <span style={{ textDecoration: "line-through", marginLeft: 6 }}>{when}</span>
+      </div>
+    );
+  }
   if (meeting.status === "cancelled") {
     return (
       <div className="request-card__response" style={{ marginTop: 8 }}>
@@ -114,29 +125,10 @@ export function MineMeetingLine({
     // The company's view: one panel, Google Meet button first, then the time,
     // then any proposed new time with its reason.
     const meetUrl = meeting.meeting_type === "google_meet" ? meeting.meeting_url : null;
-    return (
-      <div
-        style={{
-          marginTop: 10,
-          marginBottom: 12,
-          padding: "12px 14px",
-          background: "var(--color-surface)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-s)",
-          fontSize: 12.5,
-        }}
-      >
-        {(meetUrl || actions) && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            {meetUrl && (
-              <a href={meetUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--sm">
-                Google Meet に参加
-              </a>
-            )}
-            {actions}
-          </div>
-        )}
-        <div style={{ marginTop: meetUrl || actions ? 10 : 0, fontWeight: 700, color: "var(--color-ink)" }}>
+    const hasButtons = !compact && !!(meetUrl || actions);
+    const details = (
+      <>
+        <div style={{ marginTop: hasButtons ? 10 : 0, fontWeight: 700, color: "var(--color-ink)" }}>
           面談：{when}
           {meeting.meeting_type !== "none" && (
             <span style={{ marginLeft: 8, fontWeight: 400, color: "var(--color-ink-soft)" }}>{TYPE_LABEL[meeting.meeting_type]}</span>
@@ -164,6 +156,32 @@ export function MineMeetingLine({
             )}
           </div>
         )}
+      </>
+    );
+    if (compact) return <div style={{ fontSize: 12.5 }}>{details}</div>;
+    return (
+      <div
+        style={{
+          marginTop: 10,
+          marginBottom: 12,
+          padding: "12px 14px",
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "var(--radius-s)",
+          fontSize: 12.5,
+        }}
+      >
+        {hasButtons && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {meetUrl && (
+              <a href={meetUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--sm">
+                Google Meet に参加
+              </a>
+            )}
+            {actions}
+          </div>
+        )}
+        {details}
       </div>
     );
   }
