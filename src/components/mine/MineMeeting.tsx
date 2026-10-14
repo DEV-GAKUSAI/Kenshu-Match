@@ -123,6 +123,9 @@ export function MineMeetingLine({
           <div style={{ marginTop: 4, fontSize: 12 }}>会議URLは準備中です。準備ができるとここに表示されます。</div>
         ))}
       {proposal && <div style={{ marginTop: 4, fontSize: 12 }}>{proposal}</div>}
+      {proposal && meeting.change_reason && (
+        <div style={{ marginTop: 2, fontSize: 12, whiteSpace: "pre-line", overflowWrap: "anywhere" }}>理由：{meeting.change_reason}</div>
+      )}
       {viewer === "instructor" && !proposal && (
         <div style={{ marginTop: 4, fontSize: 12 }}>日程の変更・キャンセルは Mine の「予約ページ」の予約一覧からできます。</div>
       )}
