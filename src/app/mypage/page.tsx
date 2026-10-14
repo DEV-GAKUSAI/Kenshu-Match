@@ -483,18 +483,17 @@ function RequesterRequestCard({
       (!meeting || meeting.status === "cancelled" || Date.parse(meeting.ends_at) <= Date.now());
     // Mine Phase 3d: change the time or cancel an upcoming meeting.
     const canChange = !!meeting && meeting.status !== "cancelled" && Date.parse(meeting.ends_at) > Date.now();
+    // Changing an upcoming meeting sits next to its Meet button; booking a first one stands alone.
+    const button =
+      canChange && meeting ? (
+        <BookMineMeetingButton responseId={response.response_id} bookingId={meeting.booking_id} disabled={busy} />
+      ) : canBook ? (
+        <BookMineMeetingButton responseId={response.response_id} disabled={busy} />
+      ) : null;
     return (
       <>
-        {meeting && <MineMeetingLine meeting={meeting} viewer="requester" />}
-        {(canBook || canChange) && (
-          <div className="request-card__actions" style={{ marginTop: 8 }}>
-            {canChange && meeting ? (
-              <BookMineMeetingButton responseId={response.response_id} bookingId={meeting.booking_id} disabled={busy} />
-            ) : (
-              <BookMineMeetingButton responseId={response.response_id} disabled={busy} />
-            )}
-          </div>
-        )}
+        {meeting && <MineMeetingLine meeting={meeting} viewer="requester" actions={canChange ? button : undefined} />}
+        {!canChange && button && <div style={{ marginTop: 8, marginBottom: 12 }}>{button}</div>}
       </>
     );
   };

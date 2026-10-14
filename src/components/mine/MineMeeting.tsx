@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { useToast } from "@/components/common/Toast";
 import { formatMeetingTimeClient } from "@/lib/mine/meeting-format";
@@ -92,10 +92,13 @@ function proposalText(meeting: KenshuMineMeetingRow, viewer: "requester" | "inst
 export function MineMeetingLine({
   meeting,
   viewer,
+  actions,
 }: {
   meeting: KenshuMineMeetingRow;
   /** Who is looking: the company that booked, or the instructor. */
   viewer: "requester" | "instructor";
+  /** The company's buttons (「日程変更・キャンセル」), shown next to the Meet button. */
+  actions?: ReactNode;
 }) {
   const when = formatMeetingTimeClient(meeting.starts_at, meeting.ends_at, meeting.time_zone);
   const proposal = proposalText(meeting, viewer);
@@ -104,6 +107,63 @@ export function MineMeetingLine({
       <div className="request-card__response" style={{ marginTop: 8 }}>
         <strong>面談：キャンセルされました</strong>
         <span style={{ textDecoration: "line-through", marginLeft: 6 }}>{when}</span>
+      </div>
+    );
+  }
+  if (viewer === "requester") {
+    // The company's view: one panel, Google Meet button first, then the time,
+    // then any proposed new time with its reason.
+    const meetUrl = meeting.meeting_type === "google_meet" ? meeting.meeting_url : null;
+    return (
+      <div
+        style={{
+          marginTop: 10,
+          marginBottom: 12,
+          padding: "12px 14px",
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "var(--radius-s)",
+          fontSize: 12.5,
+        }}
+      >
+        {(meetUrl || actions) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {meetUrl && (
+              <a href={meetUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--sm">
+                Google Meet に参加
+              </a>
+            )}
+            {actions}
+          </div>
+        )}
+        <div style={{ marginTop: meetUrl || actions ? 10 : 0, fontWeight: 700, color: "var(--color-ink)" }}>
+          面談：{when}
+          {meeting.meeting_type !== "none" && (
+            <span style={{ marginLeft: 8, fontWeight: 400, color: "var(--color-ink-soft)" }}>{TYPE_LABEL[meeting.meeting_type]}</span>
+          )}
+        </div>
+        {meeting.meeting_type === "in_person" && meeting.place && (
+          <div style={{ marginTop: 4, color: "var(--color-ink-soft)" }}>場所：{meeting.place}</div>
+        )}
+        {meeting.meeting_type === "google_meet" && !meetUrl && (
+          <div style={{ marginTop: 4, color: "var(--color-ink-soft)" }}>会議URLは準備中です。準備ができるとここに表示されます。</div>
+        )}
+        {proposal && (
+          <div
+            style={{
+              marginTop: 10,
+              padding: "8px 10px",
+              background: "var(--color-accent-soft)",
+              borderRadius: "var(--radius-s)",
+              color: "var(--color-accent-text)",
+            }}
+          >
+            {proposal}
+            {meeting.change_reason && (
+              <div style={{ marginTop: 2, whiteSpace: "pre-line", overflowWrap: "anywhere" }}>理由：{meeting.change_reason}</div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
