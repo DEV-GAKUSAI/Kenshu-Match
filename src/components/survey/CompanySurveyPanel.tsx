@@ -5,6 +5,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { useToast } from "@/components/common/Toast";
 import { createClient } from "@/lib/supabase/client";
+import { QuestionList } from "@/components/survey/QuestionList";
+import { COMMENT_MAX, unansweredCount, type SurveyScores } from "@/lib/survey/answers";
 import { linkCap, surveyLinkUrl, errorMessage } from "@/lib/survey/links";
 import { qrSvg } from "@/lib/survey/qr";
 
@@ -16,10 +18,13 @@ export function CompanySurveyPanel({
   requestId,
   title,
   participantCount,
+  completed,
 }: {
   requestId: string;
   title: string;
   participantCount: number | null;
+  /** The request is marked 研修完了: the company can now give its own answer. */
+  completed: boolean;
 }) {
   const { showToast } = useToast();
   // The survey tables are new, so they are not in the generated types yet.
@@ -31,6 +36,12 @@ export function CompanySurveyPanel({
   const [count, setCount] = useState("");
   const [startDate, setStartDate] = useState("");
   const [busy, setBusy] = useState(false);
+  // The company's own answer
+  const [hirerDone, setHirerDone] = useState(false);
+  const [hirerAnswers, setHirerAnswers] = useState<Partial<SurveyScores>>({});
+  const [hirerComment, setHirerComment] = useState("");
+  const [hirerAnonymous, setHirerAnonymous] = useState(true);
+  const [hirerMissing, setHirerMissing] = useState(false);
 
   const load = useCallback(async () => {
     const { data: s } = await supabase
@@ -48,8 +59,11 @@ export function CompanySurveyPanel({
         .order("created_at", { ascending: true });
       setLinks((l as LinkRow[] | null) ?? []);
       if (row.opens_at) setStartDate(toDateInput(row.opens_at));
+      const { data: mine } = await supabase.from("training_survey_answers").select("answer_id").eq("survey_id", row.survey_id).limit(1);
+      setHirerDone(((mine as unknown[] | null) ?? []).length > 0);
     } else {
       setLinks([]);
+      setHirerDone(false);
     }
     setLoaded(true);
   }, [supabase, requestId]);
@@ -105,6 +119,29 @@ export function CompanySurveyPanel({
     await load();
   }
 
+  async function handleHirerSubmit() {
+    if (unansweredCount(hirerAnswers) > 0) {
+      setHirerMissing(true);
+      return;
+    }
+    setBusy(true);
+    const { data, error } = await supabase.rpc("submit_training_survey_hirer_answer", {
+      p_request_id: requestId,
+      p_q1: hirerAnswers.q1,
+      p_q2: hirerAnswers.q2,
+      p_q3: hirerAnswers.q3,
+      p_q4: hirerAnswers.q4,
+      p_q5: hirerAnswers.q5,
+      p_comment: hirerComment.trim() || null,
+      p_is_anonymous: hirerAnonymous,
+    });
+    setBusy(false);
+    if (error) return showToast(errorMessage(error.message, cap));
+    if ((data as { state?: string } | null)?.state === "used") showToast("すでに回答済みです。");
+    else showToast("ご回答ありがとうございました。");
+    await load();
+  }
+
   async function handleCopy() {
     const text = links.map((l) => surveyLinkUrl(window.location.origin, l.token)).join("\n");
     try {
@@ -139,7 +176,7 @@ export function CompanySurveyPanel({
     setTimeout(() => w.print(), 300);
   }
 
-  const summary = !loaded ? "" : links.length ? `回答 ${answered} / ${links.length}` : "未作成";
+  const summary = !loaded ? "" : links.length ? `参加者の回答 ${answered} / ${links.length}` : "リンク未作成";
 
   return (
     <div style={{ marginTop: 12 }}>
@@ -185,6 +222,54 @@ export function CompanySurveyPanel({
 
       {open && (
         <div style={{ padding: "14px 4px 4px", display: "flex", flexDirection: "column", gap: 14 }}>
+          {completed && loaded && (
+            hirerDone ? (
+              <p className="request-card__desc" style={{ margin: 0 }}>
+                <strong>貴社の回答：</strong>回答済み
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <strong style={{ fontSize: 13.5, marginBottom: 8 }}>貴社の回答</strong>
+                <QuestionList answers={hirerAnswers} onChange={setHirerAnswers} showMissing={hirerMissing} />
+                <div className="form-field" style={{ margin: 0 }}>
+                  <label htmlFor={`survey-comment-${requestId}`}>コメント（任意）</label>
+                  <textarea
+                    id={`survey-comment-${requestId}`}
+                    rows={3}
+                    maxLength={COMMENT_MAX}
+                    value={hirerComment}
+                    onChange={(e) => setHirerComment(e.target.value)}
+                  />
+                </div>
+                <div className="survey-scale" role="radiogroup" style={{ gridTemplateColumns: "1fr 1fr", margin: "10px 0" }}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={hirerAnonymous}
+                    className={`survey-scale__btn${hirerAnonymous ? " is-selected" : ""}`}
+                    onClick={() => setHirerAnonymous(true)}
+                  >
+                    匿名で送る
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!hirerAnonymous}
+                    className={`survey-scale__btn${!hirerAnonymous ? " is-selected" : ""}`}
+                    onClick={() => setHirerAnonymous(false)}
+                  >
+                    会社名を表示して送る
+                  </button>
+                </div>
+                <div>
+                  <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={handleHirerSubmit}>
+                    送信する
+                  </button>
+                </div>
+              </div>
+            )
+          )}
+
           {!participantCount ? (
             <p className="request-card__desc" style={{ color: "var(--color-ink-soft)", margin: 0 }}>
               対象人数が登録されていないため、リンクを作成できません。運営にご連絡ください。

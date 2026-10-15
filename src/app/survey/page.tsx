@@ -3,11 +3,10 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+import { QuestionList } from "@/components/survey/QuestionList";
 import {
   COMMENT_MAX,
   NAME_MAX,
-  SURVEY_QUESTIONS,
-  SURVEY_SCALE,
   isSurveyToken,
   linkStateMessage,
   unansweredCount,
@@ -115,34 +114,7 @@ function SurveyForm() {
         {error && <div className="notice-banner is-visible">{error}</div>}
 
         <form noValidate onSubmit={handleSubmit}>
-          {SURVEY_QUESTIONS.map((q, index) => {
-            const missing = showMissing && !answers[q.key];
-            return (
-              <fieldset key={q.key} className={`survey-q${missing ? " has-error" : ""}`}>
-                <legend className="survey-q__text">
-                  {index + 1}. {q.text}
-                </legend>
-                <div className="survey-scale" role="radiogroup">
-                  {SURVEY_SCALE.map((option) => {
-                    const selected = answers[q.key] === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        role="radio"
-                        aria-checked={selected}
-                        className={`survey-scale__btn survey-scale__btn--${option.value}${selected ? " is-selected" : ""}`}
-                        onClick={() => setAnswers((prev) => ({ ...prev, [q.key]: option.value }))}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                {missing && <p className="form-field__error" style={{ display: "block" }}>選択してください。</p>}
-              </fieldset>
-            );
-          })}
+          <QuestionList answers={answers} onChange={setAnswers} showMissing={showMissing} />
 
           <div className="form-field">
             <label htmlFor="surveyComment">コメント（任意）</label>

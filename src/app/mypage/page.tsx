@@ -728,7 +728,7 @@ function RequesterRequestCard({
       )}
 
       {(st.key === "accepted" || st.key === "completed") && (
-        <CompanySurveyPanel requestId={r.request_id} title={r.title} participantCount={r.participant_count} />
+        <CompanySurveyPanel requestId={r.request_id} title={r.title} participantCount={r.participant_count} completed={st.key === "completed"} />
       )}
 
       {st.key === "accepted" && (
