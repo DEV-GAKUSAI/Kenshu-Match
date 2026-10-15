@@ -30,7 +30,7 @@ export function InstructorCard({ instructor: ins, maxTags }: InstructorCardProps
               src={ins.avatar_url}
               alt={`${ins.name || "講師"}のプロフィール画像`}
               className="instructor-card__avatar"
-              style={{ objectFit: "cover" }}
+              style={{ objectFit: "cover", objectPosition: "center 15%" }}
             />
           ) : (
             <span className="instructor-card__avatar">{initial(ins.name)}</span>
