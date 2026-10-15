@@ -25,6 +25,7 @@ import { finalizeResponse } from "@/lib/requests/actions";
 import type { InstructorResponseRow, TrainingRequestRow, TrainingReviewRow } from "@/types/database";
 import type { CurrentUser } from "@/lib/auth/auth";
 import { ApplicantRow, applicantPriority } from "@/components/mine/ApplicantRow";
+import { CompanySurveyPanel } from "@/components/survey/CompanySurveyPanel";
 import { BookMineMeetingButton, MineMeetingLine, useMineLinkedInstructors, useMineMeetings } from "@/components/mine/MineMeeting";
 import type { KenshuMineMeetingRow } from "@/types/database";
 import "./mypage.css";
@@ -724,6 +725,10 @@ function RequesterRequestCard({
 
       {isBroadcast && selectedResp && st.key !== "pending" && st.key !== "quoted" && meetings[selectedResp.response_id] && (
         meetingBlock(selectedResp)
+      )}
+
+      {(st.key === "accepted" || st.key === "completed") && (
+        <CompanySurveyPanel requestId={r.request_id} title={r.title} participantCount={r.participant_count} />
       )}
 
       {st.key === "accepted" && (

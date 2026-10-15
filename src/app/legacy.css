@@ -1809,3 +1809,7 @@ button { font-family: inherit; cursor: pointer; }
 .survey-scale__btn:hover { border-color: var(--color-primary); }
 .survey-scale__btn.is-selected { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
 .survey-q.has-error .survey-scale__btn { border-color: var(--color-danger); }
+.survey-links { list-style: none; margin: 0; padding: 0; max-height: 200px; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-s); }
+.survey-links li { display: flex; justify-content: space-between; padding: 6px 12px; font-size: 12.5px; border-bottom: 1px solid var(--color-border); }
+.survey-links li:last-child { border-bottom: 0; }
+.survey-links .is-used { color: var(--color-primary); font-weight: 700; }
