@@ -4,9 +4,12 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getInstructorDirectory } from "@/lib/instructor/profile";
 import { getTrainingCategoriesWithSubcategories } from "@/lib/instructor/expertise";
+import { withMineDisplay } from "@/lib/mine/display";
 import { InstructorCard } from "@/components/instructors/InstructorCard";
 import type { InstructorPublicDirectoryRow } from "@/types/database";
 import "./instructors.css";
+
+const ONLINE_AREA = "オンライン対応（全国）";
 
 const JP_PREFECTURES = [
   "オンライン対応（全国）",
@@ -94,7 +97,8 @@ function InstructorsPageInner() {
         setLoading(false);
         return;
       }
-      setAllInstructors(data || []);
+      // Initials plus only what each instructor allowed in Mine (no full names, old rates or photos).
+      setAllInstructors(await withMineDisplay(data || []));
       setLoading(false);
     })();
 
@@ -148,7 +152,11 @@ function InstructorsPageInner() {
     const max = rateMax ? Number(rateMax) : null;
 
     return allInstructors.filter((ins) => {
-      if (selectedAreas.length && !selectedAreas.some((a) => (ins.prefectures || []).includes(a))) return false;
+      if (selectedAreas.length) {
+        const online = ins.work_style === "ONLINE" || ins.work_style === "HYBRID";
+        const areaOk = selectedAreas.some((a) => (a === ONLINE_AREA ? online : (ins.prefectures || []).includes(a)));
+        if (!areaOk) return false;
+      }
       if (selectedFormats.length) {
         const matches = (ins.work_style && selectedFormats.includes(ins.work_style)) || (ins.work_style === "HYBRID" && selectedFormats.length);
         if (!matches) return false;

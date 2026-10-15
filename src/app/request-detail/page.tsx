@@ -13,6 +13,7 @@ import {
 } from "@/lib/requests/training-requests";
 import { submitInstructorResponse } from "@/lib/requests/instructor-responses";
 import { getRequesterContacts } from "@/lib/requester/profile";
+import { withMineDisplay } from "@/lib/mine/display";
 import { getMatchingCandidateInstructors } from "@/lib/instructor/profile";
 import { getInstructorExpertiseInstructorIds } from "@/lib/instructor/expertise";
 import type {
@@ -348,7 +349,8 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
       function isRecommended(reasons: string[]) {
         return reasons.includes("分野") || reasons.length >= 2;
       }
-      const result = (instructors as InstructorPublicDirectoryRow[])
+      const shown = await withMineDisplay(instructors as InstructorPublicDirectoryRow[]);
+      const result = shown
         .map((ins) => ({ ins, reasons: reasonsFor(ins) }))
         .filter((x) => x.reasons.length > 0)
         .sort((a, b) => {

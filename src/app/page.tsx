@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import { getFeaturedInstructors } from "@/lib/instructor/profile";
+import { withMineDisplay } from "@/lib/mine/display";
 import { InstructorCard } from "@/components/instructors/InstructorCard";
 import type { InstructorPublicDirectoryRow, TrainingCategoryRow } from "@/types/database";
 import "./home.css";
@@ -57,7 +58,7 @@ export default function Home() {
         setFeaturedFailed(true);
         return;
       }
-      setFeatured(data || []);
+      setFeatured(await withMineDisplay(data || []));
     })();
   }, []);
 

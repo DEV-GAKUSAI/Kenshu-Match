@@ -72,3 +72,31 @@ export function initialsFromName(name: string | null | undefined): string {
   const parts = (name ?? "").split(/[\s　]+/).filter(Boolean);
   return parts.map((part) => `${Array.from(part)[0]}.`).join("");
 }
+
+/**
+ * "実務経験 約1年7ヶ月": the months covered by the 職歴 entries, counted once
+ * even when entries overlap. An entry counts from its start month to its end
+ * month (both included); a current entry, or one with no end, runs to `now`.
+ * Entries with no start date are skipped. Returns "" when nothing can be counted.
+ */
+export function totalExperienceLabel(work: NonNullable<MinePublicProfile["work_history"]> | undefined, now: Date = new Date()): string {
+  const months = new Set<number>();
+  const monthIndex = (value: string) => {
+    const [year, month] = value.slice(0, 7).split("-").map(Number);
+    return Number.isFinite(year) && Number.isFinite(month) ? year * 12 + (month - 1) : null;
+  };
+  const nowIndex = now.getFullYear() * 12 + now.getMonth();
+  for (const entry of work ?? []) {
+    if (!entry.start_date) continue;
+    const start = monthIndex(entry.start_date);
+    if (start === null) continue;
+    const end = entry.is_current || !entry.end_date ? nowIndex : (monthIndex(entry.end_date) ?? nowIndex);
+    for (let m = start; m <= Math.min(end, nowIndex); m += 1) months.add(m);
+  }
+  const total = months.size;
+  if (!total) return "";
+  const years = Math.floor(total / 12);
+  const rest = total % 12;
+  if (!years) return `約${rest}ヶ月`;
+  return rest ? `約${years}年${rest}ヶ月` : `約${years}年`;
+}
