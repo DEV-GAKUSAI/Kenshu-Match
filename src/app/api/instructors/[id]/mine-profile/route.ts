@@ -14,7 +14,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * plus their initials. Only for instructors listed publicly (they appear in
  * instructor_public_directory). Mine's function runs with the service role,
  * returns nothing when the user is not linked or turned 公開プロフィール off,
- * and never contains name, contact details or company names. The full name is
+ * and never contains the user's name or contact details. Company names appear only inside 職歴, which the user can switch off. The full name is
  * only used to make fallback initials; it is not sent to the browser.
  */
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
