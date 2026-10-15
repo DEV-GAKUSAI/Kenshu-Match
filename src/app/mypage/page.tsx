@@ -26,6 +26,8 @@ import type { InstructorResponseRow, TrainingRequestRow, TrainingReviewRow } fro
 import type { CurrentUser } from "@/lib/auth/auth";
 import { ApplicantRow, applicantPriority } from "@/components/mine/ApplicantRow";
 import { CompanySurveyPanel } from "@/components/survey/CompanySurveyPanel";
+import { InstructorSurveyPanel } from "@/components/survey/InstructorSurveyPanel";
+import { InstructorSurveyResults } from "@/components/survey/InstructorSurveyResults";
 import { BookMineMeetingButton, MineMeetingLine, useMineLinkedInstructors, useMineMeetings } from "@/components/mine/MineMeeting";
 import type { KenshuMineMeetingRow } from "@/types/database";
 import "./mypage.css";
@@ -215,6 +217,8 @@ function InstructorRequestCard({
         </div>
       )}
 
+      {(st.key === "accepted" || st.key === "completed") && <InstructorSurveyPanel requestId={r.request_id} />}
+
       {meeting && <MineMeetingLine meeting={meeting} viewer="instructor" />}
 
       {!myResponse && r.status === "pending" && (
@@ -342,6 +346,7 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
       <div style={{ marginBottom: 28 }}>
         <ProfileStatusCard userId={user.id} />
       </div>
+      <InstructorSurveyResults instructorId={user.id} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h2 className="section__title" style={{ fontSize: 18, margin: 0 }}>
           受け取った依頼
