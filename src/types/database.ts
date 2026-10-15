@@ -174,6 +174,9 @@ export type InstructorPublicDirectoryRow = {
   years_of_experience: number | null;
   is_featured: boolean | null;
   created_at: string;
+  /** Added on the page from the 研修アンケート summary (not a column of the view). */
+  survey_avg?: number | null;
+  survey_count?: number | null;
 };
 
 /** VIEW: public preview of broadcast (target_instructor_id IS NULL) requests. */
