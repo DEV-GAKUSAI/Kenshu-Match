@@ -10,6 +10,7 @@ import { educationLine, qualificationLine, skillLine, totalExperienceLabel, work
 import { getInstructorById } from "@/lib/instructor/profile";
 import { getTrainingSubcategoryOptions } from "@/lib/instructor/expertise";
 import { getInstructorReviews } from "@/lib/requests/reviews";
+import { PublicSurveyBlock } from "@/components/survey/PublicSurveyBlock";
 import { createTrainingRequest } from "@/lib/requests/training-requests";
 import { MOCK_INSTRUCTORS, INSTRUCTOR_DETAILS, MOCK_REVIEWS } from "@/lib/mockInstructors";
 import type { InstructorPublicDirectoryRow, RequestFormat, WorkStyle } from "@/types/database";
@@ -219,16 +220,19 @@ function InstructorDetailInner() {
     const descInvalid = !reqDescription.trim();
     const locationInvalid = reqFormat !== "online" && !reqLocation.trim();
     const expertiseInvalid = !reqExpertise;
+    const participantsInvalid = !(Number.isInteger(Number(reqParticipants)) && Number(reqParticipants) >= 1);
     setReqTitleError(titleInvalid);
     setReqDescError(descInvalid);
 
-    if (titleInvalid || descInvalid || locationInvalid || expertiseInvalid) {
+    if (titleInvalid || descInvalid || locationInvalid || expertiseInvalid || participantsInvalid) {
       setReqFormError(
         locationInvalid
           ? "対面の場合は実施場所の入力が必要です。"
           : expertiseInvalid
             ? "分野を選択してください。"
-            : "入力内容をご確認ください。"
+            : participantsInvalid
+              ? "対象人数を入力してください。"
+              : "入力内容をご確認ください。"
       );
       return;
     }
@@ -243,7 +247,7 @@ function InstructorDetailInner() {
       description: reqDescription.trim(),
       expertise_field: reqExpertise,
       budget: Number(reqBudget) || null,
-      participant_count: Number(reqParticipants) || null,
+      participant_count: Number(reqParticipants),
       preferred_format: reqFormat,
       location: reqFormat === "online" ? null : reqLocation.trim(),
       preferred_schedule: reqSchedule.trim() || null,
@@ -377,6 +381,8 @@ function InstructorDetailInner() {
             </dl>
           </div>
 
+          {isRealId && <PublicSurveyBlock instructorId={rawId} />}
+
           <div className="detail-block">
             <h2 className="detail-block__title">レビュー（{reviews.length}件）</h2>
             {reviews.length ? (
@@ -475,7 +481,7 @@ function InstructorDetailInner() {
 
             <div className="form-field">
               <label htmlFor="reqParticipants">対象人数</label>
-              <input type="number" id="reqParticipants" placeholder="例：10" min={1} step={1} value={reqParticipants} onChange={(e) => setReqParticipants(e.target.value)} />
+              <input type="number" id="reqParticipants" required placeholder="例：10" min={1} step={1} value={reqParticipants} onChange={(e) => setReqParticipants(e.target.value)} />
             </div>
 
             {reqFormat !== "online" && (

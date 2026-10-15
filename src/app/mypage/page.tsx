@@ -25,6 +25,9 @@ import { finalizeResponse } from "@/lib/requests/actions";
 import type { InstructorResponseRow, TrainingRequestRow, TrainingReviewRow } from "@/types/database";
 import type { CurrentUser } from "@/lib/auth/auth";
 import { ApplicantRow, applicantPriority } from "@/components/mine/ApplicantRow";
+import { CompanySurveyPanel } from "@/components/survey/CompanySurveyPanel";
+import { InstructorSurveyPanel } from "@/components/survey/InstructorSurveyPanel";
+import { InstructorSurveyResults } from "@/components/survey/InstructorSurveyResults";
 import { BookMineMeetingButton, MineMeetingLine, useMineLinkedInstructors, useMineMeetings } from "@/components/mine/MineMeeting";
 import type { KenshuMineMeetingRow } from "@/types/database";
 import "./mypage.css";
@@ -214,6 +217,8 @@ function InstructorRequestCard({
         </div>
       )}
 
+      {(st.key === "accepted" || st.key === "completed") && <InstructorSurveyPanel requestId={r.request_id} />}
+
       {meeting && <MineMeetingLine meeting={meeting} viewer="instructor" />}
 
       {!myResponse && r.status === "pending" && (
@@ -341,6 +346,7 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
       <div style={{ marginBottom: 28 }}>
         <ProfileStatusCard userId={user.id} />
       </div>
+      <InstructorSurveyResults instructorId={user.id} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h2 className="section__title" style={{ fontSize: 18, margin: 0 }}>
           受け取った依頼
@@ -724,6 +730,10 @@ function RequesterRequestCard({
 
       {isBroadcast && selectedResp && st.key !== "pending" && st.key !== "quoted" && meetings[selectedResp.response_id] && (
         meetingBlock(selectedResp)
+      )}
+
+      {(st.key === "accepted" || st.key === "completed") && (
+        <CompanySurveyPanel requestId={r.request_id} title={r.title} participantCount={r.participant_count} completed={st.key === "completed"} />
       )}
 
       {st.key === "accepted" && (

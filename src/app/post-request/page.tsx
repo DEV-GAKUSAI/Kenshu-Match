@@ -96,16 +96,19 @@ export default function PostRequestPage() {
     const descriptionInvalid = !description.trim();
     const locationInvalid = format !== "online" && !location.trim();
     const expertiseInvalid = !expertise;
+    const participantsInvalid = !(Number.isInteger(Number(participants)) && Number(participants) >= 1);
     setTitleHasError(titleInvalid);
     setDescriptionHasError(descriptionInvalid);
 
-    if (titleInvalid || descriptionInvalid || locationInvalid || expertiseInvalid) {
+    if (titleInvalid || descriptionInvalid || locationInvalid || expertiseInvalid || participantsInvalid) {
       setFormError(
         locationInvalid
           ? "対面の場合は実施場所の入力が必要です。"
           : expertiseInvalid
             ? "分野を選択してください。"
-            : "入力内容をご確認ください。"
+            : participantsInvalid
+              ? "対象人数を入力してください。"
+              : "入力内容をご確認ください。"
       );
       return;
     }
@@ -119,7 +122,7 @@ export default function PostRequestPage() {
       description: description.trim(),
       expertise_field: expertise,
       budget: Number(budget) || null,
-      participant_count: Number(participants) || null,
+      participant_count: Number(participants),
       preferred_format: format,
       location: format === "online" ? null : location.trim(),
       preferred_schedule: schedule.trim() || null,
@@ -265,7 +268,7 @@ export default function PostRequestPage() {
 
             <div className="form-field">
               <label htmlFor="reqParticipants">対象人数</label>
-              <input type="number" id="reqParticipants" placeholder="例：10" min={1} step={1} value={participants} onChange={(e) => setParticipants(e.target.value)} />
+              <input type="number" id="reqParticipants" required placeholder="例：10" min={1} step={1} value={participants} onChange={(e) => setParticipants(e.target.value)} />
             </div>
 
             {format !== "online" && (
