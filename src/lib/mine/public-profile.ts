@@ -2,7 +2,7 @@
  * The public profile a Mine user lets Kenshu Link show (Mine migration 133,
  * public.mine_public_profile_for_kenshu). Mine decides what is in it: the
  * user's own switches. Kenshu Link only displays it and never stores a copy.
- * No contact details, company names or full name are ever in this object.
+ * No contact details or full name are ever in this object; company names appear only inside 職歴, which the user can switch off.
  */
 export type MinePublicProfile = {
   initials?: string;
@@ -10,7 +10,7 @@ export type MinePublicProfile = {
   skills?: { category?: string; name: string; level?: number; level_label?: string; years?: number }[];
   qualifications?: { name: string; organization?: string; level?: string; obtained_date?: string }[];
   professional_summary?: string;
-  work_history?: { position?: string; employment_type?: string; start_date?: string; end_date?: string; is_current?: boolean }[];
+  work_history?: { company_name?: string; position?: string; employment_type?: string; start_date?: string; end_date?: string; is_current?: boolean }[];
   education?: { school_name: string; degree?: string; start_date?: string; end_date?: string }[];
   languages?: string;
   area?: string;
@@ -56,7 +56,7 @@ export function workHistoryLine(work: NonNullable<MinePublicProfile["work_histor
     .filter(Boolean)
     .join(" 〜 ");
   const kind = work.employment_type ? EMPLOYMENT_LABEL[work.employment_type] ?? "" : "";
-  return [work.position, kind, period].filter(Boolean).join("・") || "（内容未入力）";
+  return [work.company_name, work.position, kind, period].filter(Boolean).join("・") || "（内容未入力）";
 }
 
 export function educationLine(e: NonNullable<MinePublicProfile["education"]>[number]): string {
