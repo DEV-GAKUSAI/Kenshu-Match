@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { InstructorPublicDirectoryRow, WorkStyle } from "@/types/database";
+import { surveyScoreLabel } from "@/lib/survey/summary";
 
 const WORK_STYLE_LABEL: Record<WorkStyle, string> = {
   ONLINE: "オンラインのみ",
@@ -42,8 +43,14 @@ export function InstructorCard({ instructor: ins, maxTags }: InstructorCardProps
             </div>
           </div>
           <span className="instructor-card__rating">
-            ★ {rating}
-            {ins.review_count ? ` (${ins.review_count})` : ""}
+            {ins.survey_count && ins.survey_avg != null ? (
+              surveyScoreLabel(ins.survey_avg, ins.survey_count)
+            ) : (
+              <>
+                ★ {rating}
+                {ins.review_count ? ` (${ins.review_count})` : ""}
+              </>
+            )}
           </span>
         </div>
         <p className="instructor-card__intro">{ins.self_pr || "自己紹介は未登録です。"}</p>
