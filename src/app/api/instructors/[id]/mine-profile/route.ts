@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { initialsFromName, type MinePublicProfile } from "@/lib/mine/public-profile";
+import { signPhotoUrls } from "@/lib/mine/photo";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -31,10 +32,12 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
   if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
 
   const profile = (data ?? null) as MinePublicProfile | null;
-  // The photo is stored privately in Mine; it is not shown here yet.
+  // Mine photos are private: only a person who switched 写真 on has avatar_path,
+  // and it becomes a link that works for an hour. The path itself is not sent.
+  const photoUrl = profile?.avatar_path ? (await signPhotoUrls(admin, { [id]: profile.avatar_path }))[id] : undefined;
   if (profile) delete profile.avatar_path;
   return NextResponse.json(
-    { initials: profile?.initials || initialsFromName(listed.name), profile },
+    { initials: profile?.initials || initialsFromName(listed.name), profile, photoUrl: photoUrl ?? null },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

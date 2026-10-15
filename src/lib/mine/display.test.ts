@@ -19,8 +19,20 @@ const row = {
 };
 
 test("rows with Mine data show initials and only the allowed Mine items", () => {
-  const map = { a: toDisplay("A.H.", { self_introduction: "hello", training_conditions: { hourly_rate_min: 5000, work_style: "HYBRID", prefectures: ["京都府"] } }) };
+  const map = {
+    a: toDisplay(
+      "A.H.",
+      {
+        self_introduction: "hello",
+        training_conditions: { hourly_rate_min: 5000, work_style: "HYBRID", prefectures: ["京都府"] },
+        qualifications: [{ name: "資格1" }, { name: "資格2" }, { name: "資格3" }, { name: "資格4" }, { name: "資格5" }],
+      },
+      "https://signed/photo",
+    ),
+  };
   const [out] = applyMineDisplay([row], map);
+  assert.deepEqual(out.certifications, ["資格1", "資格2", "資格3", "資格4", "資格5"]); // no limit
+  assert.equal(out.avatar_url, "https://signed/photo");
   assert.equal(out.name, "A.H.");
   assert.equal(out.self_pr, "hello");
   assert.equal(out.work_style, "HYBRID");

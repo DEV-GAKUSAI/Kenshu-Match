@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { toDisplay, type MineDisplayMap } from "@/lib/mine/display";
 import { initialsFromName, type MinePublicProfile } from "@/lib/mine/public-profile";
+import { signPhotoUrls } from "@/lib/mine/photo";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ const MAX_IDS = 200;
  * POST /api/instructors/mine-display  { "ids": ["<instructor id>", ...] }
  *
  * For lists and cards: for each publicly listed instructor, their initials
- * plus the little they allowed in Mine (自己紹介, 希望条件). One call for the
+ * plus the little they allowed in Mine (自己紹介, 希望条件, 資格・免許, 写真). One call for the
  * whole page. Unknown or unlisted ids are left out. The full name is only used
  * to make fallback initials and is never sent back.
  */
@@ -32,10 +33,15 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   const byId = (profiles ?? {}) as Record<string, MinePublicProfile>;
 
+  const photoUrls = await signPhotoUrls(
+    admin,
+    Object.fromEntries(Object.entries(byId).map(([id, profile]) => [id, profile.avatar_path])),
+  );
+
   const items: MineDisplayMap = {};
   for (const row of listed ?? []) {
     const profile = byId[row.id as string];
-    items[row.id as string] = toDisplay(profile?.initials || initialsFromName(row.name as string | null), profile);
+    items[row.id as string] = toDisplay(profile?.initials || initialsFromName(row.name as string | null), profile, photoUrls[row.id as string]);
   }
   return NextResponse.json({ items }, { headers: { "Cache-Control": "no-store" } });
 }

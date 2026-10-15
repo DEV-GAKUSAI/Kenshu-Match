@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/common/Toast";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
-import { educationLine, qualificationLine, skillLine, workHistoryLine, type MinePublicProfile } from "@/lib/mine/public-profile";
+import { educationLine, qualificationLine, skillLine, totalExperienceLabel, workHistoryLine, type MinePublicProfile } from "@/lib/mine/public-profile";
 import { getInstructorById } from "@/lib/instructor/profile";
 import { getTrainingSubcategoryOptions } from "@/lib/instructor/expertise";
 import { getInstructorReviews } from "@/lib/requests/reviews";
@@ -113,7 +113,7 @@ function InstructorDetailInner() {
         try {
           const res = await fetch(`/api/instructors/${rawId}/mine-profile`, { cache: "no-store" });
           if (res.ok) {
-            const body = (await res.json()) as { initials?: string; profile?: MinePublicProfile | null };
+            const body = (await res.json()) as { initials?: string; profile?: MinePublicProfile | null; photoUrl?: string | null };
             const initials = body.initials || "";
             setMine(body.profile ?? null);
             const tc = body.profile?.training_conditions;
@@ -124,6 +124,7 @@ function InstructorDetailInner() {
                     name: initials || "（名前未設定）",
                     initial: initials.slice(0, 1) || "?",
                     introduction: "",
+                    avatarUrl: body.photoUrl ?? null,
                     workFormatLabel: tc?.work_style && tc.work_style in WORK_STYLE_LABEL ? WORK_STYLE_LABEL[tc.work_style as WorkStyle] : "応相談",
                     workArea: tc?.prefectures?.length ? tc.prefectures.join("、") : "エリア未設定",
                     hourlyRateLabel: typeof tc?.hourly_rate_min === "number" ? `¥${tc.hourly_rate_min.toLocaleString()}` : "応相談",
@@ -558,7 +559,22 @@ function MineProfileBlocks({ mine }: { mine: MinePublicProfile | null }) {
   if (mine.professional_summary) blocks.push({ title: "職務要約", body: <p className="detail-block__text" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{mine.professional_summary}</p> });
   if (mine.skills?.length) blocks.push({ title: "スキル", body: list(mine.skills.map(skillLine)) });
   if (mine.qualifications?.length) blocks.push({ title: "資格・免許", body: list(mine.qualifications.map(qualificationLine)) });
-  if (mine.work_history?.length) blocks.push({ title: "職歴", body: list(mine.work_history.map(workHistoryLine)) });
+  if (mine.work_history?.length) {
+    const total = totalExperienceLabel(mine.work_history);
+    blocks.push({
+      title: "職歴",
+      body: (
+        <>
+          {total && (
+            <p className="detail-block__text" style={{ fontWeight: 600, marginBottom: 6 }}>
+              実務経験 {total}
+            </p>
+          )}
+          {list(mine.work_history.map(workHistoryLine))}
+        </>
+      ),
+    });
+  }
   if (mine.education?.length) blocks.push({ title: "学歴", body: list(mine.education.map(educationLine)) });
   if (mine.languages) blocks.push({ title: "言語", body: <p className="detail-block__text">{mine.languages}</p> });
   if (mine.area) blocks.push({ title: "地域", body: <p className="detail-block__text">{mine.area}</p> });
