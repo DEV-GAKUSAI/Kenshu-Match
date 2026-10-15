@@ -1796,3 +1796,16 @@ button { font-family: inherit; cursor: pointer; }
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+/* 研修アンケート (participant form) */
+.survey-card { max-width: 560px; }
+.survey-q { border: 0; padding: 0; margin: 0 0 22px; min-width: 0; }
+.survey-q__text { font-weight: 700; font-size: 15px; margin-bottom: 10px; padding: 0; }
+.survey-scale { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.survey-scale__btn {
+  padding: 12px 4px; border-radius: 12px; border: 1px solid var(--color-border, #d9e3df);
+  background: #f4f8f6; color: var(--color-ink, #1c2b27); font-size: 13.5px; font-weight: 700; cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.survey-scale__btn:hover { border-color: var(--color-primary); }
+.survey-scale__btn.is-selected { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.survey-q.has-error .survey-scale__btn { border-color: var(--color-danger); }
