@@ -9,6 +9,11 @@ const RESOURCES = [
     title: "サブカテゴリ管理",
     desc: "ユーザーが自由入力で追加した研修分野の名称変更・削除（未使用のもののみ）。",
   },
+  {
+    href: "/admin/surveys",
+    title: "研修アンケート管理",
+    desc: "回答の非表示、講師からの報告の確認、リンク数の上限変更。",
+  },
 ];
 
 export default function AdminHomePage() {

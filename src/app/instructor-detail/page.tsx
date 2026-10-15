@@ -10,6 +10,7 @@ import { educationLine, qualificationLine, skillLine, totalExperienceLabel, work
 import { getInstructorById } from "@/lib/instructor/profile";
 import { getTrainingSubcategoryOptions } from "@/lib/instructor/expertise";
 import { getInstructorReviews } from "@/lib/requests/reviews";
+import { PublicSurveyBlock } from "@/components/survey/PublicSurveyBlock";
 import { createTrainingRequest } from "@/lib/requests/training-requests";
 import { MOCK_INSTRUCTORS, INSTRUCTOR_DETAILS, MOCK_REVIEWS } from "@/lib/mockInstructors";
 import type { InstructorPublicDirectoryRow, RequestFormat, WorkStyle } from "@/types/database";
@@ -379,6 +380,8 @@ function InstructorDetailInner() {
               )}
             </dl>
           </div>
+
+          {isRealId && <PublicSurveyBlock instructorId={rawId} />}
 
           <div className="detail-block">
             <h2 className="detail-block__title">レビュー（{reviews.length}件）</h2>
