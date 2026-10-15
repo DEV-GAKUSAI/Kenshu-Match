@@ -2,8 +2,9 @@ import { createClient } from "@/lib/supabase/client";
 
 export async function getInstructorReviews(instructorId: string) {
   const supabase = createClient();
+  // Public reviews come from a view without reviewer or request ids.
   return supabase
-    .from("training_reviews")
+    .from("instructor_public_reviews")
     .select("rating, comment, created_at")
     .eq("instructor_id", instructorId)
     .order("created_at", { ascending: false });
