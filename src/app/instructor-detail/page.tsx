@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/common/Toast";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
+import { educationLine, qualificationLine, skillLine, workHistoryLine, type MinePublicProfile } from "@/lib/mine/public-profile";
 import { getInstructorById } from "@/lib/instructor/profile";
 import { getTrainingSubcategoryOptions } from "@/lib/instructor/expertise";
 import { getInstructorReviews } from "@/lib/requests/reviews";
@@ -57,6 +58,7 @@ function InstructorDetailInner() {
 
   const [instructor, setInstructor] = useState<DisplayInstructor | null>(null);
   const [detail, setDetail] = useState<{ bio?: string | null; certifications?: string[] | null; availableSchedule?: string | null }>({});
+  const [mine, setMine] = useState<MinePublicProfile | null>(null);
   const [reviews, setReviews] = useState<DisplayReview[]>([]);
   const [notFound, setNotFound] = useState(false);
 
@@ -92,8 +94,8 @@ function InstructorDetailInner() {
         const p = profile as InstructorPublicDirectoryRow;
         setInstructor({
           id: p.id,
-          name: p.name || "（名前未設定）",
-          initial: (p.name || "?").trim().slice(0, 1),
+          name: "…",
+          initial: "?",
           expertiseFields: p.expertise_fields || [],
           workFormatLabel: p.work_style ? WORK_STYLE_LABEL[p.work_style] : "応相談",
           workArea: (p.prefectures || []).length ? p.prefectures!.join("、") : "エリア未設定",
@@ -101,11 +103,28 @@ function InstructorDetailInner() {
           yearsExperience: p.years_of_experience ?? "-",
           ratingAvg: p.rating_avg != null ? Number(p.rating_avg) : 0,
           reviewCount: 0,
-          introduction: p.self_pr || "自己紹介はまだ登録されていません。",
+          introduction: "",
           avatarUrl: p.avatar_url || null,
           portfolioUrl: p.portfolio_url || null,
         });
-        setDetail({ bio: p.self_pr, certifications: p.certifications, availableSchedule: null });
+        setDetail({ bio: null, certifications: null, availableSchedule: null });
+
+        // Name and profile come from Mine: initials plus only the items the instructor allowed.
+        try {
+          const res = await fetch(`/api/instructors/${rawId}/mine-profile`, { cache: "no-store" });
+          if (res.ok) {
+            const body = (await res.json()) as { initials?: string; profile?: MinePublicProfile | null };
+            const initials = body.initials || "";
+            setMine(body.profile ?? null);
+            setInstructor((prev) =>
+              prev ? { ...prev, name: initials || "（名前未設定）", initial: initials.slice(0, 1) || "?", introduction: "" } : prev,
+            );
+          } else {
+            setInstructor((prev) => (prev ? { ...prev, name: "（名前未設定）", initial: "?", introduction: "" } : prev));
+          }
+        } catch {
+          setInstructor((prev) => (prev ? { ...prev, name: "（名前未設定）", initial: "?", introduction: "" } : prev));
+        }
 
         const { data: reviewRows } = await getInstructorReviews(rawId);
         const mapped = (reviewRows || []).map((r) => ({
@@ -299,10 +318,14 @@ function InstructorDetailInner() {
             ))}
           </div>
 
-          <div className="detail-block">
-            <h2 className="detail-block__title">自己紹介</h2>
-            <p className="detail-block__text">{detail.bio || instructor.introduction}</p>
-          </div>
+          {isRealId ? (
+            <MineProfileBlocks mine={mine} />
+          ) : (
+            <div className="detail-block">
+              <h2 className="detail-block__title">自己紹介</h2>
+              <p className="detail-block__text">{detail.bio || instructor.introduction}</p>
+            </div>
+          )}
 
           <div className="detail-block">
             <h2 className="detail-block__title">基本情報</h2>
@@ -315,10 +338,12 @@ function InstructorDetailInner() {
                 <dt>経験年数</dt>
                 <dd>{instructor.yearsExperience}年</dd>
               </div>
-              <div>
-                <dt>保有資格</dt>
-                <dd>{detail.certifications && detail.certifications.length ? detail.certifications.join("、") : "-"}</dd>
-              </div>
+              {!isRealId && (
+                <div>
+                  <dt>保有資格</dt>
+                  <dd>{detail.certifications && detail.certifications.length ? detail.certifications.join("、") : "-"}</dd>
+                </div>
+              )}
               <div>
                 <dt>対応可能日程</dt>
                 <dd>{detail.availableSchedule || "要相談"}</dd>
@@ -500,5 +525,48 @@ export default function InstructorDetailPage() {
     <Suspense fallback={<main className="detail-page" />}>
       <InstructorDetailInner />
     </Suspense>
+  );
+}
+
+/** The Mine items the instructor allowed. Each block shows only if Mine sent it. */
+function MineProfileBlocks({ mine }: { mine: MinePublicProfile | null }) {
+  if (!mine) return null;
+  const list = (items: string[]) => (
+    <ul className="detail-block__text" style={{ margin: 0, paddingLeft: 18 }}>
+      {items.map((item, i) => (
+        <li key={`${item}-${i}`}>{item}</li>
+      ))}
+    </ul>
+  );
+  const blocks: { title: string; body: React.ReactNode }[] = [];
+  if (mine.self_introduction) blocks.push({ title: "自己紹介", body: <p className="detail-block__text" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{mine.self_introduction}</p> });
+  if (mine.professional_summary) blocks.push({ title: "職務要約", body: <p className="detail-block__text" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{mine.professional_summary}</p> });
+  if (mine.skills?.length) blocks.push({ title: "スキル", body: list(mine.skills.map(skillLine)) });
+  if (mine.qualifications?.length) blocks.push({ title: "資格・免許", body: list(mine.qualifications.map(qualificationLine)) });
+  if (mine.work_history?.length) blocks.push({ title: "職歴", body: list(mine.work_history.map(workHistoryLine)) });
+  if (mine.education?.length) blocks.push({ title: "学歴", body: list(mine.education.map(educationLine)) });
+  if (mine.languages) blocks.push({ title: "言語", body: <p className="detail-block__text">{mine.languages}</p> });
+  if (mine.area) blocks.push({ title: "地域", body: <p className="detail-block__text">{mine.area}</p> });
+  return (
+    <>
+      {mine.occupations?.length ? (
+        <div className="detail-block">
+          <h2 className="detail-block__title">職種</h2>
+          <div className="instructor-card__tags">
+            {mine.occupations.map((o, i) => (
+              <span key={`${o.name}-${i}`} className="instructor-card__tag">
+                {o.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {blocks.map((block) => (
+        <div className="detail-block" key={block.title}>
+          <h2 className="detail-block__title">{block.title}</h2>
+          {block.body}
+        </div>
+      ))}
+    </>
   );
 }
