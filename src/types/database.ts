@@ -124,6 +124,17 @@ export type InstructorResponseRow = {
   requester_seen_at: string | null;
 };
 
+/** One row of the instructor_public_reviews view: no reviewer or request ids. */
+export type InstructorPublicReviewRow = {
+  review_id: string;
+  instructor_id: string;
+  rating: number;
+  comment: string | null;
+  instructor_reply: string | null;
+  replied_at: string | null;
+  created_at: string;
+};
+
 export type TrainingReviewRow = {
   review_id: string;
   request_id: string;
@@ -237,6 +248,7 @@ export type Database = {
     Views: {
       instructor_public_directory: ViewDef<InstructorPublicDirectoryRow>;
       open_requests_public_preview: ViewDef<OpenRequestPublicPreviewRow>;
+      instructor_public_reviews: ViewDef<InstructorPublicReviewRow>;
     };
     Functions: {
       complete_oauth_profile: {
