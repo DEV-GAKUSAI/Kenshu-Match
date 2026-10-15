@@ -306,7 +306,7 @@ function InstructorDetailInner() {
                 src={instructor.avatarUrl}
                 alt={`${instructor.name}のプロフィール画像`}
                 className="detail-header__avatar"
-                style={{ objectFit: "cover" }}
+                style={{ objectFit: "cover", objectPosition: "center 15%" }}
               />
             ) : (
               <span className="detail-header__avatar">{instructor.initial}</span>
