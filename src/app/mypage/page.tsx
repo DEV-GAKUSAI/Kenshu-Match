@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/common/Toast";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
+import { fetchMineDisplay } from "@/lib/mine/display";
+import { initialsFromName } from "@/lib/mine/public-profile";
 import { getInstructorProfileSummary, getInstructorContacts, getInstructorNames } from "@/lib/instructor/profile";
 import { getRequesterProfile, getRequesterContacts } from "@/lib/requester/profile";
 import {
@@ -808,6 +810,11 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
     let map: Record<string, { name?: string | null; contact_email?: string | null; contact_phone?: string | null }> = {};
     if (targetIds.length) {
       map = await getInstructorNames(targetIds);
+      // Show initials, not full names (Mine decides what else is public).
+      const display = await fetchMineDisplay(targetIds);
+      Object.keys(map).forEach((id) => {
+        map[id] = { ...map[id], name: display[id]?.initials || initialsFromName(map[id]?.name) || null };
+      });
     }
     const acceptedIds = rows.filter((r) => r.status === "accepted" || r.status === "completed").map((r) => resolveInstructorId(r)).filter((x): x is string => !!x);
     if (acceptedIds.length) {
