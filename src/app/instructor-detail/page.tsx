@@ -97,15 +97,15 @@ function InstructorDetailInner() {
           name: "…",
           initial: "?",
           expertiseFields: p.expertise_fields || [],
-          workFormatLabel: p.work_style ? WORK_STYLE_LABEL[p.work_style] : "応相談",
-          workArea: (p.prefectures || []).length ? p.prefectures!.join("、") : "エリア未設定",
-          hourlyRateLabel: p.desired_rate_min != null ? `¥${Number(p.desired_rate_min).toLocaleString()}` : "応相談",
-          yearsExperience: p.years_of_experience ?? "-",
+          workFormatLabel: "応相談",
+          workArea: "エリア未設定",
+          hourlyRateLabel: "応相談",
+          yearsExperience: "-",
           ratingAvg: p.rating_avg != null ? Number(p.rating_avg) : 0,
           reviewCount: 0,
           introduction: "",
-          avatarUrl: p.avatar_url || null,
-          portfolioUrl: p.portfolio_url || null,
+          avatarUrl: null,
+          portfolioUrl: null,
         });
         setDetail({ bio: null, certifications: null, availableSchedule: null });
 
@@ -116,8 +116,19 @@ function InstructorDetailInner() {
             const body = (await res.json()) as { initials?: string; profile?: MinePublicProfile | null };
             const initials = body.initials || "";
             setMine(body.profile ?? null);
+            const tc = body.profile?.training_conditions;
             setInstructor((prev) =>
-              prev ? { ...prev, name: initials || "（名前未設定）", initial: initials.slice(0, 1) || "?", introduction: "" } : prev,
+              prev
+                ? {
+                    ...prev,
+                    name: initials || "（名前未設定）",
+                    initial: initials.slice(0, 1) || "?",
+                    introduction: "",
+                    workFormatLabel: tc?.work_style && tc.work_style in WORK_STYLE_LABEL ? WORK_STYLE_LABEL[tc.work_style as WorkStyle] : "応相談",
+                    workArea: tc?.prefectures?.length ? tc.prefectures.join("、") : "エリア未設定",
+                    hourlyRateLabel: typeof tc?.hourly_rate_min === "number" ? `¥${tc.hourly_rate_min.toLocaleString()}` : "応相談",
+                  }
+                : prev,
             );
           } else {
             setInstructor((prev) => (prev ? { ...prev, name: "（名前未設定）", initial: "?", introduction: "" } : prev));
@@ -334,20 +345,24 @@ function InstructorDetailInner() {
                 <dt>対応形態</dt>
                 <dd>{instructor.workFormatLabel}</dd>
               </div>
-              <div>
-                <dt>経験年数</dt>
-                <dd>{instructor.yearsExperience}年</dd>
-              </div>
+              {!isRealId && (
+                <div>
+                  <dt>経験年数</dt>
+                  <dd>{instructor.yearsExperience}年</dd>
+                </div>
+              )}
               {!isRealId && (
                 <div>
                   <dt>保有資格</dt>
                   <dd>{detail.certifications && detail.certifications.length ? detail.certifications.join("、") : "-"}</dd>
                 </div>
               )}
-              <div>
-                <dt>対応可能日程</dt>
-                <dd>{detail.availableSchedule || "要相談"}</dd>
-              </div>
+              {!isRealId && (
+                <div>
+                  <dt>対応可能日程</dt>
+                  <dd>{detail.availableSchedule || "要相談"}</dd>
+                </div>
+              )}
               {instructor.portfolioUrl && (
                 <div>
                   <dt>ポートフォリオ／実績</dt>

@@ -16,6 +16,8 @@ export type MinePublicProfile = {
   area?: string;
   self_introduction?: string;
   avatar_path?: string;
+  /** 希望条件 (研修) from Mine: rate in yen per hour, ONLINE / ONSITE / HYBRID, prefectures. */
+  training_conditions?: { hourly_rate_min?: number; work_style?: string; prefectures?: string[] };
 };
 
 const EMPLOYMENT_LABEL: Record<string, string> = {
