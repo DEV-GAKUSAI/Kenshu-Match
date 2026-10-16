@@ -69,13 +69,39 @@ export function PublicSurveyBlock({ instructorId }: { instructorId: string }) {
       onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
     >
       <summary
-        className="detail-block__title"
-        style={{ cursor: "pointer", listStyle: "none", display: "flex", alignItems: "center", gap: 10, marginBottom: open ? undefined : 0 }}
+        style={{
+          cursor: "pointer",
+          listStyle: "none",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "14px 16px",
+          marginBottom: open ? 16 : 0,
+          border: "1px solid var(--color-primary)",
+          borderRadius: 12,
+          background: "color-mix(in srgb, var(--color-primary) 8%, #fff)",
+          fontWeight: 700,
+          fontSize: 15,
+        }}
       >
         <span>
           研修アンケート　<span style={{ color: "#f2b84b" }}>★</span> {fmt(summary.overall_avg)} / 4（{summary.answer_count}件）
         </span>
-        <span aria-hidden style={{ marginLeft: "auto", color: "var(--color-primary)", fontSize: 14 }}>
+        <span
+          aria-hidden
+          style={{
+            marginLeft: "auto",
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
+            background: "var(--color-primary)",
+            color: "#fff",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 11,
+          }}
+        >
           {open ? "▲" : "▼"}
         </span>
       </summary>
