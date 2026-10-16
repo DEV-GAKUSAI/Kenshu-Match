@@ -40,6 +40,13 @@ test("rows with Mine data show initials and only the allowed Mine items", () => 
   assert.equal(out.desired_rate_max, 5000);
 });
 
+test("occupations from Mine show on the row; none means null", () => {
+  const map = { a: toDisplay("A.H.", { occupations: [{ name: "ITエンジニア" }, { name: "講師" }] }) };
+  const names = (r: unknown) => (r as { occupation_names: string[] | null }).occupation_names;
+  assert.deepEqual(names(applyMineDisplay([row], map)[0]), ["ITエンジニア", "講師"]);
+  assert.equal(names(applyMineDisplay([row], {})[0]), null);
+});
+
 test("old personal fields never survive, even with no Mine data", () => {
   const [out] = applyMineDisplay([row], {});
   assert.equal(out.name, "A.H.");

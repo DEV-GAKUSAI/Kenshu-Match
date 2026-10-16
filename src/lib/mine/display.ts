@@ -13,6 +13,8 @@ export type MineDisplay = {
   training_conditions?: MinePublicProfile["training_conditions"];
   /** 資格・免許 names, all of them the instructor allowed. */
   qualifications?: string[];
+  /** 職種 names the instructor allowed. */
+  occupations?: string[];
   /** A link to the Mine photo (valid for an hour), only if 写真 is switched on. */
   photo_url?: string;
 };
@@ -24,8 +26,10 @@ const WORK_STYLES = new Set(["ONLINE", "ONSITE", "HYBRID"]);
 /** Keeps only the card fields from a full Mine public profile. */
 export function toDisplay(initials: string, profile: MinePublicProfile | null | undefined, photoUrl?: string): MineDisplay {
   const qualifications = (profile?.qualifications ?? []).map((q) => q.name).filter(Boolean);
+  const occupations = (profile?.occupations ?? []).map((o) => o.name).filter(Boolean);
   return {
     initials,
+    ...(occupations.length ? { occupations } : {}),
     ...(qualifications.length ? { qualifications } : {}),
     ...(photoUrl ? { photo_url: photoUrl } : {}),
     ...(profile?.self_introduction ? { self_introduction: profile.self_introduction } : {}),
@@ -49,6 +53,7 @@ export function applyMineDisplay<T extends { id: string }>(rows: T[], map: MineD
       name: item?.initials || initialsFromName(old.name) || null,
       avatar_url: item?.photo_url ?? null,
       portfolio_url: null,
+      occupation_names: item?.occupations?.length ? item.occupations : null,
       years_of_experience: null,
       certifications: item?.qualifications?.length ? item.qualifications : null,
       self_pr: item?.self_introduction ?? null,
