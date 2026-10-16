@@ -17,7 +17,10 @@ import {
 } from "@/lib/requests/training-requests";
 import {
   countUnseenNotSelectedResults,
+  declineInterview,
   markResponsesSeenByRequester,
+  releaseInstructorName,
+  requestInterview,
   submitInstructorResponse,
 } from "@/lib/requests/instructor-responses";
 import { finalizeResponse } from "@/lib/requests/actions";
@@ -145,6 +148,26 @@ function InstructorRequestCard({
     onChanged();
   }
 
+  async function handleRelease() {
+    if (!confirm("面談に同意し、氏名（フルネーム）を企業に公開しますか？")) return;
+    setBusy(true);
+    const { error } = await releaseInstructorName(myResponse!.response_id);
+    setBusy(false);
+    if (error) return showToast(`エラー：${error.message}`);
+    showToast("氏名を公開しました。企業の決定をお待ちください。");
+    onChanged();
+  }
+
+  async function handleDecline() {
+    if (!confirm("この面談依頼を辞退しますか？")) return;
+    setBusy(true);
+    const { error } = await declineInterview(myResponse!.response_id);
+    setBusy(false);
+    if (error) return showToast(`エラー：${error.message}`);
+    showToast("面談を辞退しました。");
+    onChanged();
+  }
+
   async function submitQuote() {
     const price = Number(quotePrice) || null;
     if (!price) return showToast("見積り金額を入力してください");
@@ -186,6 +209,31 @@ function InstructorRequestCard({
           </strong>
           {myResponse.message || "（メッセージなし）"}
         </div>
+      )}
+
+      {myResponse?.interview_status === "requested" && r.status === "pending" && (
+        <div className="contact-box">
+          <strong>企業から面談の依頼が届いています。</strong>
+          <div>同意すると、あなたの氏名（フルネーム）が企業に公開されます。</div>
+          <div className="request-card__actions">
+            <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={handleRelease}>
+              情報を公開する
+            </button>
+            <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={handleDecline}>
+              辞退する
+            </button>
+          </div>
+        </div>
+      )}
+      {myResponse?.interview_status === "released" && r.status === "pending" && (
+        <p className="request-card__desc" style={{ color: "var(--color-ink-soft)" }}>
+          氏名を公開しました。企業の決定をお待ちください。
+        </p>
+      )}
+      {myResponse?.interview_status === "declined" && (
+        <p className="request-card__desc" style={{ color: "var(--color-ink-soft)" }}>
+          面談を辞退しました。
+        </p>
       )}
 
       {(st.key === "accepted" || st.key === "completed") && (
@@ -492,6 +540,16 @@ function RequesterRequestCard({
     await finalize(responseId, instructorId);
   }
 
+  async function handleRequestInterview(responseId: string) {
+    if (!confirm("この講師に面談を依頼しますか？講師が同意すると氏名が公開され、決定できるようになります。")) return;
+    setBusy(true);
+    const { error } = await requestInterview(responseId);
+    setBusy(false);
+    if (error) return showToast(`エラー：${error.message}`);
+    showToast("面談を依頼しました。講師の返事をお待ちください。");
+    onChanged();
+  }
+
   async function handleCancel() {
     // A meeting booked through Mine must be cancelled first (the card hides its buttons once the request is cancelled).
     const hasUpcomingMeeting = (r.instructor_responses || []).some((x) => {
@@ -614,6 +672,7 @@ function RequesterRequestCard({
                       meetingButton={button}
                       busy={busy}
                       onDecide={() => handleFinalizeApplicant(a.response_id, a.instructor_id)}
+                      onRequestInterview={() => handleRequestInterview(a.response_id)}
                       // While nobody is chosen yet the whole request can still be cancelled.
                       onCancelRequest={st.key === "quoted" ? handleCancel : undefined}
                     />
@@ -724,6 +783,12 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
         map[id] = { ...map[id], name: display[id]?.initials || initialsFromName(map[id]?.name) || null };
       });
     }
+    // A name the instructor handed over (or that a direct request released on accept) replaces the initials.
+    rows.forEach((row) =>
+      (row.instructor_responses || []).forEach((x) => {
+        if (x.released_name) map[x.instructor_id] = { ...map[x.instructor_id], name: x.released_name };
+      }),
+    );
     const acceptedIds = rows.filter((r) => r.status === "accepted" || r.status === "completed").map((r) => resolveInstructorId(r)).filter((x): x is string => !!x);
     if (acceptedIds.length) {
       const unlocked = await getInstructorContacts(acceptedIds);
