@@ -55,8 +55,55 @@ function InstructorDetailInner() {
   const [mine, setMine] = useState<MinePublicProfile | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [surveyScore, setSurveyScore] = useState<string | null>(null);
+  const [mineLoaded, setMineLoaded] = useState(false);
+  const [surveyLoaded, setSurveyLoaded] = useState(false);
   const [tab, setTab] = useState("profile");
+  const hasProfile = !!(
+    (mine && (mine.occupations?.length || mine.self_introduction || mine.professional_summary || mine.languages || mine.area)) ||
+    instructor?.portfolioUrl
+  );
   const hasCareer = !!(mine && (mine.skills?.length || mine.qualifications?.length || mine.work_history?.length || mine.education?.length));
+  const tabList = [
+    ...(hasProfile
+      ? [
+          {
+            key: "profile",
+            label: <>プロフィール</>,
+            content: (
+              <>
+                <MineProfileBlocks mine={mine} group="profile" />
+                {instructor?.portfolioUrl && (
+                  <div className="detail-block">
+                    <h2 className="detail-block__title">ポートフォリオ／実績</h2>
+                    <p className="detail-block__text">
+                      <a href={instructor.portfolioUrl} target="_blank" rel="noopener noreferrer">
+                        {instructor.portfolioUrl}
+                      </a>
+                    </p>
+                  </div>
+                )}
+              </>
+            ),
+          },
+        ]
+      : []),
+    ...(hasCareer ? [{ key: "career", label: <>経歴・スキル</>, content: <MineProfileBlocks mine={mine} group="career" /> }] : []),
+    ...(surveyScore
+      ? [
+          {
+            key: "rating",
+            label: (
+              <>
+                評価 <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}
+              </>
+            ),
+            content: <PublicSurveyBlock instructorId={rawId} />,
+          },
+        ]
+      : []),
+  ];
+  // Open the tab the visitor chose; if it has nothing to show, the first tab that has content.
+  const activeTab = tabList.some((t) => t.key === tab) ? tab : (tabList[0]?.key ?? "profile");
 
   const [subcategories, setSubcategories] = useState<SubcategoryOption[]>([]);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
@@ -92,6 +139,7 @@ function InstructorDetailInner() {
       const [row] = await withSurveySummary([{ id: rawId }]);
       const r = row as { survey_avg?: number | null; survey_count?: number | null };
       setSurveyScore(r.survey_count && r.survey_avg != null ? surveyScoreLabel(r.survey_avg, r.survey_count) : null);
+      setSurveyLoaded(true);
     })();
   }, [rawId, isRealId]);
 
@@ -147,6 +195,7 @@ function InstructorDetailInner() {
         } catch {
           setInstructor((prev) => (prev ? { ...prev, name: "（名前未設定）", initial: "?", introduction: "" } : prev));
         }
+        setMineLoaded(true);
       } else {
         // --- モックデータ（デモ用の旧データ、id が UUID でない場合） ---
         const mock = MOCK_INSTRUCTORS.find((i) => i.id === rawId) || MOCK_INSTRUCTORS[0];
@@ -335,46 +384,13 @@ function InstructorDetailInner() {
           </div>
 
           {isRealId ? (
-            <DetailTabs
-              id="detail-tabs"
-              active={tab === "career" && !hasCareer ? "profile" : tab === "rating" && !surveyScore ? "profile" : tab}
-              onChange={setTab}
-              tabs={[
-                {
-                  key: "profile",
-                  label: "プロフィール",
-                  content: (
-                    <>
-                      <MineProfileBlocks mine={mine} group="profile" />
-                      {instructor.portfolioUrl && (
-                        <div className="detail-block">
-                          <h2 className="detail-block__title">ポートフォリオ／実績</h2>
-                          <p className="detail-block__text">
-                            <a href={instructor.portfolioUrl} target="_blank" rel="noopener noreferrer">
-                              {instructor.portfolioUrl}
-                            </a>
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  ),
-                },
-                ...(hasCareer ? [{ key: "career", label: "経歴・スキル", content: <MineProfileBlocks mine={mine} group="career" /> }] : []),
-                ...(surveyScore
-                  ? [
-                      {
-                        key: "rating",
-                        label: (
-                          <>
-                            評価 <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}
-                          </>
-                        ),
-                        content: <PublicSurveyBlock instructorId={rawId} />,
-                      },
-                    ]
-                  : []),
-              ]}
-            />
+            tabList.length ? (
+              <DetailTabs id="detail-tabs" active={activeTab} onChange={setTab} tabs={tabList} />
+            ) : mineLoaded && surveyLoaded ? (
+              <p className="detail-block__text" style={{ color: "var(--color-ink-soft)" }}>
+                公開されている情報はありません
+              </p>
+            ) : null
           ) : (
             <>
               <div className="detail-block">

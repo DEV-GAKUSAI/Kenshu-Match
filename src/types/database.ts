@@ -150,6 +150,8 @@ export type InstructorPublicDirectoryRow = {
   is_featured: boolean | null;
   created_at: string;
   /** Added on the page from the 研修アンケート summary (not a column of the view). */
+  /** 職種 from Mine (not a column of the view). */
+  occupation_names?: string[] | null;
   survey_avg?: number | null;
   survey_count?: number | null;
 };
