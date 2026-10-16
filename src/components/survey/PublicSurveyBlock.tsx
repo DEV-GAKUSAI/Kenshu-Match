@@ -72,9 +72,8 @@ export function PublicSurveyBlock({ instructorId }: { instructorId: string }) {
         className="detail-block__title"
         style={{ cursor: "pointer", listStyle: "none", display: "flex", alignItems: "center", gap: 10, marginBottom: open ? undefined : 0 }}
       >
-        <span style={{ color: "#f2b84b" }}>★</span>
         <span>
-          研修アンケート　{fmt(summary.overall_avg)} / 4（{summary.answer_count}件）
+          研修アンケート　<span style={{ color: "#f2b84b" }}>★</span> {fmt(summary.overall_avg)} / 4（{summary.answer_count}件）
         </span>
         <span aria-hidden style={{ marginLeft: "auto", color: "var(--color-primary)", fontSize: 14 }}>
           {open ? "▲" : "▼"}
