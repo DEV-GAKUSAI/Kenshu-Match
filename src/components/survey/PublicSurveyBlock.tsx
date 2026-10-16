@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/client";
-import { FoldBlock } from "@/components/common/FoldBlock";
 import { SURVEY_QUESTIONS } from "@/lib/survey/answers";
 
 type Summary = {
@@ -62,14 +61,7 @@ export function PublicSurveyBlock({ instructorId }: { instructorId: string }) {
   const shown = showAll ? comments : comments.slice(0, COMMENTS_SHOWN_FIRST);
 
   return (
-    <FoldBlock
-      id="survey-result"
-      title={
-        <>
-          研修アンケート　<span style={{ color: "#f2b84b" }}>★</span> {fmt(summary.overall_avg)} / 4（{summary.answer_count}件）
-        </>
-      }
-    >
+    <div id="survey-result">
       <ul className="survey-avgs">
         {SURVEY_QUESTIONS.map((q) => {
           const v = summary[`${q.key}_avg` as keyof Summary] as number | null;
@@ -105,6 +97,6 @@ export function PublicSurveyBlock({ instructorId }: { instructorId: string }) {
           もっと見る（残り {comments.length - COMMENTS_SHOWN_FIRST}件）
         </button>
       )}
-    </FoldBlock>
+    </div>
   );
 }
