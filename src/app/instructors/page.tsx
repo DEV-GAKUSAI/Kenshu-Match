@@ -6,6 +6,7 @@ import { getInstructorDirectory } from "@/lib/instructor/profile";
 import { getTrainingCategoriesWithSubcategories } from "@/lib/instructor/expertise";
 import { withMineDisplay } from "@/lib/mine/display";
 import { withSurveySummary } from "@/lib/survey/summary-client";
+import { sortBySurveyAvg } from "@/lib/survey/summary";
 import { InstructorCard } from "@/components/instructors/InstructorCard";
 import type { InstructorPublicDirectoryRow } from "@/types/database";
 import "./instructors.css";
@@ -99,7 +100,7 @@ function InstructorsPageInner() {
         return;
       }
       // Initials plus only what each instructor allowed in Mine (no full names, old rates or photos).
-      setAllInstructors(await withSurveySummary(await withMineDisplay(data || [])));
+      setAllInstructors(sortBySurveyAvg(await withSurveySummary(await withMineDisplay(data || []))));
       setLoading(false);
     })();
 

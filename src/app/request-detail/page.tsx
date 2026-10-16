@@ -14,6 +14,8 @@ import {
 import { submitInstructorResponse } from "@/lib/requests/instructor-responses";
 import { getRequesterContacts } from "@/lib/requester/profile";
 import { withMineDisplay } from "@/lib/mine/display";
+import { withSurveySummary } from "@/lib/survey/summary-client";
+import { surveyScoreLabel } from "@/lib/survey/summary";
 import { getMatchingCandidateInstructors } from "@/lib/instructor/profile";
 import { getInstructorExpertiseInstructorIds } from "@/lib/instructor/expertise";
 import type {
@@ -21,7 +23,6 @@ import type {
   InstructorResponseRow,
   OpenRequestPublicPreviewRow,
   TrainingRequestRow,
-  TrainingReviewRow,
 } from "@/types/database";
 
 const FORMAT_LABEL: Record<string, string> = { online: "オンライン", offline: "対面", both: "オンライン・対面" };
@@ -119,7 +120,7 @@ function PublicDetail({ requestId, onLoginGate }: { requestId: string; onLoginGa
   );
 }
 
-type ReqWithJoins = TrainingRequestRow & { instructor_responses: InstructorResponseRow[]; training_reviews: TrainingReviewRow[] };
+type ReqWithJoins = TrainingRequestRow & { instructor_responses: InstructorResponseRow[] };
 
 function InstructorDetailView({ requestId, instructorId, focusRespond }: { requestId: string; instructorId: string; focusRespond: boolean }) {
   const { showToast } = useToast();
@@ -349,7 +350,7 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
       function isRecommended(reasons: string[]) {
         return reasons.includes("分野") || reasons.length >= 2;
       }
-      const shown = await withMineDisplay(instructors as InstructorPublicDirectoryRow[]);
+      const shown = await withSurveySummary(await withMineDisplay(instructors as InstructorPublicDirectoryRow[]));
       const result = shown
         .map((ins) => ({ ins, reasons: reasonsFor(ins) }))
         .filter((x) => x.reasons.length > 0)
@@ -421,7 +422,11 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
                         <span>{(ins.prefectures || []).join("、") || "エリア未設定"}</span>
                       </div>
                     </div>
-                    <span className="status-badge status-badge--accepted">★ {ins.rating_avg != null ? Number(ins.rating_avg).toFixed(1) : "-"}</span>
+                    {ins.survey_count && ins.survey_avg != null ? (
+                      <span className="status-badge status-badge--accepted">
+                        <span style={{ color: "#f2b84b" }}>★</span> {surveyScoreLabel(ins.survey_avg, ins.survey_count)}
+                      </span>
+                    ) : null}
                   </div>
                   <div
                     className={`notice-banner${isRecommended ? " is-visible" : ""}`}

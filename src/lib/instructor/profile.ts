@@ -20,7 +20,7 @@ export async function getInstructorProfileSummary(userId: string) {
 /**
  * Fields an instructor may edit on their own profile. Deliberately its own
  * type rather than Partial<InstructorProfileRow>: it excludes rating_avg
- * (computed from training_reviews) and is_featured (admin curation flag),
+ * (a leftover column) and is_featured (admin curation flag),
  * both real columns on instructor_profiles (083_kenshu_match_baseline.sql)
  * that must never be client-writable. Keeping this decoupled from
  * InstructorProfileRow means that type gaining either column later (e.g. to
@@ -73,7 +73,7 @@ export async function getInstructorContacts(ids: string[]) {
 
 export async function getInstructorDirectory() {
   const supabase = createClient();
-  return supabase.from("instructor_public_directory").select("*").order("rating_avg", { ascending: false });
+  return supabase.from("instructor_public_directory").select("*").order("created_at", { ascending: false });
 }
 
 export async function getFeaturedInstructors(limit = 6) {
@@ -82,7 +82,7 @@ export async function getFeaturedInstructors(limit = 6) {
     .from("instructor_public_directory")
     .select("*")
     .eq("is_featured", true)
-    .order("rating_avg", { ascending: false })
+    .order("created_at", { ascending: false })
     .limit(limit);
 }
 
@@ -95,7 +95,7 @@ export async function getMatchingCandidateInstructors() {
   const supabase = createClient();
   return supabase
     .from("instructor_public_directory")
-    .select("id, name, work_style, desired_rate_min, rating_avg, prefectures, self_pr");
+    .select("id, name, work_style, desired_rate_min, prefectures, self_pr");
 }
 
 export async function getInstructorNames(ids: string[]) {

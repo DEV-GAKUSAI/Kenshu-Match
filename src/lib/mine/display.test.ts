@@ -15,7 +15,6 @@ const row = {
   prefectures: ["東京都"],
   desired_rate_min: 1000,
   desired_rate_max: 2000,
-  rating_avg: 4.5,
 };
 
 test("rows with Mine data show initials and only the allowed Mine items", () => {
@@ -39,7 +38,6 @@ test("rows with Mine data show initials and only the allowed Mine items", () => 
   assert.deepEqual(out.prefectures, ["京都府"]);
   assert.equal(out.desired_rate_min, 5000);
   assert.equal(out.desired_rate_max, 5000);
-  assert.equal(out.rating_avg, 4.5);
 });
 
 test("old personal fields never survive, even with no Mine data", () => {

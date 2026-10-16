@@ -20,9 +20,8 @@ import {
   markResponsesSeenByRequester,
   submitInstructorResponse,
 } from "@/lib/requests/instructor-responses";
-import { submitReview, replyToReview } from "@/lib/requests/reviews";
 import { finalizeResponse } from "@/lib/requests/actions";
-import type { InstructorResponseRow, TrainingRequestRow, TrainingReviewRow } from "@/types/database";
+import type { InstructorResponseRow, TrainingRequestRow } from "@/types/database";
 import type { CurrentUser } from "@/lib/auth/auth";
 import { ApplicantRow, applicantPriority } from "@/components/mine/ApplicantRow";
 import { CompanySurveyPanel } from "@/components/survey/CompanySurveyPanel";
@@ -40,7 +39,7 @@ function fmtDate(iso: string | null) {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
 }
 
-type ReqWithJoins = TrainingRequestRow & { instructor_responses: InstructorResponseRow[]; training_reviews: TrainingReviewRow[] };
+type ReqWithJoins = TrainingRequestRow & { instructor_responses: InstructorResponseRow[] };
 
 /* ===================================================================
    講師側マイページ
@@ -130,14 +129,11 @@ function InstructorRequestCard({
   const { showToast } = useToast();
   const myResponse = (r.instructor_responses || []).find((x) => x.instructor_id === userId) || null;
   const st = instructorDisplayStatus(r, myResponse);
-  const review = (r.training_reviews || [])[0] || null;
   const meeting = myResponse ? meetings[myResponse.response_id] : undefined;
 
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quotePrice, setQuotePrice] = useState("");
   const [quoteMessage, setQuoteMessage] = useState("");
-  const [replyOpen, setReplyOpen] = useState(false);
-  const [replyText, setReplyText] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function respond(action: "accept" | "reject") {
@@ -157,16 +153,6 @@ function InstructorRequestCard({
     setBusy(false);
     if (error) return showToast(`エラー：${error.message}`);
     showToast("見積りを送信しました。");
-    onChanged();
-  }
-
-  async function submitReply() {
-    if (!replyText.trim() || !review) return showToast("返信内容を入力してください");
-    setBusy(true);
-    const { error } = await replyToReview(review.review_id, replyText.trim());
-    setBusy(false);
-    if (error) return showToast(`エラー：${error.message}`);
-    showToast("返信を投稿しました。");
     onChanged();
   }
 
@@ -250,40 +236,6 @@ function InstructorRequestCard({
         </>
       )}
 
-      {review && (
-        <>
-          <div className="review-item" style={{ marginTop: 14 }}>
-            <div className="review-item__top">
-              <span className="review-item__name">依頼者からのレビュー</span>
-              <span className="review-item__rating">★ {review.rating}</span>
-            </div>
-            <p className="review-item__comment">{review.comment || "（コメントなし）"}</p>
-          </div>
-          {review.instructor_reply ? (
-            <div className="request-card__response">
-              <strong>あなたの返信</strong>
-              {review.instructor_reply}
-            </div>
-          ) : (
-            <>
-              <div className="request-card__actions">
-                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setReplyOpen((v) => !v)}>
-                  レビューに返信する
-                </button>
-              </div>
-              <div className={`inline-quote-form${replyOpen ? " is-open" : ""}`}>
-                <div className="form-field">
-                  <label>返信メッセージ</label>
-                  <textarea rows={2} placeholder="ご感想へのお礼や補足をご記入ください" value={replyText} onChange={(e) => setReplyText(e.target.value)} />
-                </div>
-                <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={submitReply}>
-                  返信を送信する
-                </button>
-              </div>
-            </>
-          )}
-        </>
-      )}
     </div>
   );
 }
@@ -514,7 +466,6 @@ function RequesterRequestCard({
   const resp = (r.instructor_responses || [])[0] || null;
   const selectedResp = (r.instructor_responses || []).find((x) => x.is_selected);
   const instr = instructorMap[r.target_instructor_id || (selectedResp || resp)?.instructor_id || ""] || {};
-  const review = (r.training_reviews || [])[0] || null;
   const applicants = isBroadcast ? (r.instructor_responses || []).filter((x) => x.action === "accept" || x.action === "quote") : [];
   // Applicants as closed rows: the ones that need an answer first, then NEW, then the rest.
   const sortedApplicants = [...applicants].sort(
@@ -526,9 +477,6 @@ function RequesterRequestCard({
   const [busy, setBusy] = useState(false);
   // The applicants of a 公募依頼 stay closed until the company opens them (there can be many).
   const [listOpen, setListOpen] = useState(false);
-  const [reviewOpen, setReviewOpen] = useState(false);
-  const [stars, setStars] = useState(0);
-  const [comment, setComment] = useState("");
 
   async function finalize(responseId: string, instructorId: string) {
     setBusy(true);
@@ -568,19 +516,7 @@ function RequesterRequestCard({
     const { error } = await completeRequest(r.request_id);
     setBusy(false);
     if (error) return showToast(`エラー：${error.message}`);
-    showToast("研修を完了として記録しました。レビューを投稿できます。");
-    onChanged();
-  }
-
-  async function handleSubmitReview() {
-    if (!stars) return showToast("評価（星）を選択してください");
-    const instructorId = r.target_instructor_id || (selectedResp || resp)?.instructor_id;
-    if (!instructorId) return;
-    setBusy(true);
-    const { error } = await submitReview({ request_id: r.request_id, reviewer_id: userId, instructor_id: instructorId, rating: stars, comment: comment.trim() || null });
-    setBusy(false);
-    if (error) return showToast(`エラー：${error.message}`);
-    showToast("レビューを投稿しました。ありがとうございます！");
+    showToast("研修を完了として記録しました。");
     onChanged();
   }
 
@@ -752,44 +688,6 @@ function RequesterRequestCard({
         </>
       )}
 
-      {st.key === "completed" &&
-        (review ? (
-          <>
-            <div className="request-card__response">
-              <strong>投稿済みレビュー：★ {review.rating}</strong>
-              {review.comment || ""}
-            </div>
-            {review.instructor_reply && (
-              <div className="request-card__response">
-                <strong>講師からの返信</strong>
-                {review.instructor_reply}
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="request-card__actions">
-              <button type="button" className="btn btn--primary btn--sm" onClick={() => setReviewOpen((v) => !v)}>
-                レビューを投稿する
-              </button>
-            </div>
-            <div className={`review-form-inline${reviewOpen ? " is-open" : ""}`}>
-              <div className="star-picker">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button key={n} type="button" className={n <= stars ? "is-filled" : ""} onClick={() => setStars(n)}>
-                    ★
-                  </button>
-                ))}
-              </div>
-              <div className="form-field">
-                <textarea rows={2} placeholder="研修の感想をご記入ください" value={comment} onChange={(e) => setComment(e.target.value)} />
-              </div>
-              <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={handleSubmitReview}>
-                レビューを送信する
-              </button>
-            </div>
-          </>
-        ))}
     </div>
   );
 }
