@@ -415,7 +415,7 @@ function InstructorDetailInner() {
             <div className="detail-sidebar__row">
               <dt>評価</dt>
               <dd>
-                <button type="button" style={{ ...scoreLinkStyle, textDecoration: "underline", textUnderlineOffset: 3 }} onClick={showSurveyResult}>
+                <button type="button" style={scoreLinkStyle} onClick={showSurveyResult}>
                   <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}
                 </button>
               </dd>
