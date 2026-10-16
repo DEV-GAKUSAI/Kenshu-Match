@@ -76,6 +76,15 @@ function InstructorDetailInner() {
   const [reqFormError, setReqFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // The score beside the name and in the side box opens the rating section at the bottom of the page.
+  const scoreLinkStyle = { background: "none", border: 0, padding: 0, font: "inherit", color: "inherit", cursor: "pointer" } as const;
+  function showSurveyResult() {
+    const el = document.getElementById("survey-result") as HTMLDetailsElement | null;
+    if (!el) return;
+    el.open = true;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   useEffect(() => {
     if (!isRealId) {
       setSurveyScore(null);
@@ -310,9 +319,9 @@ function InstructorDetailInner() {
                 {surveyScore && (
                   <>
                     <span>・</span>
-                    <span className="detail-header__rating">
+                    <button type="button" className="detail-header__rating" style={scoreLinkStyle} onClick={showSurveyResult}>
                       <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}
-                    </span>
+                    </button>
                   </>
                 )}
               </div>
@@ -395,7 +404,9 @@ function InstructorDetailInner() {
             <div className="detail-sidebar__row">
               <dt>評価</dt>
               <dd>
-                <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}
+                <button type="button" style={scoreLinkStyle} onClick={showSurveyResult}>
+                  <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}
+                </button>
               </dd>
             </div>
           )}
