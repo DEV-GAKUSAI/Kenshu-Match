@@ -97,7 +97,7 @@ function InstructorDetailInner() {
                 評価 <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}
               </>
             ),
-            content: <PublicSurveyBlock instructorId={rawId} />,
+            content: <PublicSurveyBlock instructorId={rawId} canReply={user?.id === rawId} />,
           },
         ]
       : []),

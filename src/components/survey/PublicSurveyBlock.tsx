@@ -44,11 +44,26 @@ function avatarLetter(c: Comment) {
 }
 
 /** 研修アンケート result on the public instructor page. Shows nothing until there is an answer. */
-export function PublicSurveyBlock({ instructorId }: { instructorId: string }) {
+export function PublicSurveyBlock({ instructorId, canReply = false }: { instructorId: string; canReply?: boolean }) {
   const supabase = useMemo(() => createClient() as unknown as SupabaseClient, []);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [showAll, setShowAll] = useState(false);
+  // The instructor viewing their own page can answer a comment, thread-style.
+  const [replyId, setReplyId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  async function sendReply(answerId: string) {
+    setBusy(true);
+    const { error } = await supabase.rpc("reply_training_survey_answer", { p_answer_id: answerId, p_reply: replyText });
+    setBusy(false);
+    if (error) return;
+    setReplyId(null);
+    setReplyText("");
+    setReloadKey((k) => k + 1);
+  }
 
   useEffect(() => {
     let active = true;
@@ -67,7 +82,7 @@ export function PublicSurveyBlock({ instructorId }: { instructorId: string }) {
     return () => {
       active = false;
     };
-  }, [supabase, instructorId]);
+  }, [supabase, instructorId, reloadKey]);
 
   if (!summary) return null;
 
@@ -157,9 +172,49 @@ export function PublicSurveyBlock({ instructorId }: { instructorId: string }) {
               </div>
               <p style={{ margin: "10px 0 8px", fontSize: 14, lineHeight: 1.7, overflowWrap: "anywhere", whiteSpace: "pre-wrap" }}>{c.comment}</p>
               {c.instructor_reply && (
-                <div className="request-card__response">
-                  <strong>講師からの返信</strong>
-                  {c.instructor_reply}
+                <div style={{ display: "flex", gap: 10, margin: "4px 0 10px 18px", paddingLeft: 12, borderLeft: "3px solid var(--color-primary)" }}>
+                  <span
+                    aria-hidden
+                    style={{ width: 28, height: 28, flex: "none", borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, background: "color-mix(in srgb, var(--color-primary) 14%, #fff)", color: "var(--color-primary)" }}
+                  >
+                    講
+                  </span>
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={{ fontSize: 13 }}>講師からの返信</strong>
+                    <p style={{ margin: "4px 0 0", fontSize: 13.5, lineHeight: 1.7, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{c.instructor_reply}</p>
+                  </div>
+                </div>
+              )}
+              {canReply && replyId !== c.answer_id && (
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  onClick={() => {
+                    setReplyId(c.answer_id);
+                    setReplyText(c.instructor_reply ?? "");
+                  }}
+                >
+                  {c.instructor_reply ? "返信を編集" : "返信する"}
+                </button>
+              )}
+              {canReply && replyId === c.answer_id && (
+                <div style={{ marginLeft: 18 }}>
+                  <textarea
+                    rows={3}
+                    maxLength={1000}
+                    placeholder="返信メッセージ"
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    style={{ width: "100%", padding: 10, border: "1px solid var(--color-border)", borderRadius: 10, font: "inherit", fontSize: 14 }}
+                  />
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    <button type="button" className="btn btn--primary btn--sm" disabled={busy || !replyText.trim()} onClick={() => sendReply(c.answer_id)}>
+                      返信を送信する
+                    </button>
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => setReplyId(null)}>
+                      閉じる
+                    </button>
+                  </div>
                 </div>
               )}
               <div style={{ textAlign: "right", fontSize: 11, color: "var(--color-ink-soft)" }}>{c.created_at.slice(0, 10)}</div>
@@ -187,6 +242,27 @@ export function PublicSurveyBlock({ instructorId }: { instructorId: string }) {
           }}
         >
           もっと見る（残り {comments.length - COMMENTS_SHOWN_FIRST}件）
+        </button>
+      )}
+      {showAll && comments.length > COMMENTS_SHOWN_FIRST && (
+        <button
+          type="button"
+          onClick={() => setShowAll(false)}
+          style={{
+            width: "100%",
+            marginTop: 14,
+            padding: "12px 16px",
+            fontFamily: "inherit",
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: "pointer",
+            border: "1px solid var(--color-primary)",
+            borderRadius: 12,
+            background: "color-mix(in srgb, var(--color-primary) 8%, #fff)",
+            color: "var(--color-primary)",
+          }}
+        >
+          閉じる
         </button>
       )}
     </div>
