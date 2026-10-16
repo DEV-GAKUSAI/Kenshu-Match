@@ -8,14 +8,13 @@ import { getOpenRequestsPublicPreview, getOpenRequestsForInstructor } from "@/li
 import { markResultsSeenByInstructor } from "@/lib/requests/instructor-responses";
 import { getMyMatchingProfile } from "@/lib/instructor/profile";
 import { getRequesterContacts } from "@/lib/requester/profile";
-import type { OpenRequestPublicPreviewRow, TrainingRequestRow, InstructorResponseRow, TrainingReviewRow } from "@/types/database";
+import type { OpenRequestPublicPreviewRow, TrainingRequestRow, InstructorResponseRow } from "@/types/database";
 
 const FORMAT_LABEL: Record<string, string> = { online: "オンライン", offline: "対面", both: "オンライン・対面" };
 const HIDDEN_KEY = "kenshulink_hidden_open_requests";
 
 type RequestWithJoins = TrainingRequestRow & {
   instructor_responses: InstructorResponseRow[];
-  training_reviews: TrainingReviewRow[];
   myResponse: InstructorResponseRow | null;
 };
 
@@ -161,7 +160,6 @@ export default function OpenRequestsPage() {
 
       const rows = (data || []) as unknown as (TrainingRequestRow & {
         instructor_responses: InstructorResponseRow[];
-        training_reviews: TrainingReviewRow[];
       })[];
       const withResponses: RequestWithJoins[] = rows.map((r) => ({
         ...r,

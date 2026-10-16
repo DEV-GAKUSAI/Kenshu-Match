@@ -19,7 +19,6 @@ interface InstructorCardProps {
 
 export function InstructorCard({ instructor: ins, maxTags }: InstructorCardProps) {
   const rate = ins.desired_rate_min != null ? `¥${Number(ins.desired_rate_min).toLocaleString()}` : "応相談";
-  const rating = ins.rating_avg != null ? Number(ins.rating_avg).toFixed(1) : "-";
   const fields = maxTags ? (ins.expertise_fields || []).slice(0, maxTags) : ins.expertise_fields || [];
 
   return (
@@ -42,16 +41,11 @@ export function InstructorCard({ instructor: ins, maxTags }: InstructorCardProps
               {(ins.prefectures || []).length ? ins.prefectures!.join("、") : "エリア未設定"}
             </div>
           </div>
-          <span className="instructor-card__rating">
-            {ins.survey_count && ins.survey_avg != null ? (
-              surveyScoreLabel(ins.survey_avg, ins.survey_count)
-            ) : (
-              <>
-                ★ {rating}
-                {ins.review_count ? ` (${ins.review_count})` : ""}
-              </>
-            )}
-          </span>
+          {ins.survey_count && ins.survey_avg != null ? (
+            <span className="instructor-card__rating">
+              <span style={{ color: "#f2b84b" }}>★</span> {surveyScoreLabel(ins.survey_avg, ins.survey_count)}
+            </span>
+          ) : null}
         </div>
         <p className="instructor-card__intro">{ins.self_pr || "自己紹介は未登録です。"}</p>
         <div className="instructor-card__tags">

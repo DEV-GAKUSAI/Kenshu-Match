@@ -37,7 +37,7 @@ export async function getOpenRequestsForInstructor() {
   const supabase = createClient();
   return supabase
     .from("training_requests")
-    .select("*, instructor_responses(*), training_reviews(*)")
+    .select("*, instructor_responses(*)")
     .is("target_instructor_id", null)
     .neq("status", "cancelled")
     .order("created_at", { ascending: false });
@@ -47,7 +47,7 @@ export async function getTrainingRequestDetail(requestId: string) {
   const supabase = createClient();
   return supabase
     .from("training_requests")
-    .select("*, instructor_responses(*), training_reviews(*)")
+    .select("*, instructor_responses(*)")
     .eq("request_id", requestId)
     .maybeSingle();
 }
@@ -66,7 +66,7 @@ export async function getRequestsForInstructor(instructorId: string) {
   const supabase = createClient();
   return supabase
     .from("training_requests")
-    .select("*, instructor_responses(*), training_reviews(*)")
+    .select("*, instructor_responses(*)")
     .eq("target_instructor_id", instructorId)
     .order("created_at", { ascending: false });
 }
@@ -76,7 +76,7 @@ export async function getRequestsForRequester(requesterId: string) {
   const supabase = createClient();
   return supabase
     .from("training_requests")
-    .select("*, instructor_responses(*), training_reviews(*)")
+    .select("*, instructor_responses(*)")
     .eq("requester_id", requesterId)
     .order("created_at", { ascending: false });
 }

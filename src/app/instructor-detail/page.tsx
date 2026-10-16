@@ -9,10 +9,9 @@ import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { educationLine, qualificationLine, skillLine, totalExperienceLabel, workHistoryLine, type MinePublicProfile } from "@/lib/mine/public-profile";
 import { getInstructorById } from "@/lib/instructor/profile";
 import { getTrainingSubcategoryOptions } from "@/lib/instructor/expertise";
-import { getInstructorReviews } from "@/lib/requests/reviews";
 import { PublicSurveyBlock } from "@/components/survey/PublicSurveyBlock";
 import { createTrainingRequest } from "@/lib/requests/training-requests";
-import { MOCK_INSTRUCTORS, INSTRUCTOR_DETAILS, MOCK_REVIEWS } from "@/lib/mockInstructors";
+import { MOCK_INSTRUCTORS, INSTRUCTOR_DETAILS } from "@/lib/mockInstructors";
 import type { InstructorPublicDirectoryRow, RequestFormat, WorkStyle } from "@/types/database";
 
 const FORMAT_LABEL: Record<string, string> = { online: "オンライン対応", offline: "対面のみ", both: "オンライン・対面 両方" };
@@ -29,18 +28,9 @@ interface DisplayInstructor {
   workArea: string;
   hourlyRateLabel: string;
   yearsExperience: number | string;
-  ratingAvg: number;
-  reviewCount: number;
   introduction: string;
   avatarUrl?: string | null;
   portfolioUrl?: string | null;
-}
-interface DisplayReview {
-  reviewerName: string;
-  reviewerType: string;
-  rating: number;
-  comment: string;
-  date: string;
 }
 interface SubcategoryOption {
   id: string;
@@ -60,7 +50,6 @@ function InstructorDetailInner() {
   const [instructor, setInstructor] = useState<DisplayInstructor | null>(null);
   const [detail, setDetail] = useState<{ bio?: string | null; certifications?: string[] | null; availableSchedule?: string | null }>({});
   const [mine, setMine] = useState<MinePublicProfile | null>(null);
-  const [reviews, setReviews] = useState<DisplayReview[]>([]);
   const [notFound, setNotFound] = useState(false);
 
   const [subcategories, setSubcategories] = useState<SubcategoryOption[]>([]);
@@ -102,8 +91,6 @@ function InstructorDetailInner() {
           workArea: "エリア未設定",
           hourlyRateLabel: "応相談",
           yearsExperience: "-",
-          ratingAvg: p.rating_avg != null ? Number(p.rating_avg) : 0,
-          reviewCount: 0,
           introduction: "",
           avatarUrl: null,
           portfolioUrl: null,
@@ -138,17 +125,6 @@ function InstructorDetailInner() {
         } catch {
           setInstructor((prev) => (prev ? { ...prev, name: "（名前未設定）", initial: "?", introduction: "" } : prev));
         }
-
-        const { data: reviewRows } = await getInstructorReviews(rawId);
-        const mapped = (reviewRows || []).map((r) => ({
-          reviewerName: "利用者",
-          reviewerType: "business",
-          rating: r.rating,
-          comment: r.comment || "",
-          date: (r.created_at || "").slice(0, 10),
-        }));
-        setReviews(mapped);
-        setInstructor((prev) => (prev ? { ...prev, reviewCount: mapped.length } : prev));
       } else {
         // --- モックデータ（デモ用の旧データ、id が UUID でない場合） ---
         const mock = MOCK_INSTRUCTORS.find((i) => i.id === rawId) || MOCK_INSTRUCTORS[0];
@@ -161,14 +137,11 @@ function InstructorDetailInner() {
           workArea: mock.workArea,
           hourlyRateLabel: `¥${mock.hourlyRate.toLocaleString()}`,
           yearsExperience: mock.yearsExperience,
-          ratingAvg: mock.ratingAvg,
-          reviewCount: mock.reviewCount,
           introduction: mock.introduction,
           avatarUrl: null,
           portfolioUrl: null,
         });
         setDetail(INSTRUCTOR_DETAILS[mock.id] || {});
-        setReviews(MOCK_REVIEWS[mock.id] || []);
       }
     })();
   }, [rawId, isRealId]);
@@ -319,9 +292,6 @@ function InstructorDetailInner() {
               <h1 className="detail-header__name">{instructor.name}</h1>
               <div className="detail-header__meta">
                 <span>{instructor.workArea}</span>
-                <span>・</span>
-                <span className="detail-header__rating">★ {instructor.ratingAvg.toFixed(1)}</span>
-                <span>（{instructor.reviewCount}件のレビュー）</span>
               </div>
             </div>
           </div>
@@ -382,27 +352,6 @@ function InstructorDetailInner() {
           </div>
 
           {isRealId && <PublicSurveyBlock instructorId={rawId} />}
-
-          <div className="detail-block">
-            <h2 className="detail-block__title">レビュー（{reviews.length}件）</h2>
-            {reviews.length ? (
-              reviews.map((r, i) => (
-                <div className="review-item" key={i}>
-                  <div className="review-item__top">
-                    <span className="review-item__name">{r.reviewerName}</span>
-                    <span className="review-item__badge">{r.reviewerType === "business" ? "企業" : "生徒"}</span>
-                    <span className="review-item__rating">★ {r.rating}</span>
-                  </div>
-                  <p className="review-item__comment">{r.comment}</p>
-                  <span className="review-item__date">{r.date}</span>
-                </div>
-              ))
-            ) : (
-              <p className="detail-block__text" style={{ color: "var(--color-ink-soft)" }}>
-                まだレビューがありません。
-              </p>
-            )}
-          </div>
         </div>
 
         <aside className="detail-sidebar">
@@ -418,12 +367,6 @@ function InstructorDetailInner() {
           <div className="detail-sidebar__row">
             <dt>対応エリア</dt>
             <dd>{instructor.workArea}</dd>
-          </div>
-          <div className="detail-sidebar__row">
-            <dt>評価</dt>
-            <dd>
-              ★ {instructor.ratingAvg.toFixed(1)}（{instructor.reviewCount}件）
-            </dd>
           </div>
           <button type="button" className="btn btn--primary btn--block" onClick={handleRequestClick}>
             この講師に依頼する
