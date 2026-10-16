@@ -36,6 +36,7 @@ export function ApplicantRow({
   meetingButton,
   busy,
   onDecide,
+  onRequestInterview,
   onCancelRequest,
 }: {
   name: string;
@@ -45,6 +46,8 @@ export function ApplicantRow({
   meetingButton: ReactNode;
   busy: boolean;
   onDecide: () => void;
+  /** Ask this applicant for an interview (the first step before choosing). */
+  onRequestInterview: () => void;
   /** Cancelling the whole request (only while no instructor is chosen yet). */
   onCancelRequest?: () => void;
 }) {
@@ -56,6 +59,10 @@ export function ApplicantRow({
   const isNew = response.requester_seen_at === null;
   const offer = response.action === "accept" ? "承諾" : `見積り ¥${Number(response.quote_price || 0).toLocaleString()}`;
   const message = (response.message ?? "").trim();
+  const interview = response.interview_status;
+  const declined = interview === "declined";
+  // Until the instructor agrees to the interview only the initials are known.
+  const shownName = response.released_name?.trim() || name;
 
   let summary: ReactNode = <span style={{ color: "var(--color-ink-soft)" }}>面談：未予約</span>;
   if (meeting && meeting.status === "cancelled") {
@@ -91,6 +98,7 @@ export function ApplicantRow({
         borderLeft: `4px solid ${bar}`,
         borderRadius: "var(--radius-s)",
         fontSize: 12.5,
+        opacity: declined ? 0.6 : 1,
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px" }}>
@@ -101,8 +109,11 @@ export function ApplicantRow({
           style={{ flex: 1, minWidth: 0, textAlign: "left", background: "none", border: 0, padding: 0, cursor: "pointer", font: "inherit", color: "inherit" }}
         >
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-            <strong style={{ fontSize: 13.5, color: "var(--color-ink)" }}>{name} 先生</strong>
+            <strong style={{ fontSize: 13.5, color: "var(--color-ink)" }}>{shownName} 先生</strong>
             <span style={pill("var(--color-accent-soft)", "var(--color-accent-text)")}>{offer}</span>
+            {interview === "requested" && <span style={pill("#FFF1DB", "#9A5B0C")}>面談依頼中</span>}
+            {interview === "released" && <span style={pill("#E3F7F0", "#0E7A5F")}>情報公開済み</span>}
+            {declined && <span style={pill("#EEE", "#666")}>辞退</span>}
             {isNew && (
               <span className="status-badge status-badge--rejected" style={{ fontSize: 10 }}>
                 NEW
@@ -134,10 +145,20 @@ export function ApplicantRow({
           {message && <p style={{ margin: "0 0 10px", whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{message}</p>}
           {meeting && <MineMeetingLine meeting={meeting} viewer="requester" compact />}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: message || meeting ? 12 : 0 }}>
-            {meetingButton}
-            <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={onDecide}>
-              この講師に決定する
-            </button>
+            {!declined && meetingButton}
+            {!interview && (
+              <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={onRequestInterview}>
+                面談に進む
+              </button>
+            )}
+            {interview === "requested" && (
+              <span style={{ alignSelf: "center", color: "var(--color-ink-soft)" }}>講師の返事待ちです。公開されると決定できます。</span>
+            )}
+            {interview === "released" && (
+              <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={onDecide}>
+                この講師に決定する
+              </button>
+            )}
             {onCancelRequest && (
               <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={onCancelRequest}>
                 依頼をキャンセルする

@@ -54,3 +54,24 @@ export async function countUnseenNotSelectedResults(instructorId: string) {
   if (error || !data) return 0;
   return data.length;
 }
+
+/** Company: ask an applicant (公募依頼) for an interview before choosing. */
+export async function requestInterview(responseId: string) {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("request_interview", { p_response_id: responseId });
+  return { error };
+}
+
+/** Instructor: agree to the interview and hand the full name to the company. */
+export async function releaseInstructorName(responseId: string) {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("release_instructor_name", { p_response_id: responseId });
+  return { error };
+}
+
+/** Instructor: decline the interview request. */
+export async function declineInterview(responseId: string) {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("decline_interview", { p_response_id: responseId });
+  return { error };
+}

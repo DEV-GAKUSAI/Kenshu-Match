@@ -39,7 +39,7 @@ export async function finalizeResponse(params: {
 
   const { data: response, error: responseError } = await supabase
     .from("instructor_responses")
-    .select("response_id, request_id, instructor_id, action, is_selected")
+    .select("response_id, request_id, instructor_id, action, is_selected, interview_status")
     .eq("response_id", responseId)
     .maybeSingle();
 
@@ -58,7 +58,7 @@ export async function finalizeResponse(params: {
 
   const { data: request, error: requestError } = await supabase
     .from("training_requests")
-    .select("request_id, requester_id, status")
+    .select("request_id, requester_id, status, target_instructor_id")
     .eq("request_id", requestId)
     .maybeSingle();
 
@@ -70,6 +70,11 @@ export async function finalizeResponse(params: {
   }
   if (request.status !== "pending") {
     return { error: { message: "この依頼はすでに確定・キャンセル済みです。" } };
+  }
+
+  // 公募依頼: the instructor must have agreed to the interview and released the name first.
+  if (!request.target_instructor_id && response.interview_status !== "released") {
+    return { error: { message: "先に面談を依頼し、講師が情報を公開してから決定してください。" } };
   }
 
   const { error: e1 } = await supabase

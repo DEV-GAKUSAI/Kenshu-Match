@@ -122,7 +122,15 @@ export type InstructorResponseRow = {
   created_at: string;
   result_seen_at: string | null;
   requester_seen_at: string | null;
+  /** 公募 interview step: null → requested → released | declined (migration 141). */
+  interview_status: InterviewStatus | null;
+  interview_requested_at: string | null;
+  /** Full name the instructor handed over (or that a direct request releases on accept). */
+  released_name: string | null;
+  name_released_at: string | null;
 };
+
+export type InterviewStatus = "requested" | "released" | "declined";
 
 export type ContactUnlockRow = {
   unlock_id: string;
@@ -229,6 +237,9 @@ export type Database = {
       open_requests_public_preview: ViewDef<OpenRequestPublicPreviewRow>;
     };
     Functions: {
+      request_interview: { Args: { p_response_id: string }; Returns: void };
+      release_instructor_name: { Args: { p_response_id: string }; Returns: void };
+      decline_interview: { Args: { p_response_id: string }; Returns: void };
       complete_oauth_profile: {
         Args: { p_role: UserRole; p_name: string };
         Returns: void;
