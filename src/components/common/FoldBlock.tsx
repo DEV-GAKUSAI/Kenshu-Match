@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 
-/** A section that is closed until clicked (button-like header, green arrow on the right). */
+/** A section that is closed until clicked: same heading look as the open sections, with a green arrow on the right. */
 export function FoldBlock({ id, title, children }: { id?: string; title: ReactNode; children: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
@@ -14,35 +14,23 @@ export function FoldBlock({ id, title, children }: { id?: string; title: ReactNo
       style={{ scrollMarginTop: 96 }}
     >
       <summary
-        style={{
-          cursor: "pointer",
-          listStyle: "none",
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "12px 16px",
-          marginBottom: open ? 14 : 0,
-          border: "1px solid var(--color-primary)",
-          borderRadius: 12,
-          background: "color-mix(in srgb, var(--color-primary) 8%, #fff)",
-          fontWeight: 700,
-          fontSize: 15,
-        }}
+        className="detail-block__title"
+        style={{ cursor: "pointer", listStyle: "none", display: "flex", alignItems: "center", gap: 10, marginBottom: open ? undefined : 0 }}
       >
         <span>{title}</span>
         <span
           aria-hidden
           style={{
             marginLeft: "auto",
-            width: 28,
-            height: 28,
+            width: 24,
+            height: 24,
             borderRadius: "50%",
             background: "var(--color-primary)",
             color: "#fff",
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 11,
+            fontSize: 10,
           }}
         >
           {open ? "▲" : "▼"}
