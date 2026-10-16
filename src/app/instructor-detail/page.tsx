@@ -9,6 +9,7 @@ import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { educationLine, qualificationLine, skillLine, totalExperienceLabel, workHistoryLine, type MinePublicProfile } from "@/lib/mine/public-profile";
 import { getInstructorById } from "@/lib/instructor/profile";
 import { getTrainingSubcategoryOptions } from "@/lib/instructor/expertise";
+import { FoldBlock } from "@/components/common/FoldBlock";
 import { PublicSurveyBlock } from "@/components/survey/PublicSurveyBlock";
 import { withSurveySummary } from "@/lib/survey/summary-client";
 import { surveyScoreLabel } from "@/lib/survey/summary";
@@ -77,7 +78,7 @@ function InstructorDetailInner() {
   const [submitting, setSubmitting] = useState(false);
 
   // The score beside the name and in the side box opens the rating section at the bottom of the page.
-  const scoreLinkStyle = { background: "none", border: 0, padding: 0, font: "inherit", color: "inherit", cursor: "pointer" } as const;
+  const scoreLinkStyle = { background: "none", border: 0, padding: 0, font: "inherit", color: "inherit", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 } as const;
   function showSurveyResult() {
     const el = document.getElementById("survey-result") as HTMLDetailsElement | null;
     if (!el) return;
@@ -345,13 +346,16 @@ function InstructorDetailInner() {
             </div>
           )}
 
+          {(!isRealId || instructor.portfolioUrl) && (
           <div className="detail-block">
             <h2 className="detail-block__title">基本情報</h2>
             <dl className="info-list">
-              <div>
-                <dt>対応形態</dt>
-                <dd>{instructor.workFormatLabel}</dd>
-              </div>
+              {!isRealId && (
+                <div>
+                  <dt>対応形態</dt>
+                  <dd>{instructor.workFormatLabel}</dd>
+                </div>
+              )}
               {!isRealId && (
                 <div>
                   <dt>経験年数</dt>
@@ -382,8 +386,10 @@ function InstructorDetailInner() {
               )}
             </dl>
           </div>
+          )}
 
           {isRealId && <PublicSurveyBlock instructorId={rawId} />}
+          <div style={{ height: 32 }} />
         </div>
 
         <aside className="detail-sidebar">
@@ -545,15 +551,17 @@ function MineProfileBlocks({ mine }: { mine: MinePublicProfile | null }) {
       ))}
     </ul>
   );
-  const blocks: { title: string; body: React.ReactNode }[] = [];
+  const blocks: { title: string; body: React.ReactNode; count?: number }[] = [];
+  const FOLDED = new Set(["スキル", "資格・免許", "職歴", "学歴"]);
   if (mine.self_introduction) blocks.push({ title: "自己紹介", body: <p className="detail-block__text" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{mine.self_introduction}</p> });
   if (mine.professional_summary) blocks.push({ title: "職務要約", body: <p className="detail-block__text" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{mine.professional_summary}</p> });
-  if (mine.skills?.length) blocks.push({ title: "スキル", body: list(mine.skills.map(skillLine)) });
-  if (mine.qualifications?.length) blocks.push({ title: "資格・免許", body: list(mine.qualifications.map(qualificationLine)) });
+  if (mine.skills?.length) blocks.push({ title: "スキル", count: mine.skills.length, body: list(mine.skills.map(skillLine)) });
+  if (mine.qualifications?.length) blocks.push({ title: "資格・免許", count: mine.qualifications.length, body: list(mine.qualifications.map(qualificationLine)) });
   if (mine.work_history?.length) {
     const total = totalExperienceLabel(mine.work_history);
     blocks.push({
       title: "職歴",
+      count: mine.work_history.length,
       body: (
         <>
           {total && (
@@ -566,7 +574,7 @@ function MineProfileBlocks({ mine }: { mine: MinePublicProfile | null }) {
       ),
     });
   }
-  if (mine.education?.length) blocks.push({ title: "学歴", body: list(mine.education.map(educationLine)) });
+  if (mine.education?.length) blocks.push({ title: "学歴", count: mine.education.length, body: list(mine.education.map(educationLine)) });
   if (mine.languages) blocks.push({ title: "言語", body: <p className="detail-block__text">{mine.languages}</p> });
   if (mine.area) blocks.push({ title: "地域", body: <p className="detail-block__text">{mine.area}</p> });
   return (
@@ -583,12 +591,18 @@ function MineProfileBlocks({ mine }: { mine: MinePublicProfile | null }) {
           </div>
         </div>
       ) : null}
-      {blocks.map((block) => (
-        <div className="detail-block" key={block.title}>
-          <h2 className="detail-block__title">{block.title}</h2>
-          {block.body}
-        </div>
-      ))}
+      {blocks.map((block) =>
+        FOLDED.has(block.title) ? (
+          <FoldBlock key={block.title} title={`${block.title}（${block.count}）`}>
+            {block.body}
+          </FoldBlock>
+        ) : (
+          <div className="detail-block" key={block.title}>
+            <h2 className="detail-block__title">{block.title}</h2>
+            {block.body}
+          </div>
+        ),
+      )}
     </>
   );
 }
