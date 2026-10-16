@@ -340,31 +340,41 @@ function InstructorDetailInner() {
               active={tab === "career" && !hasCareer ? "profile" : tab === "rating" && !surveyScore ? "profile" : tab}
               onChange={setTab}
               tabs={[
-                { key: "profile", label: "プロフィール" },
-                ...(hasCareer ? [{ key: "career", label: "経歴・スキル" }] : []),
-                ...(surveyScore ? [{ key: "rating", label: <>評価 <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}</> }] : []),
+                {
+                  key: "profile",
+                  label: "プロフィール",
+                  content: (
+                    <>
+                      <MineProfileBlocks mine={mine} group="profile" />
+                      {instructor.portfolioUrl && (
+                        <div className="detail-block">
+                          <h2 className="detail-block__title">ポートフォリオ／実績</h2>
+                          <p className="detail-block__text">
+                            <a href={instructor.portfolioUrl} target="_blank" rel="noopener noreferrer">
+                              {instructor.portfolioUrl}
+                            </a>
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  ),
+                },
+                ...(hasCareer ? [{ key: "career", label: "経歴・スキル", content: <MineProfileBlocks mine={mine} group="career" /> }] : []),
+                ...(surveyScore
+                  ? [
+                      {
+                        key: "rating",
+                        label: (
+                          <>
+                            評価 <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}
+                          </>
+                        ),
+                        content: <PublicSurveyBlock instructorId={rawId} />,
+                      },
+                    ]
+                  : []),
               ]}
-            >
-              {tab === "rating" && surveyScore ? (
-                <PublicSurveyBlock instructorId={rawId} />
-              ) : tab === "career" && hasCareer ? (
-                <MineProfileBlocks mine={mine} group="career" />
-              ) : (
-                <>
-                  <MineProfileBlocks mine={mine} group="profile" />
-                  {instructor.portfolioUrl && (
-                    <div className="detail-block">
-                      <h2 className="detail-block__title">ポートフォリオ／実績</h2>
-                      <p className="detail-block__text">
-                        <a href={instructor.portfolioUrl} target="_blank" rel="noopener noreferrer">
-                          {instructor.portfolioUrl}
-                        </a>
-                      </p>
-                    </div>
-                  )}
-                </>
-              )}
-            </DetailTabs>
+            />
           ) : (
             <>
               <div className="detail-block">
