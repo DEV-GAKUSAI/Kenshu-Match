@@ -102,14 +102,32 @@ export function ApplicantRow({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px" }}>
-        <button
-          type="button"
+        {/* A div (not a button) so the name can be a real link inside it. */}
+        <div
+          role="button"
+          tabIndex={0}
           aria-expanded={open}
           onClick={() => setOpen((value) => !value)}
-          style={{ flex: 1, minWidth: 0, textAlign: "left", background: "none", border: 0, padding: 0, cursor: "pointer", font: "inherit", color: "inherit" }}
+          onKeyDown={(event) => {
+            if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+              event.preventDefault();
+              setOpen((value) => !value);
+            }
+          }}
+          style={{ flex: 1, minWidth: 0, textAlign: "left", padding: 0, cursor: "pointer", font: "inherit", color: "inherit" }}
         >
           <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-            <strong style={{ fontSize: 13.5, color: "var(--color-ink)" }}>{shownName} 先生</strong>
+            <strong style={{ fontSize: 13.5, color: "var(--color-ink)" }}>
+              <a
+                href={`/instructor-detail?id=${response.instructor_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(event) => event.stopPropagation()}
+                style={{ color: "var(--color-primary)", textDecoration: "underline", textUnderlineOffset: 3 }}
+              >
+                {shownName} 先生
+              </a>
+            </strong>
             <span style={pill("var(--color-accent-soft)", "var(--color-accent-text)")}>{offer}</span>
             {interview === "requested" && <span style={pill("#FFF1DB", "#9A5B0C")}>面談依頼中</span>}
             {interview === "released" && <span style={pill("#E3F7F0", "#0E7A5F")}>情報公開済み</span>}
@@ -121,7 +139,7 @@ export function ApplicantRow({
             )}
           </div>
           <div style={{ marginTop: 4 }}>{summary}</div>
-        </button>
+        </div>
         {meetUrl && (
           <a href={meetUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--sm">
             Google Meet に参加
