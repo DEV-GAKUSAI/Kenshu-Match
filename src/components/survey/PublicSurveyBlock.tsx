@@ -26,6 +26,8 @@ type Comment = {
   created_at: string;
 };
 
+const COMMENTS_SHOWN_FIRST = 3;
+
 const fmt = (v: number | null | undefined) => (v === null || v === undefined ? "—" : Number(v).toFixed(1));
 
 /** 研修アンケート result on the public instructor page. Shows nothing until there is an answer. */
@@ -33,6 +35,8 @@ export function PublicSurveyBlock({ instructorId }: { instructorId: string }) {
   const supabase = useMemo(() => createClient() as unknown as SupabaseClient, []);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [open, setOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -55,11 +59,27 @@ export function PublicSurveyBlock({ instructorId }: { instructorId: string }) {
 
   if (!summary) return null;
 
+  const shown = showAll ? comments : comments.slice(0, COMMENTS_SHOWN_FIRST);
+
   return (
-    <div className="detail-block">
-      <h2 className="detail-block__title">
-        研修アンケート　{fmt(summary.overall_avg)} / 4（{summary.answer_count}件）
-      </h2>
+    <details
+      id="survey-result"
+      className="detail-block"
+      open={open}
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+    >
+      <summary
+        className="detail-block__title"
+        style={{ cursor: "pointer", listStyle: "none", display: "flex", alignItems: "center", gap: 10, marginBottom: open ? undefined : 0 }}
+      >
+        <span style={{ color: "#f2b84b" }}>★</span>
+        <span>
+          研修アンケート　{fmt(summary.overall_avg)} / 4（{summary.answer_count}件）
+        </span>
+        <span aria-hidden style={{ marginLeft: "auto", color: "var(--color-primary)", fontSize: 14 }}>
+          {open ? "▲" : "▼"}
+        </span>
+      </summary>
       <ul className="survey-avgs">
         {SURVEY_QUESTIONS.map((q) => {
           const v = summary[`${q.key}_avg` as keyof Summary] as number | null;
@@ -74,7 +94,7 @@ export function PublicSurveyBlock({ instructorId }: { instructorId: string }) {
           );
         })}
       </ul>
-      {comments.map((c) => (
+      {shown.map((c) => (
         <div className="review-item" key={c.answer_id}>
           <div className="review-item__top">
             <span className="review-item__name">{c.author_label}</span>
@@ -90,6 +110,11 @@ export function PublicSurveyBlock({ instructorId }: { instructorId: string }) {
           <span className="review-item__date">{c.created_at.slice(0, 10)}</span>
         </div>
       ))}
-    </div>
+      {!showAll && comments.length > COMMENTS_SHOWN_FIRST && (
+        <button type="button" className="btn btn--ghost btn--sm" onClick={() => setShowAll(true)}>
+          もっと見る（残り {comments.length - COMMENTS_SHOWN_FIRST}件）
+        </button>
+      )}
+    </details>
   );
 }

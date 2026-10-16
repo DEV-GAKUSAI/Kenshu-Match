@@ -10,6 +10,8 @@ import { educationLine, qualificationLine, skillLine, totalExperienceLabel, work
 import { getInstructorById } from "@/lib/instructor/profile";
 import { getTrainingSubcategoryOptions } from "@/lib/instructor/expertise";
 import { PublicSurveyBlock } from "@/components/survey/PublicSurveyBlock";
+import { withSurveySummary } from "@/lib/survey/summary-client";
+import { surveyScoreLabel } from "@/lib/survey/summary";
 import { createTrainingRequest } from "@/lib/requests/training-requests";
 import { MOCK_INSTRUCTORS, INSTRUCTOR_DETAILS } from "@/lib/mockInstructors";
 import type { InstructorPublicDirectoryRow, RequestFormat, WorkStyle } from "@/types/database";
@@ -51,6 +53,7 @@ function InstructorDetailInner() {
   const [detail, setDetail] = useState<{ bio?: string | null; certifications?: string[] | null; availableSchedule?: string | null }>({});
   const [mine, setMine] = useState<MinePublicProfile | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [surveyScore, setSurveyScore] = useState<string | null>(null);
 
   const [subcategories, setSubcategories] = useState<SubcategoryOption[]>([]);
   const [requestModalOpen, setRequestModalOpen] = useState(false);
@@ -72,6 +75,27 @@ function InstructorDetailInner() {
   const [reqDescError, setReqDescError] = useState(false);
   const [reqFormError, setReqFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // The score beside the name and in the side box opens the rating section at the bottom of the page.
+  const scoreLinkStyle = { background: "none", border: 0, padding: 0, font: "inherit", color: "inherit", cursor: "pointer" } as const;
+  function showSurveyResult() {
+    const el = document.getElementById("survey-result") as HTMLDetailsElement | null;
+    if (!el) return;
+    el.open = true;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  useEffect(() => {
+    if (!isRealId) {
+      setSurveyScore(null);
+      return;
+    }
+    (async () => {
+      const [row] = await withSurveySummary([{ id: rawId }]);
+      const r = row as { survey_avg?: number | null; survey_count?: number | null };
+      setSurveyScore(r.survey_count && r.survey_avg != null ? surveyScoreLabel(r.survey_avg, r.survey_count) : null);
+    })();
+  }, [rawId, isRealId]);
 
   useEffect(() => {
     (async () => {
@@ -292,6 +316,14 @@ function InstructorDetailInner() {
               <h1 className="detail-header__name">{instructor.name}</h1>
               <div className="detail-header__meta">
                 <span>{instructor.workArea}</span>
+                {surveyScore && (
+                  <>
+                    <span>・</span>
+                    <button type="button" className="detail-header__rating" style={scoreLinkStyle} onClick={showSurveyResult}>
+                      <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -368,6 +400,16 @@ function InstructorDetailInner() {
             <dt>対応エリア</dt>
             <dd>{instructor.workArea}</dd>
           </div>
+          {surveyScore && (
+            <div className="detail-sidebar__row">
+              <dt>評価</dt>
+              <dd>
+                <button type="button" style={scoreLinkStyle} onClick={showSurveyResult}>
+                  <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}
+                </button>
+              </dd>
+            </div>
+          )}
           <button type="button" className="btn btn--primary btn--block" onClick={handleRequestClick}>
             この講師に依頼する
           </button>
