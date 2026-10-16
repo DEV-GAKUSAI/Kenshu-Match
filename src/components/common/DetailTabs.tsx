@@ -2,26 +2,39 @@
 
 import type { ReactNode } from "react";
 
-export type DetailTab = { key: string; label: ReactNode };
+export type DetailTab = { key: string; label: ReactNode; content: ReactNode };
 
-/** Tabs whose selected tab opens a white card with a soft shadow (the card looks like it opened from the tab). */
+/**
+ * Tabs whose selected tab opens a white card with a soft shadow (the card looks like it opened from the tab).
+ * Every panel stays mounted, so the data of each tab is already loaded when the page opens; the others are only hidden.
+ */
 export function DetailTabs({
   id,
   tabs,
   active,
   onChange,
-  children,
 }: {
   id?: string;
   tabs: DetailTab[];
   active: string;
   onChange: (key: string) => void;
-  children: ReactNode;
 }) {
   const border = "1px solid var(--color-border)";
+  const firstSelected = tabs[0]?.key === active;
   return (
     <div id={id} style={{ scrollMarginTop: 96 }}>
-      <div role="tablist" style={{ display: "flex", gap: 6, overflowX: "auto", position: "relative", zIndex: 1 }}>
+      <style>{`
+        @keyframes detailTabIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        .detail-tabs__list { scrollbar-width: none; }
+        .detail-tabs__list::-webkit-scrollbar { display: none; }
+        .detail-tabs__tab { transition: background-color .2s ease, color .2s ease; }
+        .detail-tabs__tab:not([aria-selected="true"]):hover { background: color-mix(in srgb, var(--color-primary) 14%, #f3f6f5) !important; }
+      `}</style>
+      <div
+        role="tablist"
+        className="detail-tabs__list"
+        style={{ display: "flex", alignItems: "flex-end", gap: 6, overflowX: "auto", overflowY: "hidden", position: "relative", zIndex: 1, marginBottom: -1 }}
+      >
         {tabs.map((t) => {
           const selected = t.key === active;
           return (
@@ -30,6 +43,7 @@ export function DetailTabs({
               type="button"
               role="tab"
               aria-selected={selected}
+              className="detail-tabs__tab"
               onClick={() => onChange(t.key)}
               style={{
                 padding: "12px 20px",
@@ -38,13 +52,11 @@ export function DetailTabs({
                 fontWeight: 700,
                 whiteSpace: "nowrap",
                 cursor: "pointer",
-                border,
-                borderBottom: selected ? "1px solid #fff" : border,
+                border: 0,
                 borderRadius: "12px 12px 0 0",
-                marginBottom: -1,
-                background: selected ? "#fff" : "color-mix(in srgb, var(--color-primary) 6%, #f3f6f5)",
+                marginBottom: selected ? 0 : 1,
+                background: selected ? "#fff" : "color-mix(in srgb, var(--color-primary) 8%, #f3f6f5)",
                 color: selected ? "var(--color-primary)" : "var(--color-ink-soft)",
-                boxShadow: selected ? "0 -2px 8px rgba(0,0,0,0.04)" : "none",
               }}
             >
               {t.label}
@@ -53,16 +65,25 @@ export function DetailTabs({
         })}
       </div>
       <div
-        role="tabpanel"
         style={{
           background: "#fff",
           border,
-          borderRadius: "0 12px 12px 12px",
+          borderRadius: firstSelected ? "0 12px 12px 12px" : "12px",
           boxShadow: "0 6px 20px rgba(20, 60, 50, 0.08)",
           padding: "24px 24px 8px",
+          transition: "border-radius .2s ease",
         }}
       >
-        {children}
+        {tabs.map((t) => (
+          <div
+            key={t.key}
+            role="tabpanel"
+            hidden={t.key !== active}
+            style={t.key === active ? { animation: "detailTabIn .25s ease" } : undefined}
+          >
+            {t.content}
+          </div>
+        ))}
       </div>
     </div>
   );
