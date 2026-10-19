@@ -55,7 +55,7 @@ export function ApplicantRow({
   // The meeting while it is still upcoming (not cancelled, not finished).
   const live = meeting && isActive(meeting) ? meeting : undefined;
   const needsAnswer = live?.status === "change_requested" && live.proposed_by === "host";
-  const meetUrl = live?.meeting_type === "google_meet" ? live.meeting_url : null;
+  const meetUrl = live?.meeting_type === "google_meet" || live?.meeting_type === "zoom" ? live.meeting_url : null;
   const isNew = response.requester_seen_at === null;
   const offer = response.action === "accept" ? "承諾" : `見積り ¥${Number(response.quote_price || 0).toLocaleString()}`;
   const message = (response.message ?? "").trim();
@@ -141,8 +141,14 @@ export function ApplicantRow({
           <div style={{ marginTop: 4 }}>{summary}</div>
         </div>
         {meetUrl && (
-          <a href={meetUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--sm">
-            Google Meet に参加
+          <a
+            href={meetUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn--primary btn--sm"
+            style={live?.meeting_type === "zoom" ? { background: "#2d8cff", borderColor: "#2d8cff", color: "#fff" } : undefined}
+          >
+            {live?.meeting_type === "zoom" ? "Zoom に参加" : "Google Meet に参加"}
           </a>
         )}
         <button
