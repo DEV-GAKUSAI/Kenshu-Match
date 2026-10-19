@@ -8,6 +8,7 @@ import { useToast } from "@/components/common/Toast";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { getTrainingSubcategoryOptions, findOrCreateSubcategory, getOtherCategory } from "@/lib/instructor/expertise";
 import { createTrainingRequest } from "@/lib/requests/training-requests";
+import { flushMineNotices } from "@/lib/mine/flush-client";
 import type { RequestFormat } from "@/types/database";
 
 interface SubcategoryOption {
@@ -135,6 +136,7 @@ export default function PostRequestPage() {
       return;
     }
 
+    flushMineNotices();
     showToast("依頼を公募しました。講師からの返信をマイページで確認できます。");
     setTimeout(() => router.push("/mypage"), 800);
   }
