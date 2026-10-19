@@ -109,6 +109,13 @@ function ProfileStatusCard({ userId }: { userId: string }) {
 
 function instructorDisplayStatus(r: ReqWithJoins, myResponse: InstructorResponseRow | null) {
   if (r.status === "cancelled") return { key: "cancelled", label: "依頼者によりキャンセル" };
+  const lostToOther =
+    (r.status === "accepted" || r.status === "completed") &&
+    !r.target_instructor_id &&
+    !!myResponse &&
+    (myResponse.action === "accept" || myResponse.action === "quote") &&
+    !myResponse.is_selected;
+  if (lostToOther) return { key: "notselected", label: "今回は決定されませんでした" };
   if (r.status === "completed") return { key: "completed", label: "完了" };
   if (r.status === "accepted") return { key: "accepted", label: "承諾済み" };
   if (myResponse) {
@@ -203,7 +210,7 @@ function InstructorRequestCard({
             <span>{fmtDate(r.created_at)}</span>
           </div>
         </div>
-        <span className={`status-badge status-badge--${st.key === "quoted" ? "quoted" : st.key === "rejected" ? "rejected" : st.key}`}>{st.label}</span>
+        <span className={`status-badge status-badge--${st.key === "quoted" ? "quoted" : st.key === "rejected" || st.key === "notselected" ? "rejected" : st.key}`}>{st.label}</span>
       </div>
 
       <p className="request-card__desc">{r.description}</p>
@@ -349,6 +356,7 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
     ["accepted", "承諾済み"],
     ["completed", "完了"],
     ["rejected", "却下"],
+    ["notselected", "決定なし"],
     ["cancelled", "キャンセル"],
   ] as const;
 

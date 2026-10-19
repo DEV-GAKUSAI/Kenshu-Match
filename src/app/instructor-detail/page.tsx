@@ -14,6 +14,7 @@ import { PublicSurveyBlock } from "@/components/survey/PublicSurveyBlock";
 import { withSurveySummary } from "@/lib/survey/summary-client";
 import { surveyScoreLabel } from "@/lib/survey/summary";
 import { createTrainingRequest } from "@/lib/requests/training-requests";
+import { flushMineNotices } from "@/lib/mine/flush-client";
 import { MOCK_INSTRUCTORS, INSTRUCTOR_DETAILS } from "@/lib/mockInstructors";
 import type { InstructorPublicDirectoryRow, RequestFormat, WorkStyle } from "@/types/database";
 
@@ -305,6 +306,7 @@ function InstructorDetailInner() {
     }
 
     setRequestModalOpen(false);
+    flushMineNotices();
     showToast(`${instructor.name} 先生へ依頼を送信しました（マイページから確認できます）`);
     setReqTitle("");
     setReqDescription("");
