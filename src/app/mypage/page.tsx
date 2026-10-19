@@ -33,6 +33,7 @@ import { InstructorSurveyPanel } from "@/components/survey/InstructorSurveyPanel
 import { InstructorSurveyResults } from "@/components/survey/InstructorSurveyResults";
 import { BookMineMeetingButton, MineMeetingLine, useMineLinkedInstructors, useMineMeetings } from "@/components/mine/MineMeeting";
 import type { KenshuMineMeetingRow } from "@/types/database";
+import { flushMineNotices } from "@/lib/mine/flush-client";
 import "./mypage.css";
 
 const FORMAT_LABEL: Record<string, string> = { online: "オンライン", offline: "対面", both: "オンライン・対面" };
@@ -310,6 +311,7 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
   const [openRequestsUnseen, setOpenRequestsUnseen] = useState(0);
 
   const load = useCallback(async () => {
+    flushMineNotices();
     const { data, error } = await getRequestsForInstructor(user.id);
     if (error) {
       setLoadError(error.message);
@@ -793,6 +795,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
   const [unseenCount, setUnseenCount] = useState(0);
 
   const load = useCallback(async () => {
+    flushMineNotices();
     const { data, error } = await getRequestsForRequester(user.id);
     if (error) {
       setLoadError(error.message);

@@ -12,6 +12,7 @@ import {
   getTrainingRequestWithResponses,
 } from "@/lib/requests/training-requests";
 import { submitInstructorResponse } from "@/lib/requests/instructor-responses";
+import { flushMineNotices } from "@/lib/mine/flush-client";
 import { getRequesterContacts } from "@/lib/requester/profile";
 import { withMineDisplay } from "@/lib/mine/display";
 import { withSurveySummary } from "@/lib/survey/summary-client";
@@ -188,6 +189,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
       showToast(`エラー：${error.message}`);
       return;
     }
+    flushMineNotices();
     showToast(action === "accept" ? "依頼を承諾しました。依頼者の確定操作をお待ちください。" : "この依頼を却下しました。");
     load();
   }
@@ -205,6 +207,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
       showToast(`エラー：${error.message}`);
       return;
     }
+    flushMineNotices();
     showToast("見積りを送信しました。");
     load();
   }
