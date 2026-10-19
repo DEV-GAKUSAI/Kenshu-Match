@@ -11,7 +11,8 @@ import {
   getTrainingRequestDetail,
   getTrainingRequestWithResponses,
 } from "@/lib/requests/training-requests";
-import { submitInstructorResponse } from "@/lib/requests/instructor-responses";
+import { declineInterview, releaseInstructorName, submitInstructorResponse } from "@/lib/requests/instructor-responses";
+import { useConfirm } from "@/components/common/ConfirmDialog";
 import { flushMineNotices } from "@/lib/mine/flush-client";
 import { getRequesterContacts } from "@/lib/requester/profile";
 import { withMineDisplay } from "@/lib/mine/display";
@@ -125,6 +126,7 @@ type ReqWithJoins = TrainingRequestRow & { instructor_responses: InstructorRespo
 
 function InstructorDetailView({ requestId, instructorId, focusRespond }: { requestId: string; instructorId: string; focusRespond: boolean }) {
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const router = useRouter();
   const [r, setR] = useState<ReqWithJoins | null | undefined>(undefined);
   const [requesterInfo, setRequesterInfo] = useState<{ name?: string; email?: string; phone?: string | null; company_name?: string | null } | null>(null);
@@ -194,6 +196,40 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
     load();
   }
 
+  // Interview step (same as the マイページ banner): agree to release the name, or decline.
+  async function handleRelease() {
+    if (!myResponse) return;
+    const { ok } = await confirm({
+      title: "氏名を公開しますか？",
+      message: "面談に同意し、氏名（フルネーム）を企業に公開します。",
+      confirmLabel: "情報を公開する",
+    });
+    if (!ok) return;
+    setBusy(true);
+    const { error } = await releaseInstructorName(myResponse.response_id);
+    setBusy(false);
+    if (error) return showToast(`エラー：${error.message}`);
+    showToast("氏名を公開しました。企業の決定をお待ちください。");
+    load();
+  }
+
+  async function handleDecline() {
+    if (!myResponse) return;
+    const { ok } = await confirm({
+      title: "面談を辞退しますか？",
+      message: "この面談依頼を辞退します。",
+      confirmLabel: "辞退する",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setBusy(true);
+    const { error } = await declineInterview(myResponse.response_id);
+    setBusy(false);
+    if (error) return showToast(`エラー：${error.message}`);
+    showToast("面談を辞退しました。");
+    load();
+  }
+
   async function submitQuote() {
     const price = Number(quotePrice) || null;
     if (!price) {
@@ -243,6 +279,31 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
             </strong>
             {myResponse.message ? myResponse.message : "（メッセージなし）"}
           </div>
+        )}
+
+        {myResponse?.interview_status === "requested" && r.status === "pending" && (
+          <div className="contact-box" style={{ marginTop: 20 }}>
+            <strong>企業から面談の依頼が届いています。</strong>
+            <div>同意すると、あなたの氏名（フルネーム）が企業に公開されます。</div>
+            <div className="request-card__actions">
+              <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={handleRelease}>
+                情報を公開する
+              </button>
+              <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={handleDecline}>
+                辞退する
+              </button>
+            </div>
+          </div>
+        )}
+        {myResponse?.interview_status === "released" && r.status === "pending" && (
+          <p className="request-card__desc" style={{ color: "var(--color-ink-soft)" }}>
+            氏名を公開しました。企業の決定をお待ちください。
+          </p>
+        )}
+        {myResponse?.interview_status === "declined" && (
+          <p className="request-card__desc" style={{ color: "var(--color-ink-soft)" }}>
+            面談を辞退しました。
+          </p>
         )}
 
         {!myResponse && r.status === "pending" && (
