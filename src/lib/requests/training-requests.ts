@@ -61,14 +61,36 @@ export async function getTrainingRequestWithResponses(requestId: string) {
     .maybeSingle();
 }
 
-/** Requests directed at a specific instructor (mypage instructor view). */
+/**
+ * Requests for the instructor's mypage: the ones directed at them, plus the 公募
+ * requests they have replied to (so the interview banner and the result show up).
+ */
 export async function getRequestsForInstructor(instructorId: string) {
   const supabase = createClient();
-  return supabase
-    .from("training_requests")
-    .select("*, instructor_responses(*)")
-    .eq("target_instructor_id", instructorId)
-    .order("created_at", { ascending: false });
+  const [directed, replied] = await Promise.all([
+    supabase
+      .from("training_requests")
+      .select("*, instructor_responses(*)")
+      .eq("target_instructor_id", instructorId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("training_requests")
+      .select("*, instructor_responses!inner(*)")
+      .is("target_instructor_id", null)
+      .eq("instructor_responses.instructor_id", instructorId)
+      .order("created_at", { ascending: false }),
+  ]);
+  if (directed.error) return { data: null, error: directed.error };
+  if (replied.error) return { data: null, error: replied.error };
+  const seen = new Set<string>();
+  const data = [...(directed.data ?? []), ...(replied.data ?? [])]
+    .filter((row) => {
+      if (seen.has(row.request_id)) return false;
+      seen.add(row.request_id);
+      return true;
+    })
+    .sort((x, y) => (x.created_at < y.created_at ? 1 : -1));
+  return { data, error: null };
 }
 
 /** Requests posted by a specific requester (mypage requester view). */
