@@ -1820,3 +1820,11 @@ button { font-family: inherit; cursor: pointer; }
 .survey-avgs__bar { height: 8px; border-radius: 99px; background: var(--color-border); overflow: hidden; }
 .survey-avgs__bar span { display: block; height: 100%; background: var(--color-primary); }
 @media (max-width: 520px) { .survey-avgs li { grid-template-columns: 1fr 60px 32px; } }
+
+/* アプリ内の確認ダイアログ（ブラウザ標準の confirm の代わり） */
+.confirm-box { max-width: 420px; padding: 28px; }
+.confirm-box__message { margin-bottom: 20px; line-height: 1.7; }
+.confirm-box__reason { margin-bottom: 20px; }
+.confirm-box__actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.btn--danger-solid { background: var(--color-danger); border: 1px solid var(--color-danger); color: #fff; box-shadow: none; }
+.btn--danger-solid:hover { filter: brightness(0.92); }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/common/Toast";
+import { useConfirm } from "@/components/common/ConfirmDialog";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { fetchMineDisplay } from "@/lib/mine/display";
 import { initialsFromName } from "@/lib/mine/public-profile";
@@ -130,6 +131,7 @@ function InstructorRequestCard({
   onChanged: () => void;
 }) {
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const myResponse = (r.instructor_responses || []).find((x) => x.instructor_id === userId) || null;
   const st = instructorDisplayStatus(r, myResponse);
   const meeting = myResponse ? meetings[myResponse.response_id] : undefined;
@@ -149,7 +151,12 @@ function InstructorRequestCard({
   }
 
   async function handleRelease() {
-    if (!confirm("面談に同意し、氏名（フルネーム）を企業に公開しますか？")) return;
+    const { ok } = await confirm({
+      title: "氏名を公開しますか？",
+      message: "面談に同意し、氏名（フルネーム）を企業に公開します。",
+      confirmLabel: "情報を公開する",
+    });
+    if (!ok) return;
     setBusy(true);
     const { error } = await releaseInstructorName(myResponse!.response_id);
     setBusy(false);
@@ -159,7 +166,13 @@ function InstructorRequestCard({
   }
 
   async function handleDecline() {
-    if (!confirm("この面談依頼を辞退しますか？")) return;
+    const { ok } = await confirm({
+      title: "面談を辞退しますか？",
+      message: "この面談依頼を辞退します。",
+      confirmLabel: "辞退する",
+      tone: "danger",
+    });
+    if (!ok) return;
     setBusy(true);
     const { error } = await declineInterview(myResponse!.response_id);
     setBusy(false);
@@ -480,6 +493,7 @@ function RequesterRequestCard({
   onChanged: () => void;
 }) {
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const st = requesterDisplayStatus(r);
   const requestOpen = r.status !== "cancelled" && r.status !== "completed";
   /** Meeting line + 「面談を予約」 for one instructor reply (Mine booking, Phase 3c). */
@@ -536,12 +550,22 @@ function RequesterRequestCard({
   }
 
   async function handleFinalizeApplicant(responseId: string, instructorId: string) {
-    if (!confirm("この講師に決定しますか？他の応募者には決定されなかった旨が表示されます。")) return;
+    const { ok } = await confirm({
+      title: "この講師に決定しますか？",
+      message: "他の応募者には決定されなかった旨が表示されます。",
+      confirmLabel: "決定する",
+    });
+    if (!ok) return;
     await finalize(responseId, instructorId);
   }
 
   async function handleRequestInterview(responseId: string) {
-    if (!confirm("この講師に面談を依頼しますか？講師が同意すると氏名が公開され、決定できるようになります。")) return;
+    const { ok } = await confirm({
+      title: "この講師に面談を依頼しますか？",
+      message: "講師が同意すると氏名が公開され、決定できるようになります。",
+      confirmLabel: "面談に進む",
+    });
+    if (!ok) return;
     setBusy(true);
     const { error } = await requestInterview(responseId);
     setBusy(false);
@@ -560,7 +584,16 @@ function RequesterRequestCard({
       showToast("予約済みの面談があります。先に「日程変更・キャンセル」から面談をキャンセルしてください。");
       return;
     }
-    const reason = prompt("キャンセル理由を入力してください（任意）") || null;
+    const { ok, reason: typedReason } = await confirm({
+      title: "この依頼をキャンセルしますか？",
+      message: "キャンセルすると元に戻せません。",
+      confirmLabel: "依頼をキャンセルする",
+      cancelLabel: "戻る",
+      tone: "danger",
+      reasonLabel: "キャンセル理由（任意）",
+    });
+    if (!ok) return;
+    const reason = typedReason || null;
     setBusy(true);
     const { error } = await cancelRequest(r.request_id, reason);
     setBusy(false);
