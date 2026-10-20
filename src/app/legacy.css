@@ -1848,3 +1848,15 @@ button { font-family: inherit; cursor: pointer; }
 .match-chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.8); color: #0F9C79; font-weight: 600; }
 .hide-link { margin-left: auto; background: none; border: 0; color: var(--color-ink-soft); font-size: 12px; cursor: pointer; text-decoration: underline; padding: 6px 4px; }
 .hide-link:hover { color: var(--color-ink); }
+
+/* smoother transitions on the 公募 list and detail */
+@keyframes kl-card-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.request-card--open { animation: kl-card-in .25s ease-out both; transition: opacity .3s ease, transform .3s ease; }
+.request-card--open.is-leaving { opacity: 0; transform: translateY(-8px); pointer-events: none; }
+.skeleton-bar { height: 14px; border-radius: 7px; margin-top: 14px; background: linear-gradient(90deg, #EEF1F0 25%, #F6F8F7 50%, #EEF1F0 75%); background-size: 200% 100%; animation: kl-shimmer 1.2s infinite; }
+.skeleton-bar--short { width: 55%; }
+@keyframes kl-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+.undo-bar { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 16px; max-width: calc(100vw - 32px); padding: 12px 18px; border-radius: 999px; background: #1F2D29; color: #fff; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.22); animation: kl-card-in .2s ease-out both; }
+.undo-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.undo-bar button { flex: none; border: 0; border-radius: 999px; padding: 6px 14px; background: var(--color-primary); color: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer; }
