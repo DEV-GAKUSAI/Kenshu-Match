@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { useToast } from "@/components/common/Toast";
 import { createClient } from "@/lib/supabase/client";
 import { QuestionList } from "@/components/survey/QuestionList";
+import { SurveyImportPanel } from "@/components/survey/SurveyImportPanel";
 import { COMMENT_MAX, unansweredCount, type SurveyScores } from "@/lib/survey/answers";
 import { linkCap, surveyLinkUrl, errorMessage } from "@/lib/survey/links";
 import { qrSvg } from "@/lib/survey/qr";
@@ -341,6 +342,8 @@ export function CompanySurveyPanel({
               )}
             </>
           )}
+
+          <SurveyImportPanel requestId={requestId} />
         </div>
       )}
     </div>
