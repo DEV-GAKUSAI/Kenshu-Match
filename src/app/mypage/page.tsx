@@ -331,7 +331,7 @@ function InstructorRequestCard({
 
       {(st.key === "accepted" || st.key === "completed") && <InstructorSurveyPanel requestId={r.request_id} />}
 
-      {meeting && <MineMeetingLine meeting={meeting} viewer="instructor" />}
+      {meeting && <MineMeetingLine meeting={meeting} viewer="instructor" finished={r.status === "completed"} />}
 
       {!myResponse && r.status === "pending" && (
         <>
@@ -572,7 +572,7 @@ function RequesterRequestCard({
       mineLinked.has(response.instructor_id) &&
       (!meeting || meeting.status === "cancelled" || Date.parse(meeting.ends_at) <= Date.now());
     // Mine Phase 3d: change the time or cancel an upcoming meeting.
-    const canChange = !!meeting && meeting.status !== "cancelled" && Date.parse(meeting.ends_at) > Date.now();
+    const canChange = requestOpen && !!meeting && meeting.status !== "cancelled" && Date.parse(meeting.ends_at) > Date.now();
     // Changing an upcoming meeting sits next to its Meet button; booking a first one stands alone.
     const button =
       canChange && meeting ? (
@@ -586,7 +586,7 @@ function RequesterRequestCard({
     const { meeting, button, canChange } = meetingParts(response);
     return (
       <>
-        {meeting && <MineMeetingLine meeting={meeting} viewer="requester" actions={canChange ? button : undefined} />}
+        {meeting && <MineMeetingLine meeting={meeting} viewer="requester" actions={canChange ? button : undefined} finished={r.status === "completed"} />}
         {!canChange && button && <div style={{ marginTop: 8, marginBottom: 12 }}>{button}</div>}
       </>
     );

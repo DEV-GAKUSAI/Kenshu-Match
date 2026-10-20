@@ -94,6 +94,7 @@ export function MineMeetingLine({
   viewer,
   actions,
   compact = false,
+  finished = false,
 }: {
   meeting: KenshuMineMeetingRow;
   /** Who is looking: the company that booked, or the instructor. */
@@ -102,9 +103,11 @@ export function MineMeetingLine({
   actions?: ReactNode;
   /** Details only (no box, no buttons): used inside the opened applicant row. */
   compact?: boolean;
+  /** The training is marked 研修完了: only the time is shown (no join or change buttons, no notes). */
+  finished?: boolean;
 }) {
   const when = formatMeetingTimeClient(meeting.starts_at, meeting.ends_at, meeting.time_zone);
-  const proposal = proposalText(meeting, viewer);
+  const proposal = finished ? null : proposalText(meeting, viewer);
   if (compact && meeting.status === "cancelled") {
     return (
       <div style={{ color: "var(--color-ink-soft)" }}>
@@ -124,7 +127,7 @@ export function MineMeetingLine({
   if (viewer === "requester") {
     // The company's view: one panel, Google Meet button first, then the time,
     // then any proposed new time with its reason.
-    const meetUrl = meeting.meeting_type === "google_meet" || meeting.meeting_type === "zoom" ? meeting.meeting_url : null;
+    const meetUrl = !finished && (meeting.meeting_type === "google_meet" || meeting.meeting_type === "zoom") ? meeting.meeting_url : null;
     const hasButtons = !compact && !!(meetUrl || actions);
     const details = (
       <>
@@ -137,7 +140,7 @@ export function MineMeetingLine({
         {meeting.meeting_type === "in_person" && meeting.place && (
           <div style={{ marginTop: 4, color: "var(--color-ink-soft)" }}>場所：{meeting.place}</div>
         )}
-        {(meeting.meeting_type === "google_meet" || meeting.meeting_type === "zoom") && !meetUrl && (
+        {!finished && (meeting.meeting_type === "google_meet" || meeting.meeting_type === "zoom") && !meetUrl && (
           <div style={{ marginTop: 4, color: "var(--color-ink-soft)" }}>会議URLは準備中です。準備ができるとここに表示されます。</div>
         )}
         {proposal && (
@@ -190,7 +193,7 @@ export function MineMeetingLine({
       <strong>面談：{when}</strong>
       {meeting.meeting_type !== "none" && <span style={{ marginLeft: 6 }}>{TYPE_LABEL[meeting.meeting_type]}</span>}
       {meeting.meeting_type === "in_person" && meeting.place && <div style={{ marginTop: 4 }}>場所：{meeting.place}</div>}
-      {(meeting.meeting_type === "google_meet" || meeting.meeting_type === "zoom") &&
+      {!finished && (meeting.meeting_type === "google_meet" || meeting.meeting_type === "zoom") &&
         (meeting.meeting_url ? (
           <div style={{ marginTop: 6 }}>
             <a href={meeting.meeting_url} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--sm" style={meeting.meeting_type === "zoom" ? { background: "#2d8cff", borderColor: "#2d8cff", color: "#fff" } : undefined}>
@@ -204,7 +207,7 @@ export function MineMeetingLine({
       {proposal && meeting.change_reason && (
         <div style={{ marginTop: 2, fontSize: 12, whiteSpace: "pre-line", overflowWrap: "anywhere" }}>理由：{meeting.change_reason}</div>
       )}
-      {viewer === "instructor" && !proposal && (
+      {viewer === "instructor" && !proposal && !finished && (
         <div style={{ marginTop: 4, fontSize: 12 }}>日程の変更・キャンセルは Mine の「予約ページ」の予約一覧からできます。</div>
       )}
     </div>
