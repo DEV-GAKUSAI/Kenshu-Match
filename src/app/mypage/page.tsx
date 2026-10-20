@@ -21,7 +21,6 @@ import {
   declineInterview,
   markResponsesSeenByRequester,
   releaseInstructorName,
-  requestInterview,
   submitInstructorResponse,
 } from "@/lib/requests/instructor-responses";
 import { finalizeResponse } from "@/lib/requests/actions";
@@ -574,21 +573,6 @@ function RequesterRequestCard({
     await finalize(responseId, instructorId);
   }
 
-  async function handleRequestInterview(responseId: string) {
-    const { ok } = await confirm({
-      title: "この講師に面談を依頼しますか？",
-      message: "講師が同意すると氏名が公開され、決定できるようになります。",
-      confirmLabel: "面談に進む",
-    });
-    if (!ok) return;
-    setBusy(true);
-    const { error } = await requestInterview(responseId);
-    setBusy(false);
-    if (error) return showToast(`エラー：${error.message}`);
-    showToast("面談を依頼しました。講師の返事をお待ちください。");
-    onChanged();
-  }
-
   async function handleCancel() {
     // A meeting booked through Mine must be cancelled first (the card hides its buttons once the request is cancelled).
     const hasUpcomingMeeting = (r.instructor_responses || []).some((x) => {
@@ -720,7 +704,6 @@ function RequesterRequestCard({
                       meetingButton={button}
                       busy={busy}
                       onDecide={() => handleFinalizeApplicant(a.response_id, a.instructor_id)}
-                      onRequestInterview={() => handleRequestInterview(a.response_id)}
                       // While nobody is chosen yet the whole request can still be cancelled.
                       onCancelRequest={st.key === "quoted" ? handleCancel : undefined}
                     />
