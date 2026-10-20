@@ -234,12 +234,12 @@ function InstructorsPageInner() {
         </div>
 
         <div className="filter-field">
-          <label htmlFor="filterRateMin">希望単価（円／時間）</label>
+          <label htmlFor="filterRateMin">単価の下限（円／時間）</label>
           <input type="number" id="filterRateMin" min={0} step={1000} placeholder="例：10000" value={rateMin} onChange={(e) => setRateMin(e.target.value)} />
         </div>
 
         <div className="filter-field">
-          <label htmlFor="filterRateMax">最低単価（円／時間）</label>
+          <label htmlFor="filterRateMax">単価の上限（円／時間）</label>
           <input type="number" id="filterRateMax" min={0} step={1000} placeholder="例：20000" value={rateMax} onChange={(e) => setRateMax(e.target.value)} />
         </div>
 
