@@ -49,8 +49,24 @@ type ReqWithJoins = TrainingRequestRow & { instructor_responses: InstructorRespo
    講師側マイページ
    =================================================================== */
 
+type MineCard = { linked: boolean; public?: boolean; initials?: string | null; prefectures?: string[]; hourly_rate?: number | null; work_style?: string | null; mine_url?: string };
+const WORK_STYLE_LABEL: Record<string, string> = { ONLINE: "オンライン", ONSITE: "対面", HYBRID: "オンライン・対面どちらも可" };
+
 function ProfileStatusCard({ userId }: { userId: string }) {
   const [profile, setProfile] = useState<{ id: string; is_public: boolean; prefectures: string[] | null; self_pr: string | null; contact_email: string | null; contact_phone: string | null } | null | undefined>(undefined);
+  // Mine users: the profile lives in Mine, this card only shows it. undefined = still loading.
+  const [mine, setMine] = useState<MineCard | undefined>(undefined);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/instructors/me", { cache: "no-store" });
+        setMine(res.ok ? ((await res.json()) as MineCard) : { linked: false });
+      } catch {
+        setMine({ linked: false });
+      }
+    })();
+  }, [userId]);
 
   useEffect(() => {
     (async () => {
@@ -58,6 +74,46 @@ function ProfileStatusCard({ userId }: { userId: string }) {
       setProfile(data ?? null);
     })();
   }, [userId]);
+
+  if (mine === undefined) return <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>プロフィール状況を読み込み中…</p>;
+
+  if (mine.linked) {
+    const unset = <span style={{ color: "var(--color-ink-soft)" }}>未設定</span>;
+    return (
+      <div className="request-card">
+        <div className="request-card__top">
+          <div>
+            <div className="request-card__title">講師プロフィール</div>
+            <p className="request-card__meta">{mine.initials ? `${mine.initials} 先生` : ""}</p>
+          </div>
+          <span className={`status-badge ${mine.public ? "status-badge--accepted" : "status-badge--pending"}`}>{mine.public ? "公開中" : "非公開"}</span>
+        </div>
+        {mine.public ? (
+          <div className="request-card__desc" style={{ margin: "6px 0 12px" }}>
+            <div>エリア：{mine.prefectures?.length ? mine.prefectures.join("、") : unset}</div>
+            <div>
+              単価：{typeof mine.hourly_rate === "number" ? `¥${mine.hourly_rate.toLocaleString()}／時間` : unset}　　働き方：
+              {mine.work_style ? WORK_STYLE_LABEL[mine.work_style] ?? mine.work_style : unset}
+            </div>
+          </div>
+        ) : (
+          <p className="request-card__desc">Mineで公開設定をオンにすると、「講師を探す」に表示され、依頼を受けられるようになります。</p>
+        )}
+        <p className="request-card__meta" style={{ marginBottom: 6 }}>この内容はMineの設定が表示されています。</p>
+        <p className="request-card__meta" style={{ marginBottom: 14 }}>決定後、Mineに登録したメールアドレスと電話番号（任意）が企業に共有されます。</p>
+        <div className="request-card__actions">
+          <a href={mine.mine_url || "https://mine-omega-one.vercel.app/apps"} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--sm">
+            Mineで編集する
+          </a>
+          {mine.public && (
+            <Link href={`/instructor-detail?id=${userId}`} className="btn btn--ghost btn--sm">
+              公開ページを見る
+            </Link>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (profile === undefined) return <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>プロフィール状況を読み込み中…</p>;
 
@@ -824,6 +880,28 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
       Object.keys(unlocked).forEach((id) => {
         map[id] = { ...map[id], ...unlocked[id] };
       });
+    }
+    // Contact details of the decided instructor come from Mine (email, optional phone).
+    const decided = rows.filter((r) => r.status === "accepted" || r.status === "completed");
+    if (decided.length) {
+      try {
+        const res = await fetch("/api/requests/decided-contact", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ requestIds: decided.map((r) => r.request_id) }),
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const body = (await res.json()) as { items?: Record<string, { email: string | null; phone: string | null }> };
+          for (const r of decided) {
+            const contact = body.items?.[r.request_id];
+            const id = resolveInstructorId(r);
+            if (contact && id) map[id] = { ...map[id], contact_email: contact.email, contact_phone: contact.phone };
+          }
+        }
+      } catch {
+        // keep what the old profile holds
+      }
     }
     setInstructorMap(map);
   }, [user.id]);
