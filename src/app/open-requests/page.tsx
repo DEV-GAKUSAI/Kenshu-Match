@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
@@ -149,6 +149,8 @@ export default function OpenRequestsPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [leavingId, setLeavingId] = useState<string | null>(null);
+  const [undoHide, setUndoHide] = useState<{ id: string; title: string } | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [allRequests, setAllRequests] = useState<RequestWithJoins[]>([]);
   const [requesterMap, setRequesterMap] = useState<
     Record<string, { name?: string; email?: string; phone?: string | null; company_name?: string | null }>
@@ -202,15 +204,27 @@ export default function OpenRequestsPage() {
     })();
   }, [authReady, user, reloadKey]);
 
-  function hideOne(id: string) {
-    const ids = Array.from(new Set([...getHiddenIds(), id]));
+  function saveHidden(ids: string[]) {
     try {
       localStorage.setItem(HIDDEN_KEY, JSON.stringify(ids));
     } catch {
       /* ignore */
     }
     setHiddenIds(ids);
-    showToast("この依頼を非表示にしました。");
+  }
+
+  function hideOne(id: string, title: string) {
+    saveHidden(Array.from(new Set([...getHiddenIds(), id])));
+    setUndoHide({ id, title });
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => setUndoHide(null), 7000);
+  }
+
+  function undoHideNow() {
+    if (!undoHide) return;
+    saveHidden(getHiddenIds().filter((x) => x !== undoHide.id));
+    setUndoHide(null);
+    if (undoTimer.current) clearTimeout(undoTimer.current);
   }
 
   async function quickApply(r: RequestWithJoins) {
@@ -420,7 +434,7 @@ export default function OpenRequestsPage() {
                 >
                   詳細を見る
                 </Link>
-                <button type="button" className="hide-link" onClick={() => hideOne(r.request_id)}>
+                <button type="button" className="hide-link" onClick={() => hideOne(r.request_id, r.title)}>
                   非表示
                 </button>
               </div>
@@ -448,6 +462,14 @@ export default function OpenRequestsPage() {
           </div>
         );
       })}
+      {undoHide && (
+        <div className="undo-bar" role="status">
+          <span>「{undoHide.title}」を非表示にしました</span>
+          <button type="button" onClick={undoHideNow}>
+            元に戻す
+          </button>
+        </div>
+      )}
     </main>
   );
 }
