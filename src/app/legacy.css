@@ -908,11 +908,11 @@ button { font-family: inherit; cursor: pointer; }
 
 .instructor-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
 }
-@media (max-width: 980px) { .instructor-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 640px) { .instructor-grid { grid-template-columns: 1fr; } }
+@media (max-width: 980px) { .instructor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .instructor-grid { grid-template-columns: minmax(0, 1fr); } }
 
 .instructor-card {
   background: var(--color-surface);
