@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { useToast } from "@/components/common/Toast";
 import { createClient } from "@/lib/supabase/client";
+import { ProfileSection } from "@/components/mine/ProfileSection";
 import { SURVEY_QUESTIONS } from "@/lib/survey/answers";
 
 type Summary = {
@@ -39,7 +40,6 @@ export function InstructorSurveyResults({ instructorId }: { instructorId: string
   const supabase = useMemo(() => createClient() as unknown as SupabaseClient, []);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
-  const [open, setOpen] = useState(false);
   const [form, setForm] = useState<{ id: string; mode: "reply" | "report" } | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -74,129 +74,99 @@ export function InstructorSurveyResults({ instructorId }: { instructorId: string
     await load();
   }
 
-  if (!summary) return null;
+  if (!summary) {
+    return (
+      <ProfileSection title="研修アンケートの結果">
+        <p style={{ fontSize: 13, color: "var(--color-ink-soft)", margin: 0 }}>まだ回答はありません。</p>
+      </ProfileSection>
+    );
+  }
 
   return (
-    <div style={{ marginBottom: 28 }}>
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          width: "100%",
-          padding: "12px 14px",
-          background: "var(--color-bg)",
-          border: "1px solid var(--color-border)",
-          borderRadius: "var(--radius-s)",
-          cursor: "pointer",
-          font: "inherit",
-          fontSize: 14,
-          fontWeight: 700,
-          color: "var(--color-ink)",
-          textAlign: "left",
-        }}
-      >
-        <span>研修アンケートの結果</span>
-        <span style={{ color: "var(--color-ink-soft)", fontWeight: 600 }}>
+    <ProfileSection
+      title="研修アンケートの結果"
+      meta={
+        <>
           {fmt(summary.overall_avg)} / 4（{summary.answer_count}件）
-        </span>
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-          style={{ marginLeft: "auto", color: "var(--color-ink-soft)", transform: open ? "rotate(180deg)" : undefined, transition: "transform .15s" }}
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
+        </>
+      }
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ fontSize: 13, color: "var(--color-ink-soft)" }}>
+        参加者 {fmt(summary.participant_avg)}（{summary.participant_count}件）／ 依頼企業 {fmt(summary.hirer_avg)}（{summary.hirer_count}件）／ リンク発行 {summary.links_issued}件
+      </div>
+      <ul className="survey-avgs">
+        {SURVEY_QUESTIONS.map((q) => {
+          const v = summary[`${q.key}_avg` as keyof Summary] as number | null;
+          return (
+            <li key={q.key}>
+              <span>{q.text}</span>
+              <span className="survey-avgs__bar">
+                <span style={{ width: `${v ? (Number(v) / 4) * 100 : 0}%` }} />
+              </span>
+              <strong>{fmt(v)}</strong>
+            </li>
+          );
+        })}
+      </ul>
 
-      {open && (
-        <div style={{ padding: "14px 4px 0", display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ fontSize: 13, color: "var(--color-ink-soft)" }}>
-            参加者 {fmt(summary.participant_avg)}（{summary.participant_count}件）／ 依頼企業 {fmt(summary.hirer_avg)}（{summary.hirer_count}件）／ リンク発行 {summary.links_issued}件
+      {comments.map((c) => (
+        <div key={c.answer_id} className="review-item">
+          <div className="review-item__top">
+            <span className="review-item__name">{c.author_label}</span>
+            <span className="review-item__rating">{fmt(c.score)} / 4</span>
           </div>
-          <ul className="survey-avgs">
-            {SURVEY_QUESTIONS.map((q) => {
-              const v = summary[`${q.key}_avg` as keyof Summary] as number | null;
-              return (
-                <li key={q.key}>
-                  <span>{q.text}</span>
-                  <span className="survey-avgs__bar">
-                    <span style={{ width: `${v ? (Number(v) / 4) * 100 : 0}%` }} />
-                  </span>
-                  <strong>{fmt(v)}</strong>
-                </li>
-              );
-            })}
-          </ul>
-
-          {comments.map((c) => (
-            <div key={c.answer_id} className="review-item">
-              <div className="review-item__top">
-                <span className="review-item__name">{c.author_label}</span>
-                <span className="review-item__rating">{fmt(c.score)} / 4</span>
-              </div>
-              <p className="review-item__comment">{c.comment}</p>
-              {c.instructor_reply && (
-                <div className="request-card__response">
-                  <strong>あなたの返信</strong>
-                  {c.instructor_reply}
-                </div>
-              )}
-              <div className="request-card__actions">
-                <button
-                  type="button"
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => {
-                    setForm({ id: c.answer_id, mode: "reply" });
-                    setText(c.instructor_reply ?? "");
-                  }}
-                >
-                  {c.instructor_reply ? "返信を編集" : "返信する"}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--danger btn--sm"
-                  onClick={() => {
-                    setForm({ id: c.answer_id, mode: "report" });
-                    setText("");
-                  }}
-                >
-                  運営に報告
-                </button>
-              </div>
-              {form?.id === c.answer_id && (
-                <div className="form-field" style={{ marginTop: 10 }}>
-                  <textarea
-                    rows={3}
-                    maxLength={1000}
-                    placeholder={form.mode === "reply" ? "返信メッセージ" : "報告の理由（任意）"}
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                  />
-                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                    <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={send}>
-                      {form.mode === "reply" ? "返信を送信する" : "報告する"}
-                    </button>
-                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => setForm(null)}>
-                      閉じる
-                    </button>
-                  </div>
-                </div>
-              )}
+          <p className="review-item__comment">{c.comment}</p>
+          {c.instructor_reply && (
+            <div className="request-card__response">
+              <strong>あなたの返信</strong>
+              {c.instructor_reply}
             </div>
-          ))}
+          )}
+          <div className="request-card__actions">
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              onClick={() => {
+                setForm({ id: c.answer_id, mode: "reply" });
+                setText(c.instructor_reply ?? "");
+              }}
+            >
+              {c.instructor_reply ? "返信を編集" : "返信する"}
+            </button>
+            <button
+              type="button"
+              className="btn btn--danger btn--sm"
+              onClick={() => {
+                setForm({ id: c.answer_id, mode: "report" });
+                setText("");
+              }}
+            >
+              運営に報告
+            </button>
+          </div>
+          {form?.id === c.answer_id && (
+            <div className="form-field" style={{ marginTop: 10 }}>
+              <textarea
+                rows={3}
+                maxLength={1000}
+                placeholder={form.mode === "reply" ? "返信メッセージ" : "報告の理由（任意）"}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+              />
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={send}>
+                  {form.mode === "reply" ? "返信を送信する" : "報告する"}
+                </button>
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setForm(null)}>
+                  閉じる
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      ))}
     </div>
+    </ProfileSection>
   );
 }

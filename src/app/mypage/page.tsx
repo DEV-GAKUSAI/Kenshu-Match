@@ -33,6 +33,9 @@ import { InstructorSurveyResults } from "@/components/survey/InstructorSurveyRes
 import { BookMineMeetingButton, MineMeetingLine, useMineLinkedInstructors, useMineMeetings } from "@/components/mine/MineMeeting";
 import type { KenshuMineMeetingRow } from "@/types/database";
 import { flushMineNotices } from "@/lib/mine/flush-client";
+import { MineProfileBlocks } from "@/components/mine/MineProfileBlocks";
+import { ProfileSection } from "@/components/mine/ProfileSection";
+import type { MinePublicProfile } from "@/lib/mine/public-profile";
 import "./mypage.css";
 
 const FORMAT_LABEL: Record<string, string> = { online: "オンライン", offline: "対面", both: "オンライン・対面" };
@@ -49,8 +52,13 @@ type ReqWithJoins = TrainingRequestRow & { instructor_responses: InstructorRespo
    講師側マイページ
    =================================================================== */
 
-type MineCard = { linked: boolean; public?: boolean; initials?: string | null; prefectures?: string[]; hourly_rate?: number | null; work_style?: string | null; mine_url?: string };
+type MineCard = { linked: boolean; public?: boolean; profile?: MinePublicProfile | null; initials?: string | null; prefectures?: string[]; hourly_rate?: number | null; work_style?: string | null; mine_url?: string };
 const WORK_STYLE_LABEL: Record<string, string> = { ONLINE: "オンライン", ONSITE: "対面", HYBRID: "オンライン・対面どちらも可" };
+
+function hasMineBlocks(m: MinePublicProfile, group: "profile" | "career") {
+  if (group === "career") return !!(m.skills?.length || m.qualifications?.length || m.work_history?.length || m.education?.length);
+  return !!(m.occupations?.length || m.self_introduction || m.professional_summary || m.languages || m.area);
+}
 
 function ProfileStatusCard({ userId }: { userId: string }) {
   const [profile, setProfile] = useState<{ id: string; is_public: boolean; prefectures: string[] | null; self_pr: string | null; contact_email: string | null; contact_phone: string | null } | null | undefined>(undefined);
@@ -101,15 +109,27 @@ function ProfileStatusCard({ userId }: { userId: string }) {
         )}
         <p className="request-card__meta" style={{ marginBottom: 6 }}>この内容はMineの設定が表示されています。</p>
         <p className="request-card__meta" style={{ marginBottom: 14 }}>決定後、Mineに登録したメールアドレスと電話番号（任意）が企業に共有されます。</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
+          <ProfileSection title="プロフィール">
+            {mine.public && mine.profile && hasMineBlocks(mine.profile, "profile") ? (
+              <MineProfileBlocks mine={mine.profile} group="profile" />
+            ) : (
+              <p style={{ fontSize: 13, color: "var(--color-ink-soft)", margin: 0 }}>{mine.public ? "公開している内容はまだありません。" : "公開設定をオンにすると、ここに表示されます。"}</p>
+            )}
+          </ProfileSection>
+          <ProfileSection title="経歴・スキル">
+            {mine.public && mine.profile && hasMineBlocks(mine.profile, "career") ? (
+              <MineProfileBlocks mine={mine.profile} group="career" />
+            ) : (
+              <p style={{ fontSize: 13, color: "var(--color-ink-soft)", margin: 0 }}>{mine.public ? "公開している内容はまだありません。" : "公開設定をオンにすると、ここに表示されます。"}</p>
+            )}
+          </ProfileSection>
+          <InstructorSurveyResults instructorId={userId} />
+        </div>
         <div className="request-card__actions">
           <a href={mine.mine_url || "https://mine-omega-one.vercel.app/apps"} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--sm">
             Mineで編集する
           </a>
-          {mine.public && (
-            <Link href={`/instructor-detail?id=${userId}`} className="btn btn--ghost btn--sm">
-              公開ページを見る
-            </Link>
-          )}
         </div>
       </div>
     );
@@ -119,18 +139,24 @@ function ProfileStatusCard({ userId }: { userId: string }) {
 
   if (!profile) {
     return (
+      <>
       <div className="request-card">
         <p className="request-card__desc">プロフィールを作成すると「講師を探す」の検索結果に表示され、依頼を受けられるようになります。</p>
         <Link href="/instructor-profile-edit" className="btn btn--primary btn--sm">
           プロフィールを作成する
         </Link>
       </div>
+      <div style={{ marginTop: 28 }}>
+        <InstructorSurveyResults instructorId={userId} />
+      </div>
+      </>
     );
   }
 
   const missingContact = !profile.contact_email || !profile.contact_phone;
 
   return (
+    <>
     <div className="request-card">
       <div className="request-card__top">
         <div>
@@ -159,6 +185,10 @@ function ProfileStatusCard({ userId }: { userId: string }) {
         </Link>
       </div>
     </div>
+    <div style={{ marginTop: 28 }}>
+      <InstructorSurveyResults instructorId={userId} />
+    </div>
+    </>
   );
 }
 
@@ -426,7 +456,6 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
       <div style={{ marginBottom: 28 }}>
         <ProfileStatusCard userId={user.id} />
       </div>
-      <InstructorSurveyResults instructorId={user.id} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h2 className="section__title" style={{ fontSize: 18, margin: 0 }}>
           受け取った依頼
