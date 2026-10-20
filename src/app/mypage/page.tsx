@@ -204,7 +204,9 @@ function InstructorRequestCard({
     <div className="request-card">
       <div className="request-card__top">
         <div>
-          <div className="request-card__title">{r.title}</div>
+          <div className="request-card__title">
+            <Link href={`/request-detail?id=${r.request_id}`} style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: 3 }}>{r.title}</Link>
+          </div>
           <div className="request-card__meta">
             <span>{r.requester_type === "company" ? "企業" : "生徒"}からの依頼</span>
             <span>{fmtDate(r.created_at)}</span>
