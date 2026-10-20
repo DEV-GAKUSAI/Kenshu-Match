@@ -130,7 +130,6 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
   const router = useRouter();
   const [r, setR] = useState<ReqWithJoins | null | undefined>(undefined);
   const [requesterInfo, setRequesterInfo] = useState<{ name?: string; email?: string; phone?: string | null; company_name?: string | null } | null>(null);
-  const [quoteOpen, setQuoteOpen] = useState(false);
   const [quotePrice, setQuotePrice] = useState("");
   const [quoteMessage, setQuoteMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -230,21 +229,26 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
     load();
   }
 
-  async function submitQuote() {
-    const price = Number(quotePrice) || null;
-    if (!price) {
-      showToast("見積り金額を入力してください");
-      return;
+  async function submitApply() {
+    const raw = quotePrice.trim();
+    let price: number | null = null;
+    if (raw) {
+      price = Number(raw);
+      if (!Number.isInteger(price) || price < 1) {
+        showToast("見積り金額は1円以上の整数で入力してください");
+        return;
+      }
     }
+    const message = quoteMessage.trim() || null;
     setBusy(true);
-    const { error } = await submitInstructorResponse(requestId, instructorId, "quote", { quote_price: price, message: quoteMessage.trim() || null });
+    const { error } = await submitInstructorResponse(requestId, instructorId, price ? "quote" : "accept", { quote_price: price, message });
     setBusy(false);
     if (error) {
       showToast(`エラー：${error.message}`);
       return;
     }
     flushMineNotices();
-    showToast("見積りを送信しました。");
+    showToast("応募しました。依頼者の確定操作をお待ちください。");
     load();
   }
 
@@ -308,13 +312,24 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
 
         {!myResponse && r.status === "pending" && (
           <>
-            <div className="request-card__actions" ref={actionsRef} style={{ marginTop: 24 }}>
-              <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => respond("accept")}>
-                承諾する
+            <div className="inline-quote-form is-open" ref={actionsRef} style={{ marginTop: 24 }}>
+              <div className="form-field">
+                <label>
+                  見積り金額（時間あたり・円）<span className="field-optional">任意</span>
+                </label>
+                <input type="number" min={1} step={1} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} />
+              </div>
+              <div className="form-field">
+                <label>
+                  メッセージ<span className="field-optional">任意</span>
+                </label>
+                <textarea rows={2} placeholder="補足があればご記入ください" value={quoteMessage} onChange={(e) => setQuoteMessage(e.target.value)} />
+              </div>
+              <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={submitApply}>
+                応募する
               </button>
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => setQuoteOpen((v) => !v)}>
-                見積りを送る
-              </button>
+            </div>
+            <div className="request-card__actions" style={{ marginTop: 12 }}>
               <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={() => respond("reject")}>
                 興味なし（却下）
               </button>
@@ -330,19 +345,6 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
                 }}
               >
                 この依頼を非表示にする
-              </button>
-            </div>
-            <div className={`inline-quote-form${quoteOpen ? " is-open" : ""}`}>
-              <div className="form-field">
-                <label>見積り金額（時間あたり）</label>
-                <input type="number" min={0} step={1000} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} />
-              </div>
-              <div className="form-field">
-                <label>メッセージ</label>
-                <textarea rows={2} placeholder="見積りの補足があればご記入ください" value={quoteMessage} onChange={(e) => setQuoteMessage(e.target.value)} />
-              </div>
-              <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={submitQuote}>
-                この内容で見積りを送る
               </button>
             </div>
           </>

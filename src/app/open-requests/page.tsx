@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { getOpenRequestsPublicPreview, getOpenRequestsForInstructor } from "@/lib/requests/training-requests";
-import { markResultsSeenByInstructor } from "@/lib/requests/instructor-responses";
+import { markResultsSeenByInstructor, submitInstructorResponse } from "@/lib/requests/instructor-responses";
+import { useToast } from "@/components/common/Toast";
+import { useConfirm } from "@/components/common/ConfirmDialog";
+import { flushMineNotices } from "@/lib/mine/flush-client";
 import { getMyMatchingProfile } from "@/lib/instructor/profile";
 import { getRequesterContacts } from "@/lib/requester/profile";
 import type { OpenRequestPublicPreviewRow, TrainingRequestRow, InstructorResponseRow } from "@/types/database";
@@ -22,6 +25,17 @@ function fmtDate(iso: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function ageLabel(iso: string | null) {
+  if (!iso) return "";
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (days <= 0) return "今日";
+  if (days < 30) return `${days}日前`;
+  return fmtDate(iso);
+}
+function isNew(iso: string | null) {
+  return !!iso && Date.now() - new Date(iso).getTime() < 3 * 86400000;
 }
 
 function getHiddenIds(): string[] {
@@ -130,6 +144,10 @@ function PublicPreviewList() {
 export default function OpenRequestsPage() {
   const { authReady, user } = useAuth();
   useRoleTheme("instructor");
+  const { showToast } = useToast();
+  const confirm = useConfirm();
+  const [reloadKey, setReloadKey] = useState(0);
+  const [applyingId, setApplyingId] = useState<string | null>(null);
   const [allRequests, setAllRequests] = useState<RequestWithJoins[]>([]);
   const [requesterMap, setRequesterMap] = useState<
     Record<string, { name?: string; email?: string; phone?: string | null; company_name?: string | null }>
@@ -181,7 +199,43 @@ export default function OpenRequestsPage() {
 
       setLoading(false);
     })();
-  }, [authReady, user]);
+  }, [authReady, user, reloadKey]);
+
+  function hideOne(id: string) {
+    const ids = Array.from(new Set([...getHiddenIds(), id]));
+    try {
+      localStorage.setItem(HIDDEN_KEY, JSON.stringify(ids));
+    } catch {
+      /* ignore */
+    }
+    setHiddenIds(ids);
+    showToast("この依頼を非表示にしました。");
+  }
+
+  async function quickApply(r: RequestWithJoins) {
+    if (!user) return;
+    const lines = [
+      r.budget ? `予算 ¥${Number(r.budget).toLocaleString()}` : null,
+      r.participant_count ? `対象${r.participant_count}名` : null,
+      r.preferred_schedule || null,
+    ].filter(Boolean);
+    const { ok } = await confirm({
+      title: "この案件に応募しますか？",
+      message: [r.title, ...lines].join("\n"),
+      confirmLabel: "応募する",
+    });
+    if (!ok) return;
+    setApplyingId(r.request_id);
+    const { error } = await submitInstructorResponse(r.request_id, user.id, "accept");
+    setApplyingId(null);
+    if (error) {
+      showToast(`エラー：${error.message}`);
+      return;
+    }
+    flushMineNotices();
+    showToast("応募しました。依頼者の確定操作をお待ちください。");
+    setReloadKey((k) => k + 1);
+  }
 
   const counts = useMemo(() => {
     const open = allRequests.filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id));
@@ -284,33 +338,40 @@ export default function OpenRequestsPage() {
         const reasons = currentTab === "recommended" ? matchReasons(r, myProfile) : [];
         const requester = requesterMap[r.requester_id];
         return (
-          <div className="request-card" key={r.request_id}>
+          <div className={`request-card request-card--open${reasons.length > 0 && isRecommended(reasons) ? " is-match" : ""}`} key={r.request_id}>
             <div className="request-card__top">
               <div>
-                <div className="request-card__title">{r.title}</div>
+                <div className="request-card__title">
+                  {r.title}
+                  {isNew(r.created_at) && r.status === "pending" && !r.myResponse && <span className="new-chip">NEW</span>}
+                </div>
                 <div className="request-card__meta">
                   <span>{r.requester_type === "company" ? "企業" : "生徒"}からの公募</span>
-                  <span>{fmtDate(r.created_at)}</span>
+                  <span title={fmtDate(r.created_at)}>{ageLabel(r.created_at)}</span>
                 </div>
               </div>
               <span className={`status-badge status-badge--${badgeClass(st.key)}`}>{st.label}</span>
             </div>
 
             {reasons.length > 0 && (
-              <div
-                className={`notice-banner${isRecommended(reasons) ? " is-visible" : ""}`}
-                style={{ marginBottom: 10, fontSize: 12.5, ...(isRecommended(reasons) ? {} : { opacity: 0.65, background: "var(--color-bg)" }) }}
-              >
-                あなたの{reasons.join("・")}と合致しています
+              <div className={`match-banner${isRecommended(reasons) ? " is-strong" : ""}`}>
+                {isRecommended(reasons) && <span className="match-banner__star">★</span>}
+                <span className="match-banner__text">{isRecommended(reasons) ? "あなたにぴったりの案件です" : "あなたの条件に一部合っています"}</span>
+                <span className="match-banner__chips">
+                  {reasons.map((x) => (
+                    <span className="match-chip" key={x}>{x} ✓</span>
+                  ))}
+                </span>
               </div>
             )}
 
-            <p className="request-card__desc">{r.description}</p>
+            <p className="request-card__desc request-card__desc--clamp">{r.description}</p>
             <div className="request-card__tags">
-              <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
-              {r.budget ? <span className="instructor-card__tag">予算 ¥{Number(r.budget).toLocaleString()}</span> : null}
-              {r.location ? <span className="instructor-card__tag">{r.location}</span> : null}
-              {r.preferred_schedule ? <span className="instructor-card__tag">{r.preferred_schedule}</span> : null}
+              {r.budget ? <span className="open-tag open-tag--budget">予算 ¥{Number(r.budget).toLocaleString()}</span> : null}
+              <span className="open-tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
+              {r.participant_count ? <span className="open-tag">対象{r.participant_count}名</span> : null}
+              {r.location ? <span className="open-tag">{r.location}</span> : null}
+              {r.preferred_schedule ? <span className="open-tag">{r.preferred_schedule}</span> : null}
             </div>
 
             {r.myResponse && (
@@ -329,12 +390,15 @@ export default function OpenRequestsPage() {
 
             {!r.myResponse && r.status === "pending" && (
               <div className="request-card__actions">
-                <Link href={`/request-detail?id=${r.request_id}&focus=respond`} className="btn btn--primary btn--sm">
+                <button type="button" className="btn btn--primary btn--sm" disabled={applyingId === r.request_id} onClick={() => quickApply(r)}>
                   応募する
-                </Link>
+                </button>
                 <Link href={`/request-detail?id=${r.request_id}`} className="btn btn--ghost btn--sm">
                   詳細を見る
                 </Link>
+                <button type="button" className="hide-link" onClick={() => hideOne(r.request_id)}>
+                  非表示
+                </button>
               </div>
             )}
 

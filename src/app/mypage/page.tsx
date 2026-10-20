@@ -204,7 +204,9 @@ function InstructorRequestCard({
     <div className="request-card">
       <div className="request-card__top">
         <div>
-          <div className="request-card__title">{r.title}</div>
+          <div className="request-card__title">
+            <Link href={`/request-detail?id=${r.request_id}`} style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: 3 }}>{r.title}</Link>
+          </div>
           <div className="request-card__meta">
             <span>{r.requester_type === "company" ? "企業" : "生徒"}からの依頼</span>
             <span>{fmtDate(r.created_at)}</span>
@@ -537,7 +539,10 @@ function RequesterRequestCard({
   const isBroadcast = !r.target_instructor_id;
   const resp = (r.instructor_responses || [])[0] || null;
   const selectedResp = (r.instructor_responses || []).find((x) => x.is_selected);
-  const instr = instructorMap[r.target_instructor_id || (selectedResp || resp)?.instructor_id || ""] || {};
+  const instrBase = instructorMap[r.target_instructor_id || (selectedResp || resp)?.instructor_id || ""] || {};
+  // Full name only when the instructor released it for THIS request (direct accept, or 情報を公開する).
+  const releasedForThis = (r.target_instructor_id ? resp : selectedResp)?.released_name?.trim() || null;
+  const instr = releasedForThis ? { ...instrBase, name: releasedForThis } : instrBase;
   const applicants = isBroadcast ? (r.instructor_responses || []).filter((x) => x.action === "accept" || x.action === "quote") : [];
   // Applicants as closed rows: the ones that need an answer first, then NEW, then the rest.
   const sortedApplicants = [...applicants].sort(
@@ -827,12 +832,9 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
         map[id] = { ...map[id], name: display[id]?.initials || initialsFromName(map[id]?.name) || null };
       });
     }
-    // A name the instructor handed over (or that a direct request released on accept) replaces the initials.
-    rows.forEach((row) =>
-      (row.instructor_responses || []).forEach((x) => {
-        if (x.released_name) map[x.instructor_id] = { ...map[x.instructor_id], name: x.released_name };
-      }),
-    );
+    // A released name belongs to ONE reply (one request), so it is not put into this
+    // per-instructor map: otherwise a name released on one request would show on all of them.
+    // The cards and rows read response.released_name themselves.
     const acceptedIds = rows.filter((r) => r.status === "accepted" || r.status === "completed").map((r) => resolveInstructorId(r)).filter((x): x is string => !!x);
     if (acceptedIds.length) {
       const unlocked = await getInstructorContacts(acceptedIds);
