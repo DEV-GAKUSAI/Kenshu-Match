@@ -154,6 +154,22 @@ function InstructorsPageInner() {
   const expertiseOpen = openPanel === "expertise";
   const setAreaOpen = (open: boolean) => setOpenPanel(open ? "area" : (p) => (p === "area" ? null : p));
   const setFormatOpen = (open: boolean) => setOpenPanel(open ? "format" : (p) => (p === "format" ? null : p));
+  // Close an open filter panel when the user clicks outside it or presses Escape.
+  useEffect(() => {
+    if (!openPanel) return;
+    function onPointerDown(event: MouseEvent) {
+      if (!(event.target as HTMLElement | null)?.closest?.(".multi-select")) setOpenPanel(null);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpenPanel(null);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [openPanel]);
   const setRateMinOpen = (open: boolean) => setOpenPanel(open ? "rateMin" : (p) => (p === "rateMin" ? null : p));
   const setRateMaxOpen = (open: boolean) => setOpenPanel(open ? "rateMax" : (p) => (p === "rateMax" ? null : p));
   const setExpertiseOpen = (open: boolean) => setOpenPanel(open ? "expertise" : (p) => (p === "expertise" ? null : p));
