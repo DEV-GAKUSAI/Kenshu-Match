@@ -62,6 +62,42 @@ function MultiSelect({
   );
 }
 
+const RATE_PRESETS = [3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 20000];
+
+/** Rate dropdown: first "no limit", then "type your own", then presets. */
+function RateSelect({ id, value, onChange, noneLabel, minAllowed }: { id: string; value: string; onChange: (v: string) => void; noneLabel: string; minAllowed?: number | null }) {
+  const [custom, setCustom] = useState(false);
+  const isCustom = custom || (value !== "" && !RATE_PRESETS.includes(Number(value)));
+  return (
+    <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+      <select
+        id={id}
+        value={isCustom ? "custom" : value}
+        onChange={(e) => {
+          const v = e.target.value;
+          if (v === "custom") {
+            setCustom(true);
+            return;
+          }
+          setCustom(false);
+          onChange(v);
+        }}
+      >
+        <option value="">{noneLabel}</option>
+        <option value="custom">金額を入力…</option>
+        {RATE_PRESETS.map((n) => (
+          <option key={n} value={String(n)} disabled={minAllowed != null && n < minAllowed}>
+            ¥{n.toLocaleString()}
+          </option>
+        ))}
+      </select>
+      {isCustom && (
+        <input type="number" min={0} step={500} placeholder="円" style={{ width: 96 }} value={value} onChange={(e) => onChange(e.target.value)} aria-label="金額（円）" />
+      )}
+    </span>
+  );
+}
+
 function InstructorsPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -234,13 +270,12 @@ function InstructorsPageInner() {
         </div>
 
         <div className="filter-field">
-          <label htmlFor="filterRateMin">単価の下限（円／時間）</label>
-          <input type="number" id="filterRateMin" min={0} step={1000} placeholder="例：10000" value={rateMin} onChange={(e) => setRateMin(e.target.value)} />
-        </div>
-
-        <div className="filter-field">
-          <label htmlFor="filterRateMax">単価の上限（円／時間）</label>
-          <input type="number" id="filterRateMax" min={0} step={1000} placeholder="例：20000" value={rateMax} onChange={(e) => setRateMax(e.target.value)} />
+          <label htmlFor="filterRateMin">単価（円／時間）</label>
+          <span style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <RateSelect id="filterRateMin" value={rateMin} onChange={setRateMin} noneLabel="下限なし" />
+            <span>〜</span>
+            <RateSelect id="filterRateMax" value={rateMax} onChange={setRateMax} noneLabel="上限なし" minAllowed={rateMin ? Number(rateMin) : null} />
+          </span>
         </div>
 
         <button type="button" className="filter-reset" onClick={resetFilters}>
