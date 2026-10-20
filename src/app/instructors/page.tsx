@@ -64,37 +64,68 @@ function MultiSelect({
 
 const RATE_PRESETS = [3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 20000];
 
-/** Rate dropdown: first "no limit", then "type your own", then presets. */
-function RateSelect({ id, value, onChange, noneLabel, minAllowed }: { id: string; value: string; onChange: (v: string) => void; noneLabel: string; minAllowed?: number | null }) {
-  const [custom, setCustom] = useState(false);
-  const isCustom = custom || (value !== "" && !RATE_PRESETS.includes(Number(value)));
+/** Rate dropdown, same look as the other filters: first "no limit", then "type your own", then presets. */
+function RateSelect({
+  value,
+  onChange,
+  noneLabel,
+  minAllowed,
+  open,
+  onOpenChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  noneLabel: string;
+  minAllowed?: number | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const summary = value === "" ? noneLabel : `¥${Number(value).toLocaleString()}`;
+  const isPreset = value !== "" && RATE_PRESETS.includes(Number(value));
   return (
-    <span style={{ display: "flex", gap: 6, alignItems: "center", minWidth: 0 }}>
-      <select style={{ flex: 1, minWidth: 0 }}
-        id={id}
-        value={isCustom ? "custom" : value}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (v === "custom") {
-            setCustom(true);
-            return;
-          }
-          setCustom(false);
-          onChange(v);
-        }}
-      >
-        <option value="">{noneLabel}</option>
-        <option value="custom">金額を入力…</option>
+    <details className="multi-select" open={open} onToggle={(e) => onOpenChange((e.target as HTMLDetailsElement).open)}>
+      <summary>{summary}</summary>
+      <div className="multi-select__panel rate-panel">
+        <button
+          type="button"
+          className={`rate-option${value === "" ? " is-selected" : ""}`}
+          onClick={() => {
+            onChange("");
+            onOpenChange(false);
+          }}
+        >
+          {noneLabel}
+        </button>
+        <div className="rate-option rate-option--input">
+          <input
+            type="number"
+            min={0}
+            step={500}
+            placeholder="金額を入力…"
+            value={value !== "" && !isPreset ? value : ""}
+            onChange={(e) => onChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onOpenChange(false);
+            }}
+            aria-label="金額（円）を入力"
+          />
+        </div>
         {RATE_PRESETS.map((n) => (
-          <option key={n} value={String(n)} disabled={minAllowed != null && n < minAllowed}>
+          <button
+            key={n}
+            type="button"
+            className={`rate-option${value === String(n) ? " is-selected" : ""}`}
+            disabled={minAllowed != null && n < minAllowed}
+            onClick={() => {
+              onChange(String(n));
+              onOpenChange(false);
+            }}
+          >
             ¥{n.toLocaleString()}
-          </option>
+          </button>
         ))}
-      </select>
-      {isCustom && (
-        <input type="number" min={0} step={500} placeholder="円" style={{ width: 84, flex: "none" }} value={value} onChange={(e) => onChange(e.target.value)} aria-label="金額（円）" />
-      )}
-    </span>
+      </div>
+    </details>
   );
 }
 
@@ -117,12 +148,14 @@ function InstructorsPageInner() {
   const [rateMax, setRateMax] = useState("");
 
   // Only one filter panel open at a time (mirrors the legacy <details> group behavior).
-  const [openPanel, setOpenPanel] = useState<"area" | "format" | "expertise" | null>(null);
+  const [openPanel, setOpenPanel] = useState<"area" | "format" | "expertise" | "rateMin" | "rateMax" | null>(null);
   const areaOpen = openPanel === "area";
   const formatOpen = openPanel === "format";
   const expertiseOpen = openPanel === "expertise";
   const setAreaOpen = (open: boolean) => setOpenPanel(open ? "area" : (p) => (p === "area" ? null : p));
   const setFormatOpen = (open: boolean) => setOpenPanel(open ? "format" : (p) => (p === "format" ? null : p));
+  const setRateMinOpen = (open: boolean) => setOpenPanel(open ? "rateMin" : (p) => (p === "rateMin" ? null : p));
+  const setRateMaxOpen = (open: boolean) => setOpenPanel(open ? "rateMax" : (p) => (p === "rateMax" ? null : p));
   const setExpertiseOpen = (open: boolean) => setOpenPanel(open ? "expertise" : (p) => (p === "expertise" ? null : p));
 
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
@@ -270,11 +303,11 @@ function InstructorsPageInner() {
         </div>
 
         <div className="filter-field">
-          <label htmlFor="filterRateMin">単価（円／時間）</label>
+          <label>単価（円／時間）</label>
           <span style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
-            <RateSelect id="filterRateMin" value={rateMin} onChange={setRateMin} noneLabel="下限なし" />
+            <RateSelect value={rateMin} onChange={setRateMin} noneLabel="下限なし" open={openPanel === "rateMin"} onOpenChange={setRateMinOpen} />
             <span>〜</span>
-            <RateSelect id="filterRateMax" value={rateMax} onChange={setRateMax} noneLabel="上限なし" minAllowed={rateMin ? Number(rateMin) : null} />
+            <RateSelect value={rateMax} onChange={setRateMax} noneLabel="上限なし" minAllowed={rateMin ? Number(rateMin) : null} open={openPanel === "rateMax"} onOpenChange={setRateMaxOpen} />
           </span>
         </div>
 
