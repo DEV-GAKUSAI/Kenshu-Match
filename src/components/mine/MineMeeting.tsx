@@ -259,7 +259,13 @@ export function BookMineMeetingButton({
   }
 
   return (
-    <button type="button" className="btn btn--ghost btn--sm" disabled={disabled || busy} onClick={() => void open()}>
+    <button
+      type="button"
+      className="btn btn--sm"
+      style={{ background: "#e0f3e9", borderColor: "#bfe7db", color: "#176c64", fontWeight: 700 }}
+      disabled={disabled || busy}
+      onClick={() => void open()}
+    >
       {busy ? "準備中…" : bookingId ? "日程変更・キャンセル" : "面談を予約"}
     </button>
   );

@@ -36,7 +36,6 @@ export function ApplicantRow({
   meetingButton,
   busy,
   onDecide,
-  onRequestInterview,
   onCancelRequest,
 }: {
   name: string;
@@ -46,8 +45,6 @@ export function ApplicantRow({
   meetingButton: ReactNode;
   busy: boolean;
   onDecide: () => void;
-  /** Ask this applicant for an interview (the first step before choosing). */
-  onRequestInterview: () => void;
   /** Cancelling the whole request (only while no instructor is chosen yet). */
   onCancelRequest?: () => void;
 }) {
@@ -170,11 +167,6 @@ export function ApplicantRow({
           {meeting && <MineMeetingLine meeting={meeting} viewer="requester" compact />}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: message || meeting ? 12 : 0 }}>
             {!declined && meetingButton}
-            {!interview && (
-              <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={onRequestInterview}>
-                面談に進む
-              </button>
-            )}
             {interview === "requested" && (
               <span style={{ alignSelf: "center", color: "var(--color-ink-soft)" }}>講師の返事待ちです。公開されると決定できます。</span>
             )}
