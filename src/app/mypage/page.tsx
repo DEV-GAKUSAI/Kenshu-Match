@@ -107,8 +107,6 @@ function ProfileStatusCard({ userId }: { userId: string }) {
         ) : (
           <p className="request-card__desc">Mineで公開設定をオンにすると、「講師を探す」に表示され、依頼を受けられるようになります。</p>
         )}
-        <p className="request-card__meta" style={{ marginBottom: 6 }}>この内容はMineの設定が表示されています。</p>
-        <p className="request-card__meta" style={{ marginBottom: 14 }}>決定後、Mineに登録したメールアドレスと電話番号（任意）が企業に共有されます。</p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
           <ProfileSection title="プロフィール">
             {mine.public && mine.profile && hasMineBlocks(mine.profile, "profile") ? (
