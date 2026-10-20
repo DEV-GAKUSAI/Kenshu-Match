@@ -148,6 +148,7 @@ export default function OpenRequestsPage() {
   const confirm = useConfirm();
   const [reloadKey, setReloadKey] = useState(0);
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [leavingId, setLeavingId] = useState<string | null>(null);
   const [allRequests, setAllRequests] = useState<RequestWithJoins[]>([]);
   const [requesterMap, setRequesterMap] = useState<
     Record<string, { name?: string; email?: string; phone?: string | null; company_name?: string | null }>
@@ -225,15 +226,28 @@ export default function OpenRequestsPage() {
       confirmLabel: "応募する",
     });
     if (!ok) return;
+    // Smooth: fade the card out while saving, then move it without a full reload.
     setApplyingId(r.request_id);
-    const { error } = await submitInstructorResponse(r.request_id, user.id, "accept");
+    setLeavingId(r.request_id);
+    const [{ error }] = await Promise.all([
+      submitInstructorResponse(r.request_id, user.id, "accept"),
+      new Promise((resolve) => setTimeout(resolve, 350)),
+    ]);
     setApplyingId(null);
+    setLeavingId(null);
     if (error) {
       showToast(`エラー：${error.message}`);
       return;
     }
     flushMineNotices();
     showToast("応募しました。依頼者の確定操作をお待ちください。");
+    setAllRequests((prev) =>
+      prev.map((x) =>
+        x.request_id === r.request_id
+          ? { ...x, myResponse: { response_id: `tmp-${r.request_id}`, request_id: r.request_id, instructor_id: user.id, action: "accept", quote_price: null, message: null, is_selected: false } as unknown as InstructorResponseRow }
+          : x
+      )
+    );
     setReloadKey((k) => k + 1);
   }
 
@@ -338,7 +352,7 @@ export default function OpenRequestsPage() {
         const reasons = currentTab === "recommended" ? matchReasons(r, myProfile) : [];
         const requester = requesterMap[r.requester_id];
         return (
-          <div className={`request-card request-card--open${reasons.length > 0 && isRecommended(reasons) ? " is-match" : ""}`} key={r.request_id}>
+          <div className={`request-card request-card--open${reasons.length > 0 && isRecommended(reasons) ? " is-match" : ""}${leavingId === r.request_id ? " is-leaving" : ""}`} key={r.request_id}>
             <div className="request-card__top">
               <div>
                 <div className="request-card__title">
@@ -393,7 +407,17 @@ export default function OpenRequestsPage() {
                 <button type="button" className="btn btn--primary btn--sm" disabled={applyingId === r.request_id} onClick={() => quickApply(r)}>
                   応募する
                 </button>
-                <Link href={`/request-detail?id=${r.request_id}`} className="btn btn--ghost btn--sm">
+                <Link
+                  href={`/request-detail?id=${r.request_id}`}
+                  className="btn btn--ghost btn--sm"
+                  onClick={() => {
+                    try {
+                      sessionStorage.setItem("kl_request_preview", JSON.stringify({ id: r.request_id, title: r.title, description: r.description, requester_type: r.requester_type, created_at: r.created_at }));
+                    } catch {
+                      /* ignore */
+                    }
+                  }}
+                >
                   詳細を見る
                 </Link>
                 <button type="button" className="hide-link" onClick={() => hideOne(r.request_id)}>

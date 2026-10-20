@@ -165,7 +165,45 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
     }
   }, [focusRespond, r]);
 
-  if (r === undefined) return <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p>;
+  if (r === undefined) {
+    // Show what the list already told us, so the page does not flash empty.
+    let preview: { id?: string; title?: string; description?: string; requester_type?: string } | null = null;
+    try {
+      const raw = sessionStorage.getItem("kl_request_preview");
+      preview = raw ? JSON.parse(raw) : null;
+    } catch {
+      preview = null;
+    }
+    if (preview && preview.id === requestId && preview.title) {
+      return (
+        <>
+          <Link href="/open-requests" className="breadcrumb">
+            ← 一覧に戻る
+          </Link>
+          <div className="request-card">
+            <div className="request-card__title" style={{ fontSize: 20 }}>
+              {preview.title}
+            </div>
+            <div className="request-card__meta">
+              <span>{preview.requester_type === "company" ? "企業" : "生徒"}からの公募</span>
+            </div>
+            <p className="request-card__desc" style={{ whiteSpace: "pre-wrap" }}>
+              {preview.description}
+            </p>
+            <div className="skeleton-bar" />
+            <div className="skeleton-bar skeleton-bar--short" />
+          </div>
+        </>
+      );
+    }
+    return (
+      <div className="request-card">
+        <div className="skeleton-bar" />
+        <div className="skeleton-bar skeleton-bar--short" />
+        <div className="skeleton-bar" />
+      </div>
+    );
+  }
   if (r === null) return <NotFoundBlock />;
 
   const myResponse = (r.instructor_responses || []).find((x) => x.instructor_id === instructorId) || null;
