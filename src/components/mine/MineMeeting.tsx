@@ -124,7 +124,7 @@ export function MineMeetingLine({
   if (viewer === "requester") {
     // The company's view: one panel, Google Meet button first, then the time,
     // then any proposed new time with its reason.
-    const meetUrl = meeting.meeting_type === "google_meet" ? meeting.meeting_url : null;
+    const meetUrl = meeting.meeting_type === "google_meet" || meeting.meeting_type === "zoom" ? meeting.meeting_url : null;
     const hasButtons = !compact && !!(meetUrl || actions);
     const details = (
       <>
@@ -137,7 +137,7 @@ export function MineMeetingLine({
         {meeting.meeting_type === "in_person" && meeting.place && (
           <div style={{ marginTop: 4, color: "var(--color-ink-soft)" }}>場所：{meeting.place}</div>
         )}
-        {meeting.meeting_type === "google_meet" && !meetUrl && (
+        {(meeting.meeting_type === "google_meet" || meeting.meeting_type === "zoom") && !meetUrl && (
           <div style={{ marginTop: 4, color: "var(--color-ink-soft)" }}>会議URLは準備中です。準備ができるとここに表示されます。</div>
         )}
         {proposal && (
@@ -174,8 +174,8 @@ export function MineMeetingLine({
         {hasButtons && (
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             {meetUrl && (
-              <a href={meetUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--sm">
-                Google Meet に参加
+              <a href={meetUrl} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--sm" style={meeting.meeting_type === "zoom" ? { background: "#2d8cff", borderColor: "#2d8cff", color: "#fff" } : undefined}>
+                {TYPE_LABEL[meeting.meeting_type]} に参加
               </a>
             )}
             {actions}
@@ -190,11 +190,11 @@ export function MineMeetingLine({
       <strong>面談：{when}</strong>
       {meeting.meeting_type !== "none" && <span style={{ marginLeft: 6 }}>{TYPE_LABEL[meeting.meeting_type]}</span>}
       {meeting.meeting_type === "in_person" && meeting.place && <div style={{ marginTop: 4 }}>場所：{meeting.place}</div>}
-      {meeting.meeting_type === "google_meet" &&
+      {(meeting.meeting_type === "google_meet" || meeting.meeting_type === "zoom") &&
         (meeting.meeting_url ? (
           <div style={{ marginTop: 6 }}>
-            <a href={meeting.meeting_url} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--sm">
-              Google Meet に参加
+            <a href={meeting.meeting_url} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--sm" style={meeting.meeting_type === "zoom" ? { background: "#2d8cff", borderColor: "#2d8cff", color: "#fff" } : undefined}>
+              {TYPE_LABEL[meeting.meeting_type]} に参加
             </a>
           </div>
         ) : (
