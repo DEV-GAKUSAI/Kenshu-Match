@@ -208,7 +208,7 @@ function InstructorsPageInner() {
   }, [allInstructors, selectedAreas, selectedFormats, selectedFields, rateMin, rateMax, categorySubcategoryNames]);
 
   return (
-    <main className="list-page">
+    <main className="list-page" style={{ maxWidth: 1240 }}>
       <div className="list-page__head">
         <h1 className="list-page__title">講師を探す</h1>
         <p className="list-page__count">
