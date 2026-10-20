@@ -1860,3 +1860,18 @@ button { font-family: inherit; cursor: pointer; }
 .undo-bar { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 16px; max-width: calc(100vw - 32px); padding: 12px 18px; border-radius: 999px; background: #1F2D29; color: #fff; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,.22); animation: kl-card-in .2s ease-out both; }
 .undo-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .undo-bar button { flex: none; border: 0; border-radius: 999px; padding: 6px 14px; background: var(--color-primary); color: #fff; font-weight: 700; font-size: 12.5px; cursor: pointer; }
+
+/* ---- 案件カード：色を減らす（講師側・企業側 共通）。色は「次にすること」だけに使う ---- */
+.request-card .instructor-card__tag { background: #F1F4F3; border: 0; color: var(--color-ink-soft); }
+.request-card .status-badge--pending,
+.request-card .status-badge--quoted { background: #EEF2F1; color: #4A5A56; }
+.request-card .status-badge--cancelled { background: #F3F5F4; color: #8A9490; }
+.request-card .status-badge--completed { background: #EAF0F4; color: #42586A; }
+.request-card__response { background: #F8FAF9; border: 1px solid var(--color-border); }
+.request-card__response strong { color: var(--color-ink); font-size: 12.5px; }
+.request-card .contact-box { background: #fff; border: 1px solid var(--color-border); border-left: 4px solid var(--color-primary); }
+.request-card .contact-box strong { color: var(--color-ink); }
+.request-card .btn--primary { box-shadow: none; }
+.request-card .btn--primary:hover { box-shadow: none; transform: none; filter: brightness(.95); }
+.request-card .btn--danger { border-color: transparent; background: transparent; color: var(--color-ink-soft); }
+.request-card .btn--danger:hover { background: transparent; color: var(--color-danger); text-decoration: underline; }
