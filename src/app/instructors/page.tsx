@@ -69,8 +69,8 @@ function RateSelect({ id, value, onChange, noneLabel, minAllowed }: { id: string
   const [custom, setCustom] = useState(false);
   const isCustom = custom || (value !== "" && !RATE_PRESETS.includes(Number(value)));
   return (
-    <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
-      <select
+    <span style={{ display: "flex", gap: 6, alignItems: "center", minWidth: 0 }}>
+      <select style={{ flex: 1, minWidth: 0 }}
         id={id}
         value={isCustom ? "custom" : value}
         onChange={(e) => {
@@ -92,7 +92,7 @@ function RateSelect({ id, value, onChange, noneLabel, minAllowed }: { id: string
         ))}
       </select>
       {isCustom && (
-        <input type="number" min={0} step={500} placeholder="円" style={{ width: 96 }} value={value} onChange={(e) => onChange(e.target.value)} aria-label="金額（円）" />
+        <input type="number" min={0} step={500} placeholder="円" style={{ width: 84, flex: "none" }} value={value} onChange={(e) => onChange(e.target.value)} aria-label="金額（円）" />
       )}
     </span>
   );
@@ -228,7 +228,7 @@ function InstructorsPageInner() {
         </div>
       )}
 
-      <div className="filter-bar">
+      <div className="filter-bar" style={{ gridTemplateColumns: "repeat(3, 1fr) 1.7fr auto" }}>
         <div className="filter-field">
           <label>分野（複数選択可）</label>
           <MultiSelect
@@ -271,7 +271,7 @@ function InstructorsPageInner() {
 
         <div className="filter-field">
           <label htmlFor="filterRateMin">単価（円／時間）</label>
-          <span style={{ display: "inline-flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
             <RateSelect id="filterRateMin" value={rateMin} onChange={setRateMin} noneLabel="下限なし" />
             <span>〜</span>
             <RateSelect id="filterRateMax" value={rateMax} onChange={setRateMax} noneLabel="上限なし" minAllowed={rateMin ? Number(rateMin) : null} />
