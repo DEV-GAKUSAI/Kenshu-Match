@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { getOpenRequestsPublicPreview, getOpenRequestsForInstructor } from "@/lib/requests/training-requests";
-import { markResultsSeenByInstructor } from "@/lib/requests/instructor-responses";
+import { markResultsSeenByInstructor, submitInstructorResponse } from "@/lib/requests/instructor-responses";
+import { useToast } from "@/components/common/Toast";
+import { useConfirm } from "@/components/common/ConfirmDialog";
+import { flushMineNotices } from "@/lib/mine/flush-client";
 import { getMyMatchingProfile } from "@/lib/instructor/profile";
 import { getRequesterContacts } from "@/lib/requester/profile";
 import type { OpenRequestPublicPreviewRow, TrainingRequestRow, InstructorResponseRow } from "@/types/database";
@@ -130,6 +133,10 @@ function PublicPreviewList() {
 export default function OpenRequestsPage() {
   const { authReady, user } = useAuth();
   useRoleTheme("instructor");
+  const { showToast } = useToast();
+  const confirm = useConfirm();
+  const [reloadKey, setReloadKey] = useState(0);
+  const [applyingId, setApplyingId] = useState<string | null>(null);
   const [allRequests, setAllRequests] = useState<RequestWithJoins[]>([]);
   const [requesterMap, setRequesterMap] = useState<
     Record<string, { name?: string; email?: string; phone?: string | null; company_name?: string | null }>
@@ -181,7 +188,32 @@ export default function OpenRequestsPage() {
 
       setLoading(false);
     })();
-  }, [authReady, user]);
+  }, [authReady, user, reloadKey]);
+
+  async function quickApply(r: RequestWithJoins) {
+    if (!user) return;
+    const lines = [
+      r.budget ? `予算 ¥${Number(r.budget).toLocaleString()}` : null,
+      r.participant_count ? `対象${r.participant_count}名` : null,
+      r.preferred_schedule || null,
+    ].filter(Boolean);
+    const { ok } = await confirm({
+      title: "この案件に応募しますか？",
+      message: [r.title, ...lines].join("\n"),
+      confirmLabel: "応募する",
+    });
+    if (!ok) return;
+    setApplyingId(r.request_id);
+    const { error } = await submitInstructorResponse(r.request_id, user.id, "accept");
+    setApplyingId(null);
+    if (error) {
+      showToast(`エラー：${error.message}`);
+      return;
+    }
+    flushMineNotices();
+    showToast("応募しました。依頼者の確定操作をお待ちください。");
+    setReloadKey((k) => k + 1);
+  }
 
   const counts = useMemo(() => {
     const open = allRequests.filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id));
@@ -329,9 +361,9 @@ export default function OpenRequestsPage() {
 
             {!r.myResponse && r.status === "pending" && (
               <div className="request-card__actions">
-                <Link href={`/request-detail?id=${r.request_id}&focus=respond`} className="btn btn--primary btn--sm">
+                <button type="button" className="btn btn--primary btn--sm" disabled={applyingId === r.request_id} onClick={() => quickApply(r)}>
                   応募する
-                </Link>
+                </button>
                 <Link href={`/request-detail?id=${r.request_id}`} className="btn btn--ghost btn--sm">
                   詳細を見る
                 </Link>
