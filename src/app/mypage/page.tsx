@@ -156,7 +156,7 @@ function ProfileStatusCard({ userId }: { userId: string }) {
                     ) : null}
                   </>
                 ),
-                content: <InstructorSurveyResults instructorId={userId} bare />,
+                content: <InstructorSurveyResults instructorId={userId} bare replyName={mine.initials} />,
               },
             ]}
           />
