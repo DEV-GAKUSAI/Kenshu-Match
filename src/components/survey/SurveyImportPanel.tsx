@@ -21,7 +21,8 @@ const SHOWN_PROBLEMS = 20;
  * saved until the person presses the import button. One wrong row stops the
  * whole import. An import can be undone as a whole.
  */
-export function SurveyImportPanel({ requestId, onChanged }: { requestId: string; onChanged?: () => void }) {
+/** Give a requestId (a request in Kenshu Link) or, for admin, a pastTrainingId (a past training record). */
+export function SurveyImportPanel({ requestId, pastTrainingId, onChanged }: { requestId?: string; pastTrainingId?: string; onChanged?: () => void }) {
   const { showToast } = useToast();
   const confirm = useConfirm();
   // The survey tables are new, so they are not in the generated types yet.
@@ -35,11 +36,11 @@ export function SurveyImportPanel({ requestId, onChanged }: { requestId: string;
   const loadBatches = useCallback(async () => {
     const { data } = await supabase
       .from("training_survey_import_batches")
-      .select("batch_id, file_name, row_count, created_at, undone_at, training_surveys!inner(request_id)")
-      .eq("training_surveys.request_id", requestId)
+      .select("batch_id, file_name, row_count, created_at, undone_at, training_surveys!inner(request_id, past_training_id)")
+      .eq(pastTrainingId ? "training_surveys.past_training_id" : "training_surveys.request_id", (pastTrainingId ?? requestId) as string)
       .order("created_at", { ascending: false });
     setBatches((data as BatchRow[] | null) ?? []);
-  }, [supabase, requestId]);
+  }, [supabase, requestId, pastTrainingId]);
 
   useEffect(() => {
     if (open) void loadBatches();
@@ -80,12 +81,10 @@ export function SurveyImportPanel({ requestId, onChanged }: { requestId: string;
   async function handleImport() {
     if (!preview || preview.check.problems.length > 0 || preview.check.rows.length === 0) return;
     setBusy(true);
-    const { error } = await supabase.rpc("import_training_survey_answers", {
-      p_request_id: requestId,
-      p_rows: preview.check.rows,
-      p_file_hash: preview.hash,
-      p_file_name: preview.fileName,
-    });
+    const rowsArgs = { p_rows: preview.check.rows, p_file_hash: preview.hash, p_file_name: preview.fileName };
+    const { error } = pastTrainingId
+      ? await supabase.rpc("admin_import_past_training_answers", { p_past_training_id: pastTrainingId, ...rowsArgs })
+      : await supabase.rpc("import_training_survey_answers", { p_request_id: requestId, ...rowsArgs });
     setBusy(false);
     if (error) return showToast(importErrorMessage(error.message));
     showToast(`${preview.check.rows.length}件を取り込みました。`);

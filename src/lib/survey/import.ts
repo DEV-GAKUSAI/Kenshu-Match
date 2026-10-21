@@ -201,6 +201,8 @@ export function importErrorMessage(raw: string): string {
   if (raw.includes("instructor_not_found")) return "講師が決まってから取り込めます。";
   if (raw.includes("too_many_rows")) return `一度に取り込めるのは${IMPORT_MAX_ROWS}行までです。`;
   if (raw.includes("bad_row")) return "ファイルの内容に問題があります。もう一度確認してください。";
+  if (raw.includes("past_training_not_found")) return "過去の研修が見つかりません。";
+  if (raw.includes("admin_only")) return "管理者のみ操作できます。";
   if (raw.includes("batch_not_found")) return "取り込みが見つかりません。";
   return "取り込めませんでした。時間をおいてもう一度お試しください。";
 }
