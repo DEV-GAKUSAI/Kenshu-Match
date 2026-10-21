@@ -10,6 +10,7 @@ import { getInstructorNames } from "@/lib/instructor/profile";
 import { getBookEntries } from "@/lib/requester/book";
 import { addPartner, deletePartner, getPartners, PARTNER_KIND_TEXT, updatePartner, type Partner, type PartnerKind } from "@/lib/requester/partners";
 import "../mypage/mypage.css";
+import { Select } from "@/components/ui/Select";
 
 const EMPTY = { name: "", kind: "company" as PartnerKind, contact: "", note: "", instructorId: "" };
 
@@ -94,23 +95,23 @@ export default function MyPartnersPage() {
           </div>
           <div className="form-field">
             <label>区分</label>
-            <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as PartnerKind })}>
+            <Select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as PartnerKind })}>
               <option value="company">協力会社</option>
               <option value="instructor">講師</option>
-            </select>
+            </Select>
           </div>
         </div>
         {form.kind === "instructor" && (
           <div className="form-field">
             <label>Kenshu Linkの講師と紐づける（任意）</label>
-            <select value={form.instructorId} onChange={(e) => setForm({ ...form, instructorId: e.target.value })}>
+            <Select value={form.instructorId} onChange={(e) => setForm({ ...form, instructorId: e.target.value })}>
               <option value="">紐づけない</option>
               {linkable.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.name}
                 </option>
               ))}
-            </select>
+            </Select>
             <span style={{ fontSize: 12, color: "var(--color-ink-soft)" }}>
               自社の講師台帳にいるKenshu Link登録講師から選べます（先に、講師のページで「台帳に入れる」を押してください）。この講師を「実際の登壇講師」にすると、研修アンケートの評価がこの講師につきます。
             </span>

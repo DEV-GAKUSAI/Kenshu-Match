@@ -9,6 +9,7 @@ import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { getInstructorNames } from "@/lib/instructor/profile";
 import { addExternalEntry, deleteBookEntry, getBookEntries, KIND_TEXT, updateBookEntry, type BookEntry, type BookKind } from "@/lib/requester/book";
 import "../mypage/mypage.css";
+import { Select } from "@/components/ui/Select";
 
 /** 自社の講師台帳 (#57): my regular instructors and candidates, also people who are not on Kenshu Link. */
 export default function MyInstructorsPage() {
@@ -114,10 +115,10 @@ export default function MyInstructorsPage() {
             </div>
             <div className="form-field">
               <label>区分</label>
-              <select value={nf.kind} onChange={(e) => setNf({ ...nf, kind: e.target.value as BookKind })}>
+              <Select value={nf.kind} onChange={(e) => setNf({ ...nf, kind: e.target.value as BookKind })}>
                 <option value="candidate">候補</option>
                 <option value="regular">取引先</option>
-              </select>
+              </Select>
             </div>
           </div>
           <div className="form-field">
@@ -182,21 +183,21 @@ export default function MyInstructorsPage() {
                 <div className="form-row" style={{ marginTop: 12 }}>
                   <div className="form-field">
                     <label>区分</label>
-                    <select value={edit.kind} onChange={(ev) => setEdit({ ...edit, kind: ev.target.value as BookKind })}>
+                    <Select value={edit.kind} onChange={(ev) => setEdit({ ...edit, kind: ev.target.value as BookKind })}>
                       <option value="candidate">候補</option>
                       <option value="regular">取引先</option>
-                    </select>
+                    </Select>
                   </div>
                   <div className="form-field">
                     <label>社内評価</label>
-                    <select value={edit.rating} onChange={(ev) => setEdit({ ...edit, rating: ev.target.value })}>
+                    <Select value={edit.rating} onChange={(ev) => setEdit({ ...edit, rating: ev.target.value })}>
                       <option value="">なし</option>
                       {[5, 4, 3, 2, 1].map((n) => (
                         <option key={n} value={n}>
                           {"★".repeat(n)}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                 </div>
                 <div className="form-field">

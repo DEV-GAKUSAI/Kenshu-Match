@@ -46,6 +46,7 @@ import { DetailTabs } from "@/components/common/DetailTabs";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import type { MinePublicProfile } from "@/lib/mine/public-profile";
 import "./mypage.css";
+import { Select } from "@/components/ui/Select";
 
 const FORMAT_LABEL: Record<string, string> = { online: "オンライン", offline: "対面", both: "オンライン・対面" };
 
@@ -435,11 +436,11 @@ function InstructorRequestCard({
               <label>見積り金額（{UNIT_OPTIONS.find((o) => o.value === normalUnit(r.budget_unit))?.label}・円）</label>
               <div style={{ display: "flex", gap: 8 }}>
                 <input type="number" min={0} step={1000} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
-                <select aria-label="税" value={quoteTax} onChange={(e) => setQuoteTax(e.target.value as "" | "included" | "excluded")} style={{ flex: "0 0 120px" }}>
+                <Select aria-label="税" value={quoteTax} onChange={(e) => setQuoteTax(e.target.value as "" | "included" | "excluded")} style={{ flex: "0 0 120px" }}>
                   <option value="">税の指定なし</option>
                   <option value="included">税込</option>
                   <option value="excluded">税別</option>
-                </select>
+                </Select>
               </div>
             </div>
             <ApplyFields value={apply} onChange={setApply} />
@@ -1210,14 +1211,14 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 14px" }}>
         <input type="search" placeholder="案件名・キーワード・案件番号で探す" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: "1 1 220px", minWidth: 0 }} />
         {years.length > 1 && (
-          <select aria-label="年" value={year} onChange={(e) => setYear(e.target.value)} style={{ flex: "0 0 120px" }}>
+          <Select aria-label="年" value={year} onChange={(e) => setYear(e.target.value)} style={{ flex: "0 0 120px" }}>
             <option value="">すべての年</option>
             {years.map((y) => (
               <option key={y} value={String(y)}>
                 {y}年
               </option>
             ))}
-          </select>
+          </Select>
         )}
       </div>
       {loadError && <p style={{ color: "var(--color-danger)", fontSize: 13 }}>読み込みエラー：{loadError}</p>}

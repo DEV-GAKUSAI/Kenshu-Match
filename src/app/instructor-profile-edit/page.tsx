@@ -13,6 +13,7 @@ import {
   findOrCreateSubcategory,
 } from "@/lib/instructor/expertise";
 import type { WorkStyle } from "@/types/database";
+import { Select } from "@/components/ui/Select";
 
 const JP_PREFECTURES = [
   "オンライン対応（全国）",
@@ -342,12 +343,12 @@ export default function InstructorProfileEditPage() {
 
             <div className="form-field">
               <label htmlFor="workStyle">対応形態</label>
-              <select id="workStyle" value={workStyle} onChange={(e) => setWorkStyle(e.target.value as WorkStyle | "")}>
+              <Select id="workStyle" value={workStyle} onChange={(e) => setWorkStyle(e.target.value as WorkStyle | "")}>
                 <option value="">選択してください</option>
                 <option value="ONLINE">オンラインのみ</option>
                 <option value="ONSITE">対面のみ</option>
                 <option value="HYBRID">オンライン・対面 両方</option>
-              </select>
+              </Select>
             </div>
 
             <div className="form-field">

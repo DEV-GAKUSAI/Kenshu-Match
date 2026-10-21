@@ -15,6 +15,7 @@ import { getMyMatchingProfile } from "@/lib/instructor/profile";
 import { getTrainingSubcategoryOptions } from "@/lib/instructor/expertise";
 import { getRequesterContacts } from "@/lib/requester/profile";
 import type { OpenRequestPublicPreviewRow, TrainingRequestRow, InstructorResponseRow } from "@/types/database";
+import { Select } from "@/components/ui/Select";
 
 const FORMAT_LABEL: Record<string, string> = { online: "オンライン", offline: "対面", both: "オンライン・対面" };
 const HIDDEN_KEY = "kenshulink_hidden_open_requests";
@@ -397,22 +398,22 @@ export default function OpenRequestsPage() {
           <div className="form-row">
             <div className="form-field">
               <label>分野</label>
-              <select value={fField} onChange={(e) => setFField(e.target.value)}>
+              <Select value={fField} onChange={(e) => setFField(e.target.value)}>
                 <option value="">すべて</option>
                 {fieldOptions.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className="form-field">
               <label>形態</label>
-              <select value={fFormat} onChange={(e) => setFFormat(e.target.value)}>
+              <Select value={fFormat} onChange={(e) => setFFormat(e.target.value)}>
                 <option value="">すべて</option>
                 <option value="online">オンライン</option>
                 <option value="offline">対面</option>
-              </select>
+              </Select>
             </div>
           </div>
           <div className="form-row">

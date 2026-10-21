@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import { SurveyImportPanel } from "@/components/survey/SurveyImportPanel";
 import "../../mypage/mypage.css";
+import { Select } from "@/components/ui/Select";
 
 type Survey = {
   survey_id: string;
@@ -196,14 +197,14 @@ export default function AdminSurveysPage() {
         {mode === "request" && (
           <>
             <p className="request-card__meta" style={{ margin: "0 0 10px" }}>承諾済み・完了の依頼を選んで、Excel／CSVの結果を取り込みます（研修の初日前でも可）。</p>
-            <select value={pickedRequest} onChange={(e) => setPickedRequest(e.target.value)} style={{ maxWidth: "100%", marginBottom: 10 }}>
+            <Select value={pickedRequest} onChange={(e) => setPickedRequest(e.target.value)} style={{ maxWidth: "100%", marginBottom: 10 }}>
               <option value="">依頼を選ぶ</option>
               {candidates.map((c) => (
                 <option key={c.request_id} value={c.request_id}>
                   {c.title}（{c.status === "completed" ? "完了" : "承諾済み"}）
                 </option>
               ))}
-            </select>
+            </Select>
             {pickedRequest && <SurveyImportPanel key={pickedRequest} requestId={pickedRequest} onChanged={() => void load()} />}
           </>
         )}
@@ -215,14 +216,14 @@ export default function AdminSurveysPage() {
               <strong>過去の研修を新しく登録する</strong>
               <div className="form-field">
                 <label>講師</label>
-                <select value={pf.instructor} onChange={(e) => setPf({ ...pf, instructor: e.target.value })}>
+                <Select value={pf.instructor} onChange={(e) => setPf({ ...pf, instructor: e.target.value })}>
                   <option value="">講師を選ぶ</option>
                   {instructors.map((i) => (
                     <option key={i.id} value={i.id}>
                       {i.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="form-field">
                 <label>研修名</label>
@@ -241,14 +242,14 @@ export default function AdminSurveysPage() {
               </button>
             </div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>登録済みの過去の研修</label>
-            <select value={pickedPast} onChange={(e) => setPickedPast(e.target.value)} style={{ maxWidth: "100%", marginBottom: 10 }}>
+            <Select value={pickedPast} onChange={(e) => setPickedPast(e.target.value)} style={{ maxWidth: "100%", marginBottom: 10 }}>
               <option value="">選ぶ</option>
               {pastList.map((p) => (
                 <option key={p.past_training_id} value={p.past_training_id}>
                   {p.title}（{p.held_on}）
                 </option>
               ))}
-            </select>
+            </Select>
             {pickedPast && <SurveyImportPanel key={pickedPast} pastTrainingId={pickedPast} onChanged={() => void load()} />}
           </>
         )}

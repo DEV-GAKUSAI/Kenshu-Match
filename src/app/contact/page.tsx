@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Select } from "@/components/ui/Select";
 
 export default function ContactPage() {
   const [company, setCompany] = useState("");
@@ -94,13 +95,13 @@ export default function ContactPage() {
 
           <div className="form-field">
             <label htmlFor="contactType">お問い合わせ種別</label>
-            <select id="contactType" value={type} onChange={(e) => setType(e.target.value)}>
+            <Select id="contactType" value={type} onChange={(e) => setType(e.target.value)}>
               <option value="service">サービスについて</option>
               <option value="instructor">講師登録について</option>
               <option value="business">企業・個人向け機能について</option>
               <option value="bug">不具合の報告</option>
               <option value="other">その他</option>
-            </select>
+            </Select>
           </div>
 
           <div className="form-field">
