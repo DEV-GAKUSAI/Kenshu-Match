@@ -112,7 +112,7 @@ export default function MyPartnersPage() {
               ))}
             </select>
             <span style={{ fontSize: 12, color: "var(--color-ink-soft)" }}>
-              自社の講師台帳にいるKenshu Link登録講師から選べます。この講師を「実際の登壇講師」にすると、研修アンケートの評価がこの講師につきます。
+              自社の講師台帳にいるKenshu Link登録講師から選べます（先に、講師のページで「台帳に入れる」を押してください）。この講師を「実際の登壇講師」にすると、研修アンケートの評価がこの講師につきます。
             </span>
           </div>
         )}
