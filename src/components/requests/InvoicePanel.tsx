@@ -81,7 +81,7 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
         {inv && (
           <Link href={`/invoice?id=${inv.invoice_id}`} target="_blank" className="btn btn--ghost btn--sm">
-            請求書を開く（PDFで保存）
+            請求書を開く
           </Link>
         )}
         {canEdit && (
