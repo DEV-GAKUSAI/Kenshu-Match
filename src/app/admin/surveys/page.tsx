@@ -8,6 +8,7 @@ import { useToast } from "@/components/common/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import { SurveyImportPanel } from "@/components/survey/SurveyImportPanel";
+import "../../mypage/mypage.css";
 
 type Survey = {
   survey_id: string;
@@ -57,6 +58,12 @@ export default function AdminSurveysPage() {
   const [pf, setPf] = useState({ instructor: "", title: "", heldOn: "", company: "" });
   const [creating, setCreating] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "reported" | "past">("all");
+  const [query, setQuery] = useState("");
+  const [shownCount, setShownCount] = useState(10);
+  const [allAnswers, setAllAnswers] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     const { data: s } = await supabase.from("training_surveys").select("*").order("created_at", { ascending: false });
@@ -129,6 +136,25 @@ export default function AdminSurveysPage() {
     await load();
   }
 
+  const rows = surveys.map((s) => {
+    const mine = answers.filter((a) => a.survey_id === s.survey_id);
+    const title = s.past_training_id
+      ? `【過去の研修】${pastList.find((p) => p.past_training_id === s.past_training_id)?.title ?? ""}`
+      : titles[s.request_id ?? ""] || s.request_id || "";
+    return {
+      s,
+      mine,
+      title,
+      reported: mine.filter((a) => a.reported_at && !a.is_hidden).length,
+      instructorName: instructors.find((i) => i.id === s.instructor_id)?.name ?? "",
+    };
+  });
+  const q = query.trim().toLowerCase();
+  const visible = rows
+    .filter((r) => (filter === "reported" ? r.reported > 0 : filter === "past" ? !!r.s.past_training_id : true))
+    .filter((r) => !q || r.title.toLowerCase().includes(q) || r.instructorName.toLowerCase().includes(q))
+    .sort((x, y) => (y.reported > 0 ? 1 : 0) - (x.reported > 0 ? 1 : 0));
+
   if (!authReady) return null;
   if (!user || user.role !== "ADMIN") return null;
 
@@ -142,7 +168,13 @@ export default function AdminSurveysPage() {
       </div>
 
       <div className="request-card">
-        <div className="request-card__title">アンケート結果を取り込む</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          <div className="request-card__title">アンケート結果を取り込む</div>
+          <button type="button" className={`btn btn--sm ${importOpen ? "btn--ghost" : "btn--primary"}`} onClick={() => setImportOpen((v) => !v)}>
+            {importOpen ? "閉じる" : "結果を取り込む"}
+          </button>
+        </div>
+        {importOpen && (<>
         <div style={{ display: "flex", gap: 8, margin: "8px 0 12px" }}>
           <button type="button" className={`btn btn--sm ${mode === "request" ? "btn--primary" : "btn--ghost"}`} onClick={() => setMode("request")}>
             依頼を選ぶ
@@ -211,6 +243,7 @@ export default function AdminSurveysPage() {
             {pickedPast && <SurveyImportPanel key={pickedPast} pastTrainingId={pickedPast} onChanged={() => void load()} />}
           </>
         )}
+        </>)}
       </div>
 
       {!loaded && <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p>}
@@ -220,67 +253,130 @@ export default function AdminSurveysPage() {
         </div>
       )}
 
-      {surveys.map((s) => {
-        const mine = answers.filter((a) => a.survey_id === s.survey_id);
-        const reported = mine.filter((a) => a.reported_at && !a.is_hidden).length;
-        return (
-          <div key={s.survey_id} className="request-card">
-            <div className="request-card__top">
-              <div>
-                <div className="request-card__title">{s.past_training_id ? `【過去の研修】${pastList.find((p) => p.past_training_id === s.past_training_id)?.title ?? ""}` : titles[s.request_id ?? ""] || s.request_id}</div>
-                <div className="request-card__meta">
-                  <span>リンク {linkCounts[s.survey_id] ?? 0} / 上限 {s.max_links}</span>
-                  <span>回答 {mine.length}{mine.some((a) => a.source === "import") ? `（取込 ${mine.filter((a) => a.source === "import").length}）` : ""}</span>
-                  {s.closed_at && <span>受付終了</span>}
-                </div>
-              </div>
-              {reported > 0 && <span className="status-badge status-badge--rejected">報告 {reported}</span>}
-            </div>
-
-            {!s.past_training_id && (
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "10px 0" }}>
-              <input
-                type="number"
-                min={0}
-                placeholder="新しい上限"
-                value={capInput[s.survey_id] ?? ""}
-                onChange={(e) => setCapInput((prev) => ({ ...prev, [s.survey_id]: e.target.value }))}
-                style={{ maxWidth: 140 }}
-              />
-              <button type="button" className="btn btn--primary btn--sm" onClick={() => saveCap(s.survey_id)}>
-                上限を変更する
+      {surveys.length > 0 && (
+        <>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", margin: "4px 0 12px" }}>
+            <input
+              type="search"
+              placeholder="研修名・講師名で探す"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setShownCount(10);
+              }}
+              style={{ flex: "1 1 200px", minWidth: 0 }}
+            />
+            {([["all", "すべて"], ["reported", `報告あり（${rows.filter((r) => r.reported > 0).length}）`], ["past", "過去の研修"]] as const).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                className={`btn btn--sm ${filter === k ? "btn--primary" : "btn--ghost"}`}
+                onClick={() => {
+                  setFilter(k);
+                  setShownCount(10);
+                }}
+              >
+                {label}
               </button>
-            </div>
-            )}
-
-            {mine.map((a) => (
-              <div key={a.answer_id} className="review-item" style={a.is_hidden ? { opacity: 0.55 } : undefined}>
-                <div className="review-item__top">
-                  <span className="review-item__name">
-                    {a.role === "HIRER" ? "依頼企業" : "参加者"}
-                    {a.display_name ? `（${a.display_name}）` : ""}
-                    {a.is_hidden && "　非表示"}
-                  </span>
-                  <span className="review-item__rating">
-                    {a.q1}・{a.q2}・{a.q3}・{a.q4}・{a.q5}
-                  </span>
-                </div>
-                {a.comment && <p className="review-item__comment">{a.comment}</p>}
-                {a.reported_at && (
-                  <p className="review-item__comment" style={{ color: "var(--color-danger)" }}>
-                    講師からの報告：{a.reported_reason || "（理由なし）"}
-                  </p>
-                )}
-                <div className="request-card__actions">
-                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => setHidden(a.answer_id, !a.is_hidden)}>
-                    {a.is_hidden ? "表示に戻す" : "非表示にする"}
-                  </button>
-                </div>
-              </div>
             ))}
+          </div>
+          {visible.length === 0 && <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>該当するアンケートはありません。</p>}
+        </>
+      )}
+
+      {visible.slice(0, shownCount).map((r) => {
+        const s = r.s;
+        const mine = r.mine;
+        const isOpen = openId === s.survey_id;
+        const imported = mine.filter((a) => a.source === "import").length;
+        const showAll = allAnswers[s.survey_id];
+        const listed = showAll ? mine : mine.slice(0, 5);
+        return (
+          <div key={s.survey_id} className={`req-row${r.reported > 0 ? " req-row--attn" : ""}${isOpen ? " is-open" : ""}`}>
+            <button type="button" className="req-row__head" aria-expanded={isOpen} onClick={() => setOpenId(isOpen ? null : s.survey_id)}>
+              <span className="req-row__main">
+                <span className="req-row__line1">
+                  {r.reported > 0 && <span className="req-row__dot" aria-label="報告あり" />}
+                  <span className="req-row__title">{r.title}</span>
+                </span>
+                <span className="req-row__line2">
+                  {r.instructorName ? `${r.instructorName} ・ ` : ""}回答 {mine.length}
+                  {imported > 0 ? `（取込 ${imported}）` : ""} ・ リンク {linkCounts[s.survey_id] ?? 0}
+                  {s.closed_at ? " ・ 受付終了" : ""}
+                </span>
+              </span>
+              {r.reported > 0 && <span className="req-badge req-badge--attn">報告 {r.reported}</span>}
+              {s.past_training_id && <span className="req-badge req-badge--completed">過去の研修</span>}
+              <svg className="req-row__chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {isOpen && (
+              <div className="req-row__body">
+                {!s.past_training_id && (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", margin: "12px 0" }}>
+                    <span style={{ fontSize: 13, color: "var(--color-ink-soft)" }}>リンク上限 {s.max_links}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="新しい上限"
+                      value={capInput[s.survey_id] ?? ""}
+                      onChange={(e) => setCapInput((prev) => ({ ...prev, [s.survey_id]: e.target.value }))}
+                      style={{ maxWidth: 120 }}
+                    />
+                    <button type="button" className="btn btn--primary btn--sm" onClick={() => saveCap(s.survey_id)}>
+                      上限を変更する
+                    </button>
+                  </div>
+                )}
+
+                {mine.length === 0 && <p style={{ fontSize: 13, color: "var(--color-ink-soft)", margin: "12px 0 0" }}>回答はまだありません。</p>}
+                {listed.map((a) => (
+                  <div key={a.answer_id} className="review-item" style={a.is_hidden ? { opacity: 0.55 } : undefined}>
+                    <div className="review-item__top">
+                      <span className="review-item__name">
+                        {a.role === "HIRER" ? "依頼企業" : "参加者"}
+                        {a.display_name ? `（${a.display_name}）` : ""}
+                        {a.is_hidden && "　非表示"}
+                      </span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span className="review-item__rating">
+                          {a.q1}・{a.q2}・{a.q3}・{a.q4}・{a.q5}
+                        </span>
+                        <button type="button" className="btn btn--ghost btn--sm" onClick={() => setHidden(a.answer_id, !a.is_hidden)}>
+                          {a.is_hidden ? "表示に戻す" : "非表示にする"}
+                        </button>
+                      </span>
+                    </div>
+                    {a.comment && <p className="review-item__comment">{a.comment}</p>}
+                    {a.reported_at && (
+                      <p className="review-item__comment" style={{ color: "var(--color-danger)" }}>
+                        講師からの報告：{a.reported_reason || "（理由なし）"}
+                      </p>
+                    )}
+                  </div>
+                ))}
+                {mine.length > 5 && (
+                  <div className="req-more">
+                    <button type="button" className="btn btn--ghost btn--sm" onClick={() => setAllAnswers((prev) => ({ ...prev, [s.survey_id]: !showAll }))}>
+                      {showAll ? "回答を閉じる" : `すべて見る（あと${mine.length - 5}件）`}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
+
+      {visible.length > shownCount && (
+        <div className="req-more">
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => setShownCount((n) => n + 10)}>
+            もっと見る（あと{visible.length - shownCount}件）
+          </button>
+        </div>
+      )}
     </main>
   );
 }
