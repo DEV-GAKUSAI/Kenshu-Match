@@ -12,6 +12,8 @@ import {
   getTrainingRequestWithResponses,
 } from "@/lib/requests/training-requests";
 import { budgetText, costLines, isHourly, normalUnit, quoteText, UNIT_OPTIONS, type MoneyFields } from "@/lib/requests/money";
+import { DetailsView } from "@/components/requests/DetailsView";
+import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { declineInterview, releaseInstructorName, submitInstructorResponse } from "@/lib/requests/instructor-responses";
 import { useConfirm } from "@/components/common/ConfirmDialog";
@@ -38,7 +40,7 @@ function fmtDate(iso: string | null) {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function Tags({ r }: { r: { preferred_format: string; location: string | null; preferred_schedule: string | null } & MoneyFields }) {
+function Tags({ r }: { r: { preferred_format: string; location: string | null; preferred_schedule: string | null; schedule_days?: unknown; all_days_required?: boolean | null; req_skills?: string | null; req_prep?: string | null } & MoneyFields }) {
   const lines = costLines(r);
   return (
     <>
@@ -54,6 +56,7 @@ function Tags({ r }: { r: { preferred_format: string; location: string | null; p
           {lines.join("　／　")}
         </div>
       )}
+      <DetailsView r={r} />
     </>
   );
 }
@@ -142,6 +145,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
   const [r, setR] = useState<ReqWithJoins | null | undefined>(undefined);
   const [requesterInfo, setRequesterInfo] = useState<{ name?: string; email?: string; phone?: string | null; company_name?: string | null } | null>(null);
   const [quotePrice, setQuotePrice] = useState("");
+  const [apply, setApply] = useState<ApplyValue>(EMPTY_APPLY);
   const [quoteTax, setQuoteTax] = useState<"" | "included" | "excluded">("");
   const [quoteMessage, setQuoteMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -291,7 +295,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
     }
     const message = quoteMessage.trim() || null;
     setBusy(true);
-    const { error } = await submitInstructorResponse(requestId, instructorId, price ? "quote" : "accept", { quote_price: price, quote_tax_mode: quoteTax || null, message });
+    const { error } = await submitInstructorResponse(requestId, instructorId, price ? "quote" : "accept", { quote_price: price, quote_tax_mode: quoteTax || null, message, ...applyPayload(apply) });
     setBusy(false);
     if (error) {
       showToast(`エラー：${error.message}`);
@@ -377,6 +381,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
                   </select>
                 </div>
               </div>
+              <ApplyFields value={apply} onChange={setApply} />
               <div className="form-field">
                 <label>
                   メッセージ<span className="field-optional">任意</span>
@@ -471,8 +476,9 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
         if (isHourly(row) && row.budget != null && ins.desired_rate_min != null && ins.desired_rate_min <= row.budget) reasons.push("予算");
         return reasons;
       }
+      // おすすめ = 専門分野が合う講師だけ。形態・予算だけ合う講師は「参考候補」(#60).
       function isRecommended(reasons: string[]) {
-        return reasons.includes("分野") || reasons.length >= 2;
+        return reasons.includes("分野");
       }
       const shown = await withSurveySummary(await withMineDisplay(instructors as InstructorPublicDirectoryRow[]));
       const result = shown
@@ -535,7 +541,7 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
           {matched === null && <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p>}
           {matched?.length === 0 && <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>現在、条件に合う講師が見つかりませんでした。</p>}
           {matched?.map(({ ins, reasons }) => {
-            const isRecommended = reasons.includes("分野") || reasons.length >= 2;
+            const isRecommended = reasons.includes("分野");
             return (
               <Link href={`/instructor-detail?id=${ins.id}`} key={ins.id} style={{ display: "block", marginBottom: 10 }}>
                 <div className="request-card">
@@ -556,7 +562,7 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
                     className={`notice-banner${isRecommended ? " is-visible" : ""}`}
                     style={{ margin: "8px 0", fontSize: 12, ...(isRecommended ? {} : { opacity: 0.65, background: "var(--color-bg)" }) }}
                   >
-                    {reasons.join("・")}が合致
+                    {isRecommended ? `おすすめ：${reasons.join("・")}が合致` : `参考候補（分野は未一致）：${reasons.join("・")}が合致`}
                   </div>
                   <p className="request-card__desc">{ins.self_pr || "自己紹介は未登録です。"}</p>
                 </div>

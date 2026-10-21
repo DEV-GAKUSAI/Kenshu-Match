@@ -15,6 +15,7 @@
  * collapses every query result to `never`.
  */
 
+import type { ScheduleDay } from "@/lib/requests/schedule";
 import type { BudgetUnit, CostShare, PrepCost, TaxMode } from "@/lib/requests/money";
 
 export type UserRole = "INSTRUCTOR" | "COMPANY" | "INDIVIDUAL" | "ADMIN";
@@ -108,6 +109,10 @@ export type TrainingRequestRow = {
   lodging_cost: CostShare;
   prep_cost: PrepCost;
   payment_terms: string | null;
+  schedule_days: ScheduleDay[];
+  all_days_required: boolean;
+  req_skills: string | null;
+  req_prep: string | null;
   preferred_format: RequestFormat;
   location: string | null;
   preferred_schedule: string | null;
@@ -127,6 +132,10 @@ export type InstructorResponseRow = {
   /** per hour / day / total: copied from the request when the quote is sent (migration 152). */
   quote_unit: BudgetUnit | null;
   quote_tax_mode: "included" | "excluded" | null;
+  apply_all_days: "all" | "partial" | "none" | null;
+  apply_role: string | null;
+  apply_experience: string | null;
+  apply_materials: "existing" | "create" | "either" | null;
   message: string | null;
   reveal_contact: boolean;
   is_selected: boolean;
@@ -194,6 +203,10 @@ export type OpenRequestPublicPreviewRow = {
   lodging_cost: CostShare;
   prep_cost: PrepCost;
   payment_terms: string | null;
+  schedule_days: ScheduleDay[];
+  all_days_required: boolean;
+  req_skills: string | null;
+  req_prep: string | null;
 };
 
 /** A meeting booked on the instructor's Mine page (sent by Mine; see 124_kenshu_mine_meetings.sql). */

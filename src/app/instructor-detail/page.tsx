@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/common/Toast";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
+import { DetailsForm, EMPTY_DETAILS, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
 import { MoneyForm, EMPTY_MONEY, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
 import type { MinePublicProfile } from "@/lib/mine/public-profile";
 import { MineProfileBlocks } from "@/components/mine/MineProfileBlocks";
@@ -119,6 +120,7 @@ function InstructorDetailInner() {
   const [reqTitle, setReqTitle] = useState("");
   const [reqExpertise, setReqExpertise] = useState("");
   const [reqFormat, setReqFormat] = useState<RequestFormat>("online");
+  const [reqDetails, setReqDetails] = useState<DetailsFormValue>(EMPTY_DETAILS);
   const [reqMoney, setReqMoney] = useState<MoneyFormValue>(EMPTY_MONEY);
   const [reqParticipants, setReqParticipants] = useState("");
   const [reqLocation, setReqLocation] = useState("");
@@ -294,6 +296,7 @@ function InstructorDetailInner() {
       description: reqDescription.trim(),
       expertise_field: reqExpertise,
       ...moneyPayload(reqMoney),
+      ...detailsPayload(reqDetails),
       participant_count: Number(reqParticipants),
       preferred_format: reqFormat,
       location: reqFormat === "online" ? null : reqLocation.trim(),
@@ -313,6 +316,7 @@ function InstructorDetailInner() {
     setReqTitle("");
     setReqDescription("");
     setReqMoney(EMPTY_MONEY);
+    setReqDetails(EMPTY_DETAILS);
     setReqParticipants("");
     setReqLocation("");
     setReqSchedule("");
@@ -515,9 +519,11 @@ function InstructorDetailInner() {
             )}
 
             <div className="form-field">
-              <label htmlFor="reqSchedule">希望日程</label>
+              <label htmlFor="reqSchedule">希望日程（おおまかに）</label>
               <input type="text" id="reqSchedule" placeholder="例：8月中旬 平日午後" value={reqSchedule} onChange={(e) => setReqSchedule(e.target.value)} />
             </div>
+
+            <DetailsForm value={reqDetails} onChange={setReqDetails} idPrefix="dreq" />
 
             <div className={`form-field${reqDescError ? " has-error" : ""}`}>
               <label htmlFor="reqDescription">依頼内容の詳細</label>

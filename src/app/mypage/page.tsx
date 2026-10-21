@@ -23,6 +23,7 @@ import {
   releaseInstructorName,
   submitInstructorResponse,
 } from "@/lib/requests/instructor-responses";
+import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { finalizeResponse } from "@/lib/requests/actions";
 import { budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
@@ -268,6 +269,7 @@ function InstructorRequestCard({
 
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quotePrice, setQuotePrice] = useState("");
+  const [apply, setApply] = useState<ApplyValue>(EMPTY_APPLY);
   const [quoteTax, setQuoteTax] = useState<"" | "included" | "excluded">("");
   const [quoteMessage, setQuoteMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -316,7 +318,7 @@ function InstructorRequestCard({
     const price = Number(quotePrice) || null;
     if (!price) return showToast("見積り金額を入力してください");
     setBusy(true);
-    const { error } = await submitInstructorResponse(r.request_id, userId, "quote", { quote_price: price, quote_tax_mode: quoteTax || null, message: quoteMessage.trim() || null });
+    const { error } = await submitInstructorResponse(r.request_id, userId, "quote", { quote_price: price, quote_tax_mode: quoteTax || null, message: quoteMessage.trim() || null, ...applyPayload(apply) });
     setBusy(false);
     if (error) return showToast(`エラー：${error.message}`);
     showToast("見積りを送信しました。");
@@ -433,6 +435,7 @@ function InstructorRequestCard({
                 </select>
               </div>
             </div>
+            <ApplyFields value={apply} onChange={setApply} />
             <div className="form-field">
               <label>メッセージ</label>
               <textarea rows={2} placeholder="見積りの補足があればご記入ください" value={quoteMessage} onChange={(e) => setQuoteMessage(e.target.value)} />

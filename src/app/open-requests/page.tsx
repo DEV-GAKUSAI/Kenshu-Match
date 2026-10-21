@@ -64,8 +64,9 @@ function matchReasons(
   if (isHourly(r) && r.budget != null && myProfile.desiredRateMin != null && r.budget >= myProfile.desiredRateMin) reasons.push("予算");
   return reasons;
 }
+// おすすめ = 専門分野が合う案件だけ。形態・予算だけ合う案件は「参考」(#60).
 function isRecommended(reasons: string[]) {
-  return reasons.includes("分野") || reasons.length >= 2;
+  return reasons.includes("分野");
 }
 
 function displayStatus(r: RequestWithJoins) {
@@ -480,7 +481,7 @@ export default function OpenRequestsPage() {
             {reasons.length > 0 && (
               <div className={`match-banner${isRecommended(reasons) ? " is-strong" : ""}`}>
                 {isRecommended(reasons) && <span className="match-banner__star">★</span>}
-                <span className="match-banner__text">{isRecommended(reasons) ? "あなたにぴったりの案件です" : "あなたの条件に一部合っています"}</span>
+                <span className="match-banner__text">{isRecommended(reasons) ? "あなたにぴったりの案件です" : "参考：分野は一致していませんが、条件に一部合っています"}</span>
                 <span className="match-banner__chips">
                   {reasons.map((x) => (
                     <span className="match-chip" key={x}>{x} ✓</span>

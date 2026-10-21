@@ -6,7 +6,15 @@ export async function submitInstructorResponse(
   requestId: string,
   instructorId: string,
   action: ResponseAction,
-  extra?: { quote_price?: number | null; quote_tax_mode?: "included" | "excluded" | null; message?: string | null }
+  extra?: {
+    quote_price?: number | null;
+    quote_tax_mode?: "included" | "excluded" | null;
+    message?: string | null;
+    apply_all_days?: "all" | "partial" | "none" | null;
+    apply_role?: string | null;
+    apply_experience?: string | null;
+    apply_materials?: "existing" | "create" | "either" | null;
+  }
 ) {
   const supabase = createClient();
   const { error } = await supabase.from("instructor_responses").insert({
@@ -16,6 +24,10 @@ export async function submitInstructorResponse(
     quote_price: extra?.quote_price ?? null,
     quote_tax_mode: extra?.quote_price ? (extra?.quote_tax_mode ?? null) : null,
     message: extra?.message ?? null,
+    apply_all_days: extra?.apply_all_days ?? null,
+    apply_role: extra?.apply_role ?? null,
+    apply_experience: extra?.apply_experience ?? null,
+    apply_materials: extra?.apply_materials ?? null,
   });
   return { error };
 }

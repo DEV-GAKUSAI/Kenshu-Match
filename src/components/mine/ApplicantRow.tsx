@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
+import { ALL_DAYS_TEXT, MATERIALS_TEXT } from "@/components/requests/ApplyFields";
 import { formatMoney, quoteText } from "@/lib/requests/money";
 import { getResponseChanges, type ResponseChange } from "@/lib/requests/instructor-responses";
 import { MineMeetingLine } from "@/components/mine/MineMeeting";
@@ -175,6 +176,15 @@ export function ApplicantRow({
       {open && (
         <div style={{ borderTop: "1px solid var(--color-border)", padding: "12px 14px" }}>
           {message && <p style={{ margin: "0 0 10px", whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{message}</p>}
+          {(response.apply_all_days || response.apply_materials || response.apply_role || response.apply_experience) && (
+            <div style={{ margin: "0 0 10px", color: "var(--color-ink-soft)" }}>
+              <strong style={{ color: "var(--color-ink)" }}>応募内容</strong>
+              {response.apply_all_days && <div>全日程への対応：{ALL_DAYS_TEXT[response.apply_all_days]}</div>}
+              {response.apply_role && <div>希望する役割：{response.apply_role}</div>}
+              {response.apply_materials && <div>教材の対応：{MATERIALS_TEXT[response.apply_materials]}</div>}
+              {response.apply_experience && <div style={{ whiteSpace: "pre-line", overflowWrap: "anywhere" }}>関連する実績：{response.apply_experience}</div>}
+            </div>
+          )}
           {changes.length > 0 && (
             <div style={{ margin: "0 0 10px", color: "var(--color-ink-soft)" }}>
               <strong style={{ color: "var(--color-ink)" }}>見積りの変更履歴</strong>

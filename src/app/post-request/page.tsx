@@ -10,6 +10,7 @@ import { getTrainingSubcategoryOptions, findOrCreateSubcategory, getOtherCategor
 import { createTrainingRequest } from "@/lib/requests/training-requests";
 import { flushMineNotices } from "@/lib/mine/flush-client";
 import type { RequestFormat } from "@/types/database";
+import { DetailsForm, EMPTY_DETAILS, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
 import { MoneyForm, EMPTY_MONEY, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
 
 interface SubcategoryOption {
@@ -31,6 +32,7 @@ export default function PostRequestPage() {
 
   const [title, setTitle] = useState("");
   const [format, setFormat] = useState<RequestFormat>("online");
+  const [details, setDetails] = useState<DetailsFormValue>(EMPTY_DETAILS);
   const [money, setMoney] = useState<MoneyFormValue>(EMPTY_MONEY);
   const [participants, setParticipants] = useState("");
   const [location, setLocation] = useState("");
@@ -124,6 +126,7 @@ export default function PostRequestPage() {
       description: description.trim(),
       expertise_field: expertise,
       ...moneyPayload(money),
+      ...detailsPayload(details),
       participant_count: Number(participants),
       preferred_format: format,
       location: format === "online" ? null : location.trim(),
@@ -279,9 +282,11 @@ export default function PostRequestPage() {
             )}
 
             <div className="form-field">
-              <label htmlFor="reqSchedule">希望日程</label>
+              <label htmlFor="reqSchedule">希望日程（おおまかに）</label>
               <input type="text" id="reqSchedule" placeholder="例：8月中旬 平日午後" value={schedule} onChange={(e) => setSchedule(e.target.value)} />
             </div>
+
+            <DetailsForm value={details} onChange={setDetails} />
 
             <div className={`form-field${descriptionHasError ? " has-error" : ""}`}>
               <label htmlFor="reqDescription">依頼内容の詳細</label>
