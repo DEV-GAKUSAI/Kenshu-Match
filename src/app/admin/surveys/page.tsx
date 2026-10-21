@@ -70,8 +70,6 @@ export default function AdminSurveysPage() {
       const counts: Record<string, number> = {};
       ((l as { survey_id: string }[] | null) ?? []).forEach((row) => (counts[row.survey_id] = (counts[row.survey_id] ?? 0) + 1));
       setLinkCounts(counts);
-      const { data: t } = await supabase.from("training_requests").select("request_id, title").in("request_id", list.map((x) => x.request_id).filter((x): x is string => !!x));
-      setTitles(Object.fromEntries(((t as { request_id: string; title: string }[] | null) ?? []).map((row) => [row.request_id, row.title])));
     }
     const { data: pt } = await supabase.from("past_trainings").select("past_training_id, title, held_on, instructor_id").order("created_at", { ascending: false });
     setPastList((pt as { past_training_id: string; title: string; held_on: string; instructor_id: string }[] | null) ?? []);
@@ -83,13 +81,11 @@ export default function AdminSurveysPage() {
         .map((row) => ({ id: row.id, name: row.name || row.id }))
         .sort((x, y) => x.name.localeCompare(y.name, "ja")),
     );
-    const { data: c } = await supabase
-      .from("training_requests")
-      .select("request_id, title, status")
-      .in("status", ["accepted", "completed"])
-      .order("created_at", { ascending: false })
-      .limit(300);
-    setCandidates((c as { request_id: string; title: string; status: string }[] | null) ?? []);
+    const { data: c } = await supabase.rpc("admin_survey_requests");
+    const reqs = (c as { request_id: string; title: string; status: string }[] | null) ?? [];
+    setCandidates(reqs);
+    // titles of the surveys (the admin cannot read the requests table directly)
+    setTitles(Object.fromEntries(reqs.map((row) => [row.request_id, row.title])));
     setLoaded(true);
   }, [supabase]);
 

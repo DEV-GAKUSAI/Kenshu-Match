@@ -109,22 +109,6 @@ export function InstructorSurveyResults({ instructorId, bare = false, replyName 
             <small>（{summary.hirer_count}件）</small>
           </strong>
         </div>
-        <div className="survey-tile">
-          <span className="survey-tile__label">リンク発行</span>
-          <strong>
-            {summary.links_issued}
-            <small>件</small>
-          </strong>
-        </div>
-        {(summary.imported_count ?? 0) > 0 && (
-          <div className="survey-tile">
-            <span className="survey-tile__label">取込</span>
-            <strong>
-              {summary.imported_count}
-              <small>件</small>
-            </strong>
-          </div>
-        )}
       </div>
       <ul className="survey-avgs">
         {SURVEY_QUESTIONS.map((q) => {
@@ -141,13 +125,6 @@ export function InstructorSurveyResults({ instructorId, bare = false, replyName 
         })}
       </ul>
 
-      {comments.length > 0 && (
-        <div>
-          <button type="button" className="btn btn--ghost btn--sm" aria-expanded={showComments} onClick={() => setShowComments((v) => !v)}>
-            {showComments ? "コメントを隠す" : `コメントを見る（${comments.length}件）`}
-          </button>
-        </div>
-      )}
 
       {showComments && comments.map((c) => (
         <div key={c.answer_id} className="review-item">
@@ -205,6 +182,14 @@ export function InstructorSurveyResults({ instructorId, bare = false, replyName 
           )}
         </div>
       ))}
+
+      {comments.length > 0 && (
+        <div>
+          <button type="button" className="btn btn--ghost btn--sm" aria-expanded={showComments} onClick={() => setShowComments((v) => !v)}>
+            {showComments ? "コメントを隠す" : `コメントを見る（${comments.length}件）`}
+          </button>
+        </div>
+      )}
       </div>
   );
   if (bare) return content;
