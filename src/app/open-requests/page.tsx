@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
+import { budgetText, isHourly, quoteText } from "@/lib/requests/money";
 import { getOpenRequestsPublicPreview, getOpenRequestsForInstructor } from "@/lib/requests/training-requests";
 import { markResultsSeenByInstructor, submitInstructorResponse } from "@/lib/requests/instructor-responses";
 import { useToast } from "@/components/common/Toast";
@@ -58,7 +59,7 @@ function matchReasons(
     (r.preferred_format === "online" && (myProfile.workStyle === "ONLINE" || myProfile.workStyle === "HYBRID")) ||
     (r.preferred_format === "offline" && (myProfile.workStyle === "ONSITE" || myProfile.workStyle === "HYBRID"));
   if (formatOk) reasons.push("形態");
-  if (r.budget != null && myProfile.desiredRateMin != null && r.budget >= myProfile.desiredRateMin) reasons.push("予算");
+  if (isHourly(r) && r.budget != null && myProfile.desiredRateMin != null && r.budget >= myProfile.desiredRateMin) reasons.push("予算");
   return reasons;
 }
 function isRecommended(reasons: string[]) {
@@ -127,7 +128,7 @@ function PublicPreviewList() {
           <p className="request-card__desc">{r.description}</p>
           <div className="request-card__tags">
             <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
-            {r.budget ? <span className="instructor-card__tag">予算 ¥{Number(r.budget).toLocaleString()}</span> : null}
+            {budgetText(r) ? <span className="instructor-card__tag">{budgetText(r)}</span> : null}
             {r.location ? <span className="instructor-card__tag">{r.location}</span> : null}
           </div>
           <div className="request-card__actions">
@@ -230,7 +231,7 @@ export default function OpenRequestsPage() {
   async function quickApply(r: RequestWithJoins) {
     if (!user) return;
     const lines = [
-      r.budget ? `予算 ¥${Number(r.budget).toLocaleString()}` : null,
+      budgetText(r),
       r.participant_count ? `対象${r.participant_count}名` : null,
       r.preferred_schedule || null,
     ].filter(Boolean);
@@ -395,7 +396,7 @@ export default function OpenRequestsPage() {
 
             <p className="request-card__desc request-card__desc--clamp">{r.description}</p>
             <div className="request-card__tags">
-              {r.budget ? <span className="open-tag open-tag--budget">予算 ¥{Number(r.budget).toLocaleString()}</span> : null}
+              {budgetText(r) ? <span className="open-tag open-tag--budget">{budgetText(r)}</span> : null}
               <span className="open-tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
               {r.participant_count ? <span className="open-tag">対象{r.participant_count}名</span> : null}
               {r.location ? <span className="open-tag">{r.location}</span> : null}
@@ -409,7 +410,7 @@ export default function OpenRequestsPage() {
                   {r.myResponse.action === "accept"
                     ? "承諾"
                     : r.myResponse.action === "quote"
-                      ? `見積り ¥${Number(r.myResponse.quote_price || 0).toLocaleString()}`
+                      ? quoteText(r.myResponse)
                       : "却下"}
                 </strong>
                 {r.myResponse.message ? r.myResponse.message : "（メッセージなし）"}

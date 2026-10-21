@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/common/Toast";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
+import { MoneyForm, EMPTY_MONEY, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
 import type { MinePublicProfile } from "@/lib/mine/public-profile";
 import { MineProfileBlocks } from "@/components/mine/MineProfileBlocks";
 import { getInstructorById } from "@/lib/instructor/profile";
@@ -118,7 +119,7 @@ function InstructorDetailInner() {
   const [reqTitle, setReqTitle] = useState("");
   const [reqExpertise, setReqExpertise] = useState("");
   const [reqFormat, setReqFormat] = useState<RequestFormat>("online");
-  const [reqBudget, setReqBudget] = useState("");
+  const [reqMoney, setReqMoney] = useState<MoneyFormValue>(EMPTY_MONEY);
   const [reqParticipants, setReqParticipants] = useState("");
   const [reqLocation, setReqLocation] = useState("");
   const [reqSchedule, setReqSchedule] = useState("");
@@ -292,7 +293,7 @@ function InstructorDetailInner() {
       title: reqTitle.trim(),
       description: reqDescription.trim(),
       expertise_field: reqExpertise,
-      budget: Number(reqBudget) || null,
+      ...moneyPayload(reqMoney),
       participant_count: Number(reqParticipants),
       preferred_format: reqFormat,
       location: reqFormat === "online" ? null : reqLocation.trim(),
@@ -311,7 +312,7 @@ function InstructorDetailInner() {
     showToast(`${instructor.name} 先生へ依頼を送信しました（マイページから確認できます）`);
     setReqTitle("");
     setReqDescription("");
-    setReqBudget("");
+    setReqMoney(EMPTY_MONEY);
     setReqParticipants("");
     setReqLocation("");
     setReqSchedule("");
@@ -499,15 +500,12 @@ function InstructorDetailInner() {
                 </select>
               </div>
               <div className="form-field">
-                <label htmlFor="reqBudget">想定予算（時間あたり）</label>
-                <input type="number" id="reqBudget" placeholder="例：15000" min={0} step={1000} value={reqBudget} onChange={(e) => setReqBudget(e.target.value)} />
+                <label htmlFor="reqParticipants">対象人数</label>
+                <input type="number" id="reqParticipants" required placeholder="例：10" min={1} step={1} value={reqParticipants} onChange={(e) => setReqParticipants(e.target.value)} />
               </div>
             </div>
 
-            <div className="form-field">
-              <label htmlFor="reqParticipants">対象人数</label>
-              <input type="number" id="reqParticipants" required placeholder="例：10" min={1} step={1} value={reqParticipants} onChange={(e) => setReqParticipants(e.target.value)} />
-            </div>
+            <MoneyForm value={reqMoney} onChange={setReqMoney} />
 
             {reqFormat !== "online" && (
               <div className="form-field">

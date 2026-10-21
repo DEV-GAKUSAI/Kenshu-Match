@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 
+import { quoteText } from "@/lib/requests/money";
 import { MineMeetingLine } from "@/components/mine/MineMeeting";
 import { formatMeetingTimeClient } from "@/lib/mine/meeting-format";
 import type { InstructorResponseRow, KenshuMineMeetingRow } from "@/types/database";
@@ -54,7 +55,7 @@ export function ApplicantRow({
   const needsAnswer = live?.status === "change_requested" && live.proposed_by === "host";
   const meetUrl = live?.meeting_type === "google_meet" || live?.meeting_type === "zoom" ? live.meeting_url : null;
   const isNew = response.requester_seen_at === null;
-  const offer = response.action === "accept" ? "承諾" : `見積り ¥${Number(response.quote_price || 0).toLocaleString()}`;
+  const offer = response.action === "accept" ? "承諾" : quoteText(response);
   const message = (response.message ?? "").trim();
   const interview = response.interview_status;
   const declined = interview === "declined";

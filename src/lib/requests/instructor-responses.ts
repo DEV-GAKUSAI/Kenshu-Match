@@ -5,7 +5,7 @@ export async function submitInstructorResponse(
   requestId: string,
   instructorId: string,
   action: ResponseAction,
-  extra?: { quote_price?: number | null; message?: string | null }
+  extra?: { quote_price?: number | null; quote_tax_mode?: "included" | "excluded" | null; message?: string | null }
 ) {
   const supabase = createClient();
   const { error } = await supabase.from("instructor_responses").insert({
@@ -13,6 +13,7 @@ export async function submitInstructorResponse(
     instructor_id: instructorId,
     action,
     quote_price: extra?.quote_price ?? null,
+    quote_tax_mode: extra?.quote_price ? (extra?.quote_tax_mode ?? null) : null,
     message: extra?.message ?? null,
   });
   return { error };

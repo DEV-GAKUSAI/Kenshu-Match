@@ -24,6 +24,7 @@ import {
   submitInstructorResponse,
 } from "@/lib/requests/instructor-responses";
 import { finalizeResponse } from "@/lib/requests/actions";
+import { budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
 import type { InstructorResponseRow, TrainingRequestRow } from "@/types/database";
 import type { CurrentUser } from "@/lib/auth/auth";
 import { ApplicantRow, applicantPriority } from "@/components/mine/ApplicantRow";
@@ -266,6 +267,7 @@ function InstructorRequestCard({
 
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quotePrice, setQuotePrice] = useState("");
+  const [quoteTax, setQuoteTax] = useState<"" | "included" | "excluded">("");
   const [quoteMessage, setQuoteMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -313,7 +315,7 @@ function InstructorRequestCard({
     const price = Number(quotePrice) || null;
     if (!price) return showToast("見積り金額を入力してください");
     setBusy(true);
-    const { error } = await submitInstructorResponse(r.request_id, userId, "quote", { quote_price: price, message: quoteMessage.trim() || null });
+    const { error } = await submitInstructorResponse(r.request_id, userId, "quote", { quote_price: price, quote_tax_mode: quoteTax || null, message: quoteMessage.trim() || null });
     setBusy(false);
     if (error) return showToast(`エラー：${error.message}`);
     showToast("見積りを送信しました。");
@@ -344,7 +346,7 @@ function InstructorRequestCard({
       <p className="request-card__desc">{r.description}</p>
       <div className="request-card__tags">
         <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
-        {r.budget ? <span className="instructor-card__tag">予算 ¥{Number(r.budget).toLocaleString()}</span> : null}
+        {budgetText(r) ? <span className="instructor-card__tag">{budgetText(r)}</span> : null}
         {r.participant_count ? <span className="instructor-card__tag">対象{r.participant_count}名</span> : null}
         {r.location ? <span className="instructor-card__tag">{r.location}</span> : null}
         {r.preferred_schedule ? <span className="instructor-card__tag">{r.preferred_schedule}</span> : null}
@@ -354,7 +356,7 @@ function InstructorRequestCard({
         <div className="request-card__response">
           <strong>
             あなたの対応：
-            {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? `見積り ¥${Number(myResponse.quote_price || 0).toLocaleString()}` : "却下"}
+            {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? quoteText(myResponse) : "却下"}
           </strong>
           {myResponse.message || "（メッセージなし）"}
         </div>
@@ -419,8 +421,15 @@ function InstructorRequestCard({
           </div>
           <div className={`inline-quote-form${quoteOpen ? " is-open" : ""}`}>
             <div className="form-field">
-              <label>見積り金額（時間あたり）</label>
-              <input type="number" min={0} step={1000} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} />
+              <label>見積り金額（{UNIT_OPTIONS.find((o) => o.value === normalUnit(r.budget_unit))?.label}・円）</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input type="number" min={0} step={1000} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+                <select aria-label="税" value={quoteTax} onChange={(e) => setQuoteTax(e.target.value as "" | "included" | "excluded")} style={{ flex: "0 0 120px" }}>
+                  <option value="">税の指定なし</option>
+                  <option value="included">税込</option>
+                  <option value="excluded">税別</option>
+                </select>
+              </div>
             </div>
             <div className="form-field">
               <label>メッセージ</label>
@@ -470,7 +479,7 @@ function InstructorRequestRow({
       : null;
   const parts = [
     who,
-    r.budget ? `予算 ¥${Number(r.budget).toLocaleString()}` : null,
+    budgetText(r),
     meetingText,
     fmtDate(r.created_at),
   ].filter(Boolean);
@@ -870,7 +879,7 @@ function RequesterRequestCard({
       <p className="request-card__desc">{r.description}</p>
       <div className="request-card__tags">
         <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
-        {r.budget ? <span className="instructor-card__tag">予算 ¥{Number(r.budget).toLocaleString()}</span> : null}
+        {budgetText(r) ? <span className="instructor-card__tag">{budgetText(r)}</span> : null}
         {r.participant_count ? <span className="instructor-card__tag">対象{r.participant_count}名</span> : null}
       </div>
 
@@ -961,7 +970,7 @@ function RequesterRequestCard({
           {resp ? (
             <div className="request-card__response">
               <strong>
-                講師からの返信：{resp.action === "accept" ? "承諾" : resp.action === "quote" ? `見積り ¥${Number(resp.quote_price || 0).toLocaleString()}` : "却下"}
+                講師からの返信：{resp.action === "accept" ? "承諾" : resp.action === "quote" ? quoteText(resp) : "却下"}
               </strong>
               {resp.requester_seen_at === null && (
                 <span className="status-badge status-badge--rejected" style={{ marginLeft: 6, fontSize: 10 }}>

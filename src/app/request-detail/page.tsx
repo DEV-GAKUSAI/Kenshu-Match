@@ -11,6 +11,7 @@ import {
   getTrainingRequestDetail,
   getTrainingRequestWithResponses,
 } from "@/lib/requests/training-requests";
+import { budgetText, costLines, isHourly, normalUnit, quoteText, UNIT_OPTIONS, type MoneyFields } from "@/lib/requests/money";
 import { declineInterview, releaseInstructorName, submitInstructorResponse } from "@/lib/requests/instructor-responses";
 import { useConfirm } from "@/components/common/ConfirmDialog";
 import { flushMineNotices } from "@/lib/mine/flush-client";
@@ -36,14 +37,23 @@ function fmtDate(iso: string | null) {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function Tags({ r }: { r: { preferred_format: string; budget: number | null; location: string | null; preferred_schedule: string | null } }) {
+function Tags({ r }: { r: { preferred_format: string; location: string | null; preferred_schedule: string | null } & MoneyFields }) {
+  const lines = costLines(r);
   return (
-    <div className="request-card__tags" style={{ margin: "18px 0" }}>
-      <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
-      {r.budget ? <span className="instructor-card__tag">予算 ¥{Number(r.budget).toLocaleString()}</span> : null}
-      {r.location ? <span className="instructor-card__tag">{r.location}</span> : null}
-      {r.preferred_schedule ? <span className="instructor-card__tag">{r.preferred_schedule}</span> : null}
-    </div>
+    <>
+      <div className="request-card__tags" style={{ margin: "18px 0" }}>
+        <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
+        {budgetText(r) ? <span className="instructor-card__tag">{budgetText(r)}</span> : null}
+        {r.location ? <span className="instructor-card__tag">{r.location}</span> : null}
+        {r.preferred_schedule ? <span className="instructor-card__tag">{r.preferred_schedule}</span> : null}
+      </div>
+      {lines.length > 0 && (
+        <div className="request-card__response" style={{ margin: "0 0 14px", fontSize: 13 }}>
+          <strong>費用・支払い</strong>
+          {lines.join("　／　")}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -131,6 +141,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
   const [r, setR] = useState<ReqWithJoins | null | undefined>(undefined);
   const [requesterInfo, setRequesterInfo] = useState<{ name?: string; email?: string; phone?: string | null; company_name?: string | null } | null>(null);
   const [quotePrice, setQuotePrice] = useState("");
+  const [quoteTax, setQuoteTax] = useState<"" | "included" | "excluded">("");
   const [quoteMessage, setQuoteMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const actionsRef = useRef<HTMLDivElement>(null);
@@ -279,7 +290,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
     }
     const message = quoteMessage.trim() || null;
     setBusy(true);
-    const { error } = await submitInstructorResponse(requestId, instructorId, price ? "quote" : "accept", { quote_price: price, message });
+    const { error } = await submitInstructorResponse(requestId, instructorId, price ? "quote" : "accept", { quote_price: price, quote_tax_mode: quoteTax || null, message });
     setBusy(false);
     if (error) {
       showToast(`エラー：${error.message}`);
@@ -317,7 +328,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
           <div className="request-card__response" style={{ marginTop: 20 }}>
             <strong>
               あなたの対応：
-              {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? `見積り ¥${Number(myResponse.quote_price || 0).toLocaleString()}` : "却下"}
+              {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? quoteText(myResponse) : "却下"}
             </strong>
             {myResponse.message ? myResponse.message : "（メッセージなし）"}
           </div>
@@ -353,9 +364,16 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
             <div className="inline-quote-form is-open" ref={actionsRef} style={{ marginTop: 24 }}>
               <div className="form-field">
                 <label>
-                  見積り金額（時間あたり・円）<span className="field-optional">任意</span>
+                  見積り金額（{UNIT_OPTIONS.find((o) => o.value === normalUnit(r.budget_unit))?.label}・円）<span className="field-optional">任意</span>
                 </label>
-                <input type="number" min={1} step={1} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input type="number" min={1} step={1} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+                  <select aria-label="税" value={quoteTax} onChange={(e) => setQuoteTax(e.target.value as "" | "included" | "excluded")} style={{ flex: "0 0 120px" }}>
+                    <option value="">税の指定なし</option>
+                    <option value="included">税込</option>
+                    <option value="excluded">税別</option>
+                  </select>
+                </div>
               </div>
               <div className="form-field">
                 <label>
@@ -448,7 +466,7 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
           (row.preferred_format === "online" && (ins.work_style === "ONLINE" || ins.work_style === "HYBRID")) ||
           (row.preferred_format === "offline" && (ins.work_style === "ONSITE" || ins.work_style === "HYBRID"));
         if (formatOk) reasons.push("形態");
-        if (row.budget != null && ins.desired_rate_min != null && ins.desired_rate_min <= row.budget) reasons.push("予算");
+        if (isHourly(row) && row.budget != null && ins.desired_rate_min != null && ins.desired_rate_min <= row.budget) reasons.push("予算");
         return reasons;
       }
       function isRecommended(reasons: string[]) {
