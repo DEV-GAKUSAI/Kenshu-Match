@@ -146,6 +146,8 @@ function InstructorsPageInner() {
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
   const [rateMin, setRateMin] = useState("");
   const [rateMax, setRateMax] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [includeNoRate, setIncludeNoRate] = useState(false);
 
   // Only one filter panel open at a time (mirrors the legacy <details> group behavior).
   const [openPanel, setOpenPanel] = useState<"area" | "format" | "expertise" | "rateMin" | "rateMax" | null>(null);
@@ -232,13 +234,24 @@ function InstructorsPageInner() {
     setSelectedFields([]);
     setRateMin("");
     setRateMax("");
+    setKeyword("");
+    setIncludeNoRate(false);
   }
 
   const filtered = useMemo(() => {
     const min = rateMin ? Number(rateMin) : null;
     const max = rateMax ? Number(rateMax) : null;
+    const kw = keyword.trim().toLowerCase();
 
     return allInstructors.filter((ins) => {
+      if (kw) {
+        const hay = [ins.name, ins.self_pr, ...(ins.expertise_fields || []), ...(ins.occupation_names || []), ...(ins.certifications || []), ...(ins.prefectures || [])]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(kw)) return false;
+      }
+      const noRate = ins.desired_rate_min == null && ins.desired_rate_max == null;
       if (selectedAreas.length) {
         const online = ins.work_style === "ONLINE" || ins.work_style === "HYBRID";
         const areaOk = selectedAreas.some((a) => (a === ONLINE_AREA ? online : (ins.prefectures || []).includes(a)));
@@ -248,13 +261,15 @@ function InstructorsPageInner() {
         const matches = (ins.work_style && selectedFormats.includes(ins.work_style)) || (ins.work_style === "HYBRID" && selectedFormats.length);
         if (!matches) return false;
       }
-      if (min != null && (ins.desired_rate_max == null || ins.desired_rate_max < min)) return false;
-      if (max != null && (ins.desired_rate_min == null || ins.desired_rate_min > max)) return false;
+      if (!(includeNoRate && noRate)) {
+        if (min != null && (ins.desired_rate_max == null || ins.desired_rate_max < min)) return false;
+        if (max != null && (ins.desired_rate_min == null || ins.desired_rate_min > max)) return false;
+      }
       if (selectedFields.length && !selectedFields.some((f) => (ins.expertise_fields || []).includes(f))) return false;
       if (categorySubcategoryNames && !(ins.expertise_fields || []).some((f) => categorySubcategoryNames.includes(f))) return false;
       return true;
     });
-  }, [allInstructors, selectedAreas, selectedFormats, selectedFields, rateMin, rateMax, categorySubcategoryNames]);
+  }, [allInstructors, selectedAreas, selectedFormats, selectedFields, rateMin, rateMax, categorySubcategoryNames, keyword, includeNoRate]);
 
   return (
     <main className="list-page" style={{ maxWidth: 1240 }}>
@@ -276,6 +291,20 @@ function InstructorsPageInner() {
           </button>
         </div>
       )}
+
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", margin: "0 0 12px" }}>
+        <input
+          type="search"
+          placeholder="名前・スキル・分野・資格・自己PRで探す"
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          style={{ flex: "1 1 280px", minWidth: 0 }}
+        />
+        <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+          <input type="checkbox" checked={includeNoRate} onChange={(e) => setIncludeNoRate(e.target.checked)} />
+          単価が未登録の講師も含める
+        </label>
+      </div>
 
       <div className="filter-bar" style={{ gridTemplateColumns: "repeat(3, 1fr) 1.7fr auto" }}>
         <div className="filter-field">
