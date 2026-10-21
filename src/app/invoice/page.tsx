@@ -80,13 +80,19 @@ function InvoiceInner() {
         <p style={{ fontSize: 15, margin: "0 0 4px" }}>
           <strong>{buyer || "請求先"} 御中</strong>
         </p>
-        <p style={{ fontSize: 13, margin: "0 0 18px" }}>請求者：{seller || "（講師）"}</p>
+        <p style={{ fontSize: 13, margin: "0 0 18px" }}>請求者：{inv.party_name || seller || "（講師）"}</p>
         <p style={{ fontSize: 14, margin: "0 0 14px" }}>下記のとおり、ご請求申し上げます。</p>
         <dl className="info-list">
           <div>
             <dt>件名</dt>
             <dd>{inv.title}</dd>
           </div>
+          {inv.speaker_name && (
+            <div>
+              <dt>登壇講師</dt>
+              <dd>{inv.speaker_name}</dd>
+            </div>
+          )}
           <div>
             <dt>講師料</dt>
             <dd>{inv.base_amount ? formatMoney(inv.base_amount, inv.amount_unit, inv.tax_mode) : "別途協議"}</dd>

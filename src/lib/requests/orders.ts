@@ -23,6 +23,8 @@ export type OrderRow = {
   prep_cost: string | null;
   payment_terms: string | null;
   note: string | null;
+  party_name: string | null;
+  speaker_name: string | null;
   status: OrderStatus;
   revision: number;
   issued_at: string;
