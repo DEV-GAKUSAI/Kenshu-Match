@@ -17,8 +17,8 @@ import {
   completeRequest,
 } from "@/lib/requests/training-requests";
 import {
-  countUnseenNotSelectedResults,
   declineInterview,
+  markResultsSeenByInstructor,
   markResponsesSeenByRequester,
   releaseInstructorName,
   submitInstructorResponse,
@@ -103,7 +103,14 @@ function ProfileStatusCard({ userId }: { userId: string }) {
         <div className="request-card__top">
           <div>
             <div className="request-card__title">講師プロフィール</div>
-            <p className="request-card__meta">{mine.initials ? `${mine.initials} 先生` : ""}</p>
+            <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: "4px 18px", marginTop: 6 }}>
+              <span style={{ fontSize: 22, fontWeight: 800, color: "var(--color-ink)" }}>{mine.initials ? `${mine.initials} 先生` : ""}</span>
+              {surveyScore ? (
+                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--color-ink-soft)" }}>
+                  <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}
+                </span>
+              ) : null}
+            </div>
           </div>
           <span className={`status-badge ${mine.public ? "status-badge--accepted" : "status-badge--pending"}`}>{mine.public ? "公開中" : "非公開"}</span>
         </div>
@@ -145,18 +152,8 @@ function ProfileStatusCard({ userId }: { userId: string }) {
               },
               {
                 key: "survey",
-                label: (
-                  <>
-                    研修アンケートの結果
-                    {surveyScore ? (
-                      <>
-                        {" "}
-                        <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}
-                      </>
-                    ) : null}
-                  </>
-                ),
-                content: <InstructorSurveyResults instructorId={userId} bare />,
+                label: <>研修アンケート</>,
+                content: <InstructorSurveyResults instructorId={userId} bare replyName={mine.initials} />,
               },
             ]}
           />
@@ -473,8 +470,6 @@ function InstructorRequestRow({
   const parts = [
     who,
     r.budget ? `予算 ¥${Number(r.budget).toLocaleString()}` : null,
-    r.participant_count ? `${r.participant_count}名` : null,
-    FORMAT_LABEL[r.preferred_format] || r.preferred_format,
     meetingText,
     fmtDate(r.created_at),
   ].filter(Boolean);
@@ -511,7 +506,6 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
   const [requesterMap, setRequesterMap] = useState<Record<string, { name?: string; email?: string; phone?: string | null; company_name?: string | null }>>({});
   const [currentTab, setCurrentTab] = useState("all");
   const [shownCount, setShownCount] = useState(10);
-  const [openRequestsUnseen, setOpenRequestsUnseen] = useState(0);
 
   const load = useCallback(async () => {
     flushMineNotices();
@@ -533,7 +527,6 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
     (async () => {
       await load();
     })();
-    countUnseenNotSelectedResults(user.id).then(setOpenRequestsUnseen);
   }, [load, user.id]);
 
   const filtered = useMemo(() => {
@@ -544,6 +537,30 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
       return instructorDisplayStatus(r, myResponse).key === currentTab;
     });
   }, [all, currentTab, user.id]);
+
+  // 「決定なし」 results the instructor has not looked at yet (red dot on that tab).
+  const unseenNotSelected = (all || []).filter((r) => {
+    const myResponse = (r.instructor_responses || []).find((x) => x.instructor_id === user.id) || null;
+    return !!myResponse && !myResponse.result_seen_at && instructorDisplayStatus(r, myResponse).key === "notselected";
+  });
+  const unseenIds = unseenNotSelected.map((r) => (r.instructor_responses || []).find((x) => x.instructor_id === user.id)!.response_id);
+
+  async function openStatusTab(key: string) {
+    setCurrentTab(key);
+    setShownCount(10);
+    if (key === "notselected" && unseenIds.length) {
+      await markResultsSeenByInstructor(unseenIds);
+      const now = new Date().toISOString();
+      setAll((rows) =>
+        rows
+          ? rows.map((r) => ({
+              ...r,
+              instructor_responses: (r.instructor_responses || []).map((x) => (unseenIds.includes(x.response_id) ? { ...x, result_seen_at: now } : x)),
+            }))
+          : rows,
+      );
+    }
+  }
 
   const tabs = [
     ["all", "すべて"],
@@ -569,9 +586,6 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
         <h2 className="section__title" style={{ fontSize: 18, margin: 0 }}>
           受け取った依頼
         </h2>
-        <Link href="/open-requests" className="btn btn--ghost btn--sm">
-          公募中の依頼を見る →{openRequestsUnseen > 0 && <span className="status-badge status-badge--rejected" style={{ marginLeft: 6 }}>{openRequestsUnseen}</span>}
-        </Link>
       </div>
       <div className="status-tabs">
         {tabs.map(([key, label]) => {
@@ -580,12 +594,12 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
             return instructorDisplayStatus(r, myResponse).key === key;
           }).length;
           return (
-            <button key={key} type="button" className={`status-tab${currentTab === key ? " is-active" : ""}`} onClick={() => {
-                setCurrentTab(key);
-                setShownCount(10);
-              }}>
+            <button key={key} type="button" className={`status-tab${currentTab === key ? " is-active" : ""}`} onClick={() => void openStatusTab(key)}>
               {label}
               <span className="status-tab__count">({count})</span>
+              {key === "notselected" && unseenNotSelected.length > 0 && currentTab !== "notselected" && (
+                <span className="req-row__dot" style={{ display: "inline-block", marginLeft: 6, verticalAlign: "middle" }} aria-label="未確認の結果があります" />
+              )}
             </button>
           );
         })}

@@ -35,7 +35,7 @@ type Comment = {
 const fmt = (v: number | null | undefined) => (v === null || v === undefined ? "—" : Number(v).toFixed(1));
 
 /** The instructor's 研修アンケート results: averages, comments, reply and report. */
-export function InstructorSurveyResults({ instructorId, bare = false }: { instructorId: string; bare?: boolean }) {
+export function InstructorSurveyResults({ instructorId, bare = false, replyName }: { instructorId: string; bare?: boolean; replyName?: string | null }) {
   const { showToast } = useToast();
   const supabase = useMemo(() => createClient() as unknown as SupabaseClient, []);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -112,7 +112,7 @@ export function InstructorSurveyResults({ instructorId, bare = false }: { instru
           <p className="review-item__comment">{c.comment}</p>
           {c.instructor_reply && (
             <div className="request-card__response">
-              <strong>あなたの返信</strong>
+              <strong>{replyName ? `${replyName} 先生の返信` : "あなたの返信"}</strong>
               {c.instructor_reply}
             </div>
           )}

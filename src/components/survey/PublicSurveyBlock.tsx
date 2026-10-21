@@ -44,7 +44,7 @@ function avatarLetter(c: Comment) {
 }
 
 /** 研修アンケート result on the public instructor page. Shows nothing until there is an answer. */
-export function PublicSurveyBlock({ instructorId, canReply = false }: { instructorId: string; canReply?: boolean }) {
+export function PublicSurveyBlock({ instructorId, canReply = false, instructorName }: { instructorId: string; canReply?: boolean; instructorName?: string }) {
   const supabase = useMemo(() => createClient() as unknown as SupabaseClient, []);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -180,7 +180,7 @@ export function PublicSurveyBlock({ instructorId, canReply = false }: { instruct
                     講
                   </span>
                   <div style={{ minWidth: 0 }}>
-                    <strong style={{ fontSize: 13 }}>講師からの返信</strong>
+                    <strong style={{ fontSize: 13 }}>{instructorName ? `${instructorName} 先生の返信` : "講師からの返信"}</strong>
                     <p style={{ margin: "4px 0 0", fontSize: 13.5, lineHeight: 1.7, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{c.instructor_reply}</p>
                   </div>
                 </div>
