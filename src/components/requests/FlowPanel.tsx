@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { useToast } from "@/components/common/Toast";
 import { getFlow, getPartners, saveFlow, type Partner, type RequestFlow } from "@/lib/requester/partners";
+import { Select } from "@/components/ui/Select";
 
 /** 商流: who we order from / pay, who sits in between, and who actually teaches (#53). Private to the company. */
 export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: string; requesterId: string; decidedName?: string | null }) {
@@ -78,14 +79,14 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
           </p>
           <div className="form-field">
             <label>発注・請求の相手（契約先）</label>
-            <select value={contract} onChange={(e) => setContract(e.target.value)}>
+            <Select value={contract} onChange={(e) => setContract(e.target.value)}>
               <option value="">決定した講師と直接</option>
               {partners.map((p) => (
                 <option key={p.partner_id} value={p.partner_id}>
                   {p.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           <div className="form-field">
             <label>間に入る関係先（順番に選択・5件まで）</label>
@@ -100,7 +101,7 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
           </div>
           <div className="form-field">
             <label>実際の登壇講師</label>
-            <select value={speakerPartner} onChange={(e) => setSpeakerPartner(e.target.value)}>
+            <Select value={speakerPartner} onChange={(e) => setSpeakerPartner(e.target.value)}>
               <option value="">決定した講師／下に入力</option>
               {partners
                 .filter((p) => p.kind === "instructor")
@@ -109,7 +110,7 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
                     {p.name}
                   </option>
                 ))}
-            </select>
+            </Select>
             {!speakerPartner && <input type="text" maxLength={100} placeholder="登録にない講師の名前（任意）" value={speakerName} onChange={(e) => setSpeakerName(e.target.value)} style={{ marginTop: 6 }} />}
           </div>
           <div style={{ display: "flex", gap: 8 }}>

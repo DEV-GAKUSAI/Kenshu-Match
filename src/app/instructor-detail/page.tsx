@@ -21,6 +21,7 @@ import { createTrainingRequest } from "@/lib/requests/training-requests";
 import { flushMineNotices } from "@/lib/mine/flush-client";
 import { MOCK_INSTRUCTORS, INSTRUCTOR_DETAILS } from "@/lib/mockInstructors";
 import type { InstructorPublicDirectoryRow, RequestFormat, WorkStyle } from "@/types/database";
+import { Select } from "@/components/ui/Select";
 
 const FORMAT_LABEL: Record<string, string> = { online: "オンライン対応", offline: "対面のみ", both: "オンライン・対面 両方" };
 const WORK_STYLE_LABEL: Record<WorkStyle, string> = { ONLINE: "オンラインのみ", ONSITE: "対面のみ", HYBRID: "オンライン・対面 両方" };
@@ -483,7 +484,7 @@ function InstructorDetailInner() {
 
             <div className="form-field">
               <label htmlFor="reqExpertise">希望分野</label>
-              <select id="reqExpertise" required value={reqExpertise} onChange={(e) => setReqExpertise(e.target.value)}>
+              <Select id="reqExpertise" required value={reqExpertise} onChange={(e) => setReqExpertise(e.target.value)}>
                 {subcategories.length === 0 ? (
                   <option value="">分野データを読み込めませんでした</option>
                 ) : (
@@ -493,17 +494,17 @@ function InstructorDetailInner() {
                     </option>
                   ))
                 )}
-              </select>
+              </Select>
             </div>
 
             <div className="form-row">
               <div className="form-field">
                 <label htmlFor="reqFormat">希望形態</label>
-                <select id="reqFormat" required value={reqFormat} onChange={(e) => setReqFormat(e.target.value as RequestFormat)}>
+                <Select id="reqFormat" required value={reqFormat} onChange={(e) => setReqFormat(e.target.value as RequestFormat)}>
                   <option value="online">オンライン</option>
                   <option value="offline">対面</option>
                   <option value="both">オンライン・対面 両方</option>
-                </select>
+                </Select>
               </div>
               <div className="form-field">
                 <label htmlFor="reqParticipants">対象人数</label>

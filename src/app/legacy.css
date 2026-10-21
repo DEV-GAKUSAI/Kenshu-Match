@@ -1954,3 +1954,81 @@ input[type="checkbox"]:not(.toggle-switch *):focus-visible {
   box-shadow: 0 0 0 3px rgba(23, 176, 138, 0.2);
 }
 input[type="checkbox"]:not(.toggle-switch *):disabled { cursor: not-allowed; opacity: .55; }
+
+/* --- Kenshu Link dropdown (src/components/ui/Select.tsx) --- */
+
+.ksel { position: relative; width: 100%; min-width: 0; }
+.ksel__btn {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  padding: 11px 36px 11px 13px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-s);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-ink);
+  background: #fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2317B08A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>') no-repeat right 12px center / 16px;
+  cursor: pointer;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.ksel__text { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ksel__btn:focus-visible,
+.ksel.is-open .ksel__btn {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(23, 176, 138, 0.14);
+}
+.ksel.is-open .ksel__btn {
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2317B08A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>');
+}
+.ksel__btn:disabled { opacity: .6; cursor: not-allowed; }
+.ksel__panel {
+  position: absolute;
+  z-index: 60;
+  left: 0;
+  top: calc(100% + 6px);
+  min-width: 100%;
+  width: max-content;
+  max-width: min(92vw, 480px);
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(32, 36, 44, 0.12);
+}
+.ksel__panel.is-up { top: auto; bottom: calc(100% + 6px); }
+.ksel__opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.ksel__opt.is-active { background: #F1F4F5; }
+.ksel__opt.is-selected { color: #0F7A5F; font-weight: 700; }
+.ksel__opt.is-selected::after {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2317B08A" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>') no-repeat center / 16px;
+}
+.ksel__opt.is-disabled { opacity: .45; cursor: not-allowed; }
+.ksel .ksel__native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
