@@ -18,6 +18,7 @@ import {
 } from "@/lib/requests/training-requests";
 import {
   declineInterview,
+  markResultsSeenByInstructor,
   markResponsesSeenByRequester,
   releaseInstructorName,
   submitInstructorResponse,
@@ -537,6 +538,30 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
     });
   }, [all, currentTab, user.id]);
 
+  // 「決定なし」 results the instructor has not looked at yet (red dot on that tab).
+  const unseenNotSelected = (all || []).filter((r) => {
+    const myResponse = (r.instructor_responses || []).find((x) => x.instructor_id === user.id) || null;
+    return !!myResponse && !myResponse.result_seen_at && instructorDisplayStatus(r, myResponse).key === "notselected";
+  });
+  const unseenIds = unseenNotSelected.map((r) => (r.instructor_responses || []).find((x) => x.instructor_id === user.id)!.response_id);
+
+  async function openStatusTab(key: string) {
+    setCurrentTab(key);
+    setShownCount(10);
+    if (key === "notselected" && unseenIds.length) {
+      await markResultsSeenByInstructor(unseenIds);
+      const now = new Date().toISOString();
+      setAll((rows) =>
+        rows
+          ? rows.map((r) => ({
+              ...r,
+              instructor_responses: (r.instructor_responses || []).map((x) => (unseenIds.includes(x.response_id) ? { ...x, result_seen_at: now } : x)),
+            }))
+          : rows,
+      );
+    }
+  }
+
   const tabs = [
     ["all", "すべて"],
     ["pending", "対応待ち"],
@@ -569,12 +594,12 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
             return instructorDisplayStatus(r, myResponse).key === key;
           }).length;
           return (
-            <button key={key} type="button" className={`status-tab${currentTab === key ? " is-active" : ""}`} onClick={() => {
-                setCurrentTab(key);
-                setShownCount(10);
-              }}>
+            <button key={key} type="button" className={`status-tab${currentTab === key ? " is-active" : ""}`} onClick={() => void openStatusTab(key)}>
               {label}
               <span className="status-tab__count">({count})</span>
+              {key === "notselected" && unseenNotSelected.length > 0 && currentTab !== "notselected" && (
+                <span className="req-row__dot" style={{ display: "inline-block", marginLeft: 6, verticalAlign: "middle" }} aria-label="未確認の結果があります" />
+              )}
             </button>
           );
         })}
