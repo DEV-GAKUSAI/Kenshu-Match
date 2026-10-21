@@ -997,6 +997,9 @@ function RequesterRequestCard({
               <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => finalize(resp.response_id, resp.instructor_id)}>
                 この内容で依頼を確定する
               </button>
+              <Link href={`/edit-request?id=${r.request_id}`} className="btn btn--ghost btn--sm">
+                内容を編集する
+              </Link>
               <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={handleCancel}>
                 依頼をキャンセルする
               </button>
@@ -1007,6 +1010,9 @@ function RequesterRequestCard({
 
       {st.key === "pending" && (
         <div className="request-card__actions">
+          <Link href={`/edit-request?id=${r.request_id}`} className="btn btn--ghost btn--sm">
+            内容を編集する
+          </Link>
           <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={handleCancel}>
             依頼をキャンセルする
           </button>
