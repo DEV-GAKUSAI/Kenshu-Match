@@ -127,6 +127,7 @@ function ProfileStatusCard({ userId }: { userId: string }) {
         )}
         <div style={{ marginBottom: 16 }}>
           <DetailTabs
+            variant="underline"
             active={openTab}
             onChange={(k) => setOpenTab((cur) => (cur === k ? "" : k))}
             tabs={[
