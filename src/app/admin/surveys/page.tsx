@@ -66,30 +66,33 @@ export default function AdminSurveysPage() {
   const [allAnswers, setAllAnswers] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
+    // Fetch everything first, then set the state in one go, so the page does not jump while loading.
     const { data: s } = await supabase.from("training_surveys").select("*").order("created_at", { ascending: false });
     const list = (s as Survey[] | null) ?? [];
-    setSurveys(list);
     const ids = list.map((x) => x.survey_id);
+    let answerRows: Answer[] = [];
+    const counts: Record<string, number> = {};
     if (ids.length) {
       const { data: a } = await supabase.from("training_survey_answers").select("*").in("survey_id", ids).order("created_at", { ascending: false });
-      setAnswers((a as Answer[] | null) ?? []);
+      answerRows = (a as Answer[] | null) ?? [];
       const { data: l } = await supabase.from("training_survey_links").select("survey_id").in("survey_id", ids);
-      const counts: Record<string, number> = {};
       ((l as { survey_id: string }[] | null) ?? []).forEach((row) => (counts[row.survey_id] = (counts[row.survey_id] ?? 0) + 1));
-      setLinkCounts(counts);
     }
     const { data: pt } = await supabase.from("past_trainings").select("past_training_id, title, held_on, instructor_id").order("created_at", { ascending: false });
-    setPastList((pt as { past_training_id: string; title: string; held_on: string; instructor_id: string }[] | null) ?? []);
     const { data: ip } = await supabase.from("instructor_profiles").select("id").limit(500);
     const ids2 = ((ip as { id: string }[] | null) ?? []).map((row) => row.id);
     const { data: us } = ids2.length ? await supabase.from("users").select("id, name").in("id", ids2) : { data: [] };
+    const { data: c } = await supabase.rpc("admin_survey_requests");
+    const reqs = (c as { request_id: string; title: string; status: string }[] | null) ?? [];
+    setSurveys(list);
+    setAnswers(answerRows);
+    setLinkCounts(counts);
+    setPastList((pt as { past_training_id: string; title: string; held_on: string; instructor_id: string }[] | null) ?? []);
     setInstructors(
       ((us as { id: string; name: string | null }[] | null) ?? [])
         .map((row) => ({ id: row.id, name: row.name || row.id }))
         .sort((x, y) => x.name.localeCompare(y.name, "ja")),
     );
-    const { data: c } = await supabase.rpc("admin_survey_requests");
-    const reqs = (c as { request_id: string; title: string; status: string }[] | null) ?? [];
     setCandidates(reqs);
     // titles of the surveys (the admin cannot read the requests table directly)
     setTitles(Object.fromEntries(reqs.map((row) => [row.request_id, row.title])));
@@ -159,15 +162,21 @@ export default function AdminSurveysPage() {
   if (!user || user.role !== "ADMIN") return null;
 
   return (
-    <main className="mypage">
-      <div className="mypage__head">
-        <h1 className="mypage__title">研修アンケート管理</h1>
-        <p className="mypage__role">
-          <Link href="/admin">← 管理者ダッシュボード</Link>
+    <main className="list-page">
+      <div className="list-page__head">
+        <h1 className="list-page__title">研修アンケート管理</h1>
+        <p className="list-page__count">
+          {loaded ? (
+            <>
+              全 <strong>{surveys.length}</strong> 件・<Link href="/admin">← 管理者ダッシュボード</Link>
+            </>
+          ) : (
+            "読み込み中…"
+          )}
         </p>
       </div>
 
-      <div className="request-card">
+      <div className="request-card" style={loaded ? undefined : { display: "none" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <div className="request-card__title">アンケート結果を取り込む</div>
           <button type="button" className={`btn btn--sm ${importOpen ? "btn--ghost" : "btn--primary"}`} onClick={() => setImportOpen((v) => !v)}>
@@ -246,14 +255,13 @@ export default function AdminSurveysPage() {
         </>)}
       </div>
 
-      {!loaded && <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p>}
       {loaded && surveys.length === 0 && (
         <div className="empty-state">
           <p className="empty-state__title">アンケートはまだありません</p>
         </div>
       )}
 
-      {surveys.length > 0 && (
+      {loaded && surveys.length > 0 && (
         <>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", margin: "4px 0 12px" }}>
             <input

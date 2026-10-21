@@ -32,10 +32,7 @@ function getNavLinks(user: CurrentUser | null) {
   }
 
   if (user.role === "ADMIN") {
-    return [
-      { href: "/", label: "トップ" },
-      { href: "/admin", label: "管理者ダッシュボード" },
-    ];
+    return [{ href: "/admin", label: "管理者ダッシュボード" }];
   }
 
   return [
@@ -61,7 +58,7 @@ export function Header() {
   return (
     <div className="site-header">
       <div className="site-header__inner">
-        <Link className="brand" href="/">
+        <Link className="brand" href={user?.role === "ADMIN" ? "/admin" : "/"}>
           <Image className="brand__logo" src="/images/logo-07-teal.png" alt="KenshuLink" width={40} height={40} />
           <span>
             <span className="brand__name">ケンシュウリンク</span>

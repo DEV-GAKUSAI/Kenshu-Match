@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
@@ -33,11 +34,17 @@ const FAQ_ITEMS = [
 
 export default function Home() {
   const { user, authReady } = useAuth();
+  const router = useRouter();
   const [categories, setCategories] = useState<CategoryWithCount[] | null>(null);
   const [categoriesFailed, setCategoriesFailed] = useState(false);
   const [featured, setFeatured] = useState<InstructorPublicDirectoryRow[] | null>(null);
   const [featuredFailed, setFeaturedFailed] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+
+  // Admins have no top page: send them to the dashboard.
+  useEffect(() => {
+    if (authReady && user?.role === "ADMIN") router.replace("/admin");
+  }, [authReady, user, router]);
 
   useEffect(() => {
     (async () => {
