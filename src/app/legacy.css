@@ -1867,9 +1867,9 @@ button { font-family: inherit; cursor: pointer; }
 .request-card .status-badge--quoted { background: #EEF2F1; color: #4A5A56; }
 .request-card .status-badge--cancelled { background: #F3F5F4; color: #8A9490; }
 .request-card .status-badge--completed { background: #EAF0F4; color: #42586A; }
-.request-card__response { background: #F8FAF9; border: 1px solid var(--color-border); }
+.request-card__response { background: #fff; border: 1px solid var(--color-border); }
 .request-card__response strong { color: var(--color-ink); font-size: 12.5px; }
-.request-card .contact-box { background: #fff; border: 1px solid var(--color-border); border-left: 4px solid var(--color-primary); }
+.request-card .contact-box { background: #fff; border: 1px solid var(--color-border); }
 .request-card .contact-box strong { color: var(--color-ink); }
 .request-card .btn--primary { box-shadow: none; }
 .request-card .btn--primary:hover { box-shadow: none; transform: none; filter: brightness(.95); }
