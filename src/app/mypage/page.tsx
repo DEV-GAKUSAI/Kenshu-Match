@@ -473,8 +473,6 @@ function InstructorRequestRow({
   const parts = [
     who,
     r.budget ? `予算 ¥${Number(r.budget).toLocaleString()}` : null,
-    r.participant_count ? `${r.participant_count}名` : null,
-    FORMAT_LABEL[r.preferred_format] || r.preferred_format,
     meetingText,
     fmtDate(r.created_at),
   ].filter(Boolean);
