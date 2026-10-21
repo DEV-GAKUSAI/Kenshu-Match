@@ -61,9 +61,9 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
   }
 
   return (
-    <div style={{ marginTop: 10, fontSize: 13 }}>
+    <div style={{ display: "contents" }}>
       {hasFlow && !open && (
-        <div style={{ color: "var(--color-ink-soft)", marginBottom: 6 }}>
+        <div className="tool-block" style={{ color: "var(--color-ink-soft)", marginBottom: 6 }}>
           <strong style={{ color: "var(--color-ink)" }}>商流</strong>（講師には見えません）
           <div>発注・請求の相手：{contractName ?? `${decidedName || "決定した講師"}（直接）`}</div>
           {viaNames.length > 0 && <div>間に入る関係先：{viaNames.join(" → ")}</div>}
@@ -71,7 +71,7 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
         </div>
       )}
       {open ? (
-        <div className="inline-quote-form is-open">
+        <div className="inline-quote-form is-open tool-block">
           <p style={{ margin: "0 0 8px", color: "var(--color-ink-soft)" }}>
             空のままなら「決定した講師と直接取引」になります。Kenshu Linkの講師と紐づけた講師を登壇講師にすると、研修アンケートの評価がその講師につきます（アンケートのリンクを作る前に設定してください）。関係先は
             <Link href="/my-partners"> 関係先の管理</Link>
@@ -123,7 +123,7 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
           </div>
         </div>
       ) : (
-        <button type="button" className="btn btn--ghost btn--sm" onClick={() => setOpen(true)}>
+        <button type="button" className="btn btn--ghost btn--sm tool-btn" onClick={() => setOpen(true)}>
           {hasFlow ? "商流を編集" : "商流を設定"}
         </button>
       )}

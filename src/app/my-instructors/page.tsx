@@ -24,6 +24,7 @@ export default function MyInstructorsPage() {
   const [nf, setNf] = useState({ name: "", contact: "", kind: "candidate" as BookKind, note: "" });
   const [edit, setEdit] = useState({ kind: "candidate" as BookKind, rating: "", note: "" });
   const [busy, setBusy] = useState(false);
+  const [limit, setLimit] = useState(10);
 
   const load = useCallback(async () => {
     const rows = await getBookEntries();
@@ -93,7 +94,10 @@ export default function MyInstructorsPage() {
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 14px" }}>
         {([["all", "すべて"], ["regular", "取引先"], ["candidate", "候補"]] as const).map(([k, label]) => (
-          <button key={k} type="button" className={`btn btn--sm ${filter === k ? "btn--primary" : "btn--ghost"}`} onClick={() => setFilter(k)}>
+          <button key={k} type="button" className={`btn btn--sm ${filter === k ? "btn--primary" : "btn--ghost"}`} onClick={() => {
+            setFilter(k);
+            setLimit(10);
+          }}>
             {label}
           </button>
         ))}
@@ -143,7 +147,13 @@ export default function MyInstructorsPage() {
         </div>
       )}
 
-      {shown.map((e) => {
+      {entries !== null && shown.length > 0 && (
+        <h2 className="section__title" style={{ fontSize: 16, margin: "0 0 10px" }}>
+          登録済みの講師（{shown.length}件）
+        </h2>
+      )}
+
+      {shown.slice(0, limit).map((e) => {
         const isOpen = openId === e.entry_id;
         const title = e.instructor_id ? names[e.instructor_id] ?? "…" : e.external_name;
         return (
@@ -217,6 +227,13 @@ export default function MyInstructorsPage() {
           </div>
         );
       })}
+      {shown.length > limit && (
+        <p style={{ textAlign: "center", margin: "8px 0 0" }}>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => setLimit((n) => n + 10)}>
+            もっと見る（残り{shown.length - limit}件）
+          </button>
+        </p>
+      )}
     </main>
   );
 }

@@ -819,6 +819,21 @@ function RequesterRequestCard({
   const [busy, setBusy] = useState(false);
   // The applicants of a 公募依頼 stay closed until the company opens them (there can be many).
   const [listOpen, setListOpen] = useState(false);
+  // The whole request is one slim row; its details open on a click (same as the instructor side).
+  const [cardOpen, setCardOpen] = useState(false);
+  const attention = (st.key === "pending" || st.key === "quoted") && (newApplicants > 0 || answerNeeded > 0);
+  const rowWho = isBroadcast
+    ? st.key === "accepted" || st.key === "completed"
+      ? `決定：${instr.name || "講師"} 先生`
+      : "公募依頼"
+    : `依頼先：${instr.name || "講師"} 先生`;
+  const rowParts = [
+    rowWho,
+    budgetText(r),
+    isBroadcast && applicants.length > 0 && (st.key === "pending" || st.key === "quoted") ? `応募 ${applicants.length}名` : null,
+    fmtDate(r.created_at),
+    `案件番号 ${r.request_id.slice(0, 8)}`,
+  ].filter(Boolean);
 
   async function finalize(responseId: string, instructorId: string) {
     setBusy(true);
@@ -877,17 +892,26 @@ function RequesterRequestCard({
   }
 
   return (
-    <div className="request-card">
-      <div className="request-card__top">
-        <div>
-          <div className="request-card__title">{r.title}</div>
-          <div className="request-card__meta">
-            <span>{isBroadcast ? (st.key === "accepted" || st.key === "completed" ? `決定：${instr.name || "講師"} 先生` : "公募依頼") : `依頼先：${instr.name || "講師"} 先生`}</span>
-            <span>{fmtDate(r.created_at)}</span>
-            <span>案件番号 {r.request_id.slice(0, 8)}</span>
-          </div>
-        </div>
-        <span className={`status-badge status-badge--${st.key === "quoted" ? "quoted" : st.key === "rejected" ? "rejected" : st.key}`}>{st.label}</span>
+    <div className={`req-row${attention ? " req-row--attn" : ""}${cardOpen ? " is-open" : ""}`}>
+      <button type="button" className="req-row__head" aria-expanded={cardOpen} onClick={() => setCardOpen((v) => !v)}>
+        <span className="req-row__main">
+          <span className="req-row__line1">
+            {attention && <span className="req-row__dot" aria-hidden="true" />}
+            <span className="req-row__title">{r.title}</span>
+          </span>
+          <span className="req-row__line2">{rowParts.join("　・　")}</span>
+        </span>
+        {newApplicants > 0 && <span className="req-badge req-badge--attn">NEW {newApplicants}</span>}
+        <span className={`req-badge req-badge--${st.key}`}>{st.label}</span>
+        <svg className="req-row__chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {cardOpen && (
+      <div className="req-row__body">
+      <div className="request-card request-card--embedded">
+      <div className="request-card__meta" style={{ marginBottom: 8 }}>
+        <Link href={`/request-detail?id=${r.request_id}`} style={{ textDecoration: "underline", textUnderlineOffset: 3 }}>依頼の詳細ページを開く</Link>
       </div>
 
       <p className="request-card__desc">{r.description}</p>
@@ -1023,8 +1047,10 @@ function RequesterRequestCard({
         </>
       )}
 
-      <InternalNote requestId={r.request_id} requesterId={userId} />
-      <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} />
+      <div className="request-card__tools">
+        <InternalNote requestId={r.request_id} requesterId={userId} />
+        <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} />
+      </div>
 
       {st.key === "pending" && (
         <div className="request-card__actions">
@@ -1068,6 +1094,9 @@ function RequesterRequestCard({
         </>
       )}
 
+      </div>
+      </div>
+      )}
     </div>
   );
 }

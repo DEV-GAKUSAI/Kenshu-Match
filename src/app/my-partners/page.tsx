@@ -23,6 +23,8 @@ export default function MyPartnersPage() {
   const [form, setForm] = useState(EMPTY);
   const [editId, setEditId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [shown, setShown] = useState(10);
   const [linkable, setLinkable] = useState<{ id: string; name: string }[]>([]);
 
   const load = useCallback(async () => {
@@ -58,6 +60,7 @@ export default function MyPartnersPage() {
     showToast(editId ? "更新しました。" : "関係先を登録しました。");
     setForm(EMPTY);
     setEditId(null);
+    setFormOpen(false);
     await load();
   }
 
@@ -84,6 +87,15 @@ export default function MyPartnersPage() {
         <Link href="/mypage">← マイページに戻る</Link>
       </p>
 
+      {!formOpen && (
+        <p style={{ margin: "0 0 18px" }}>
+          <button type="button" className="btn btn--primary btn--sm" onClick={() => setFormOpen(true)}>
+            ＋ 関係先を登録する
+          </button>
+        </p>
+      )}
+
+      {formOpen && (
       <div className="form-card" style={{ marginBottom: 20 }}>
         <h2 className="section__title" style={{ fontSize: 16, marginTop: 0 }}>
           {editId ? "関係先を編集" : "関係先を登録"}
@@ -129,20 +141,24 @@ export default function MyPartnersPage() {
           <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={submit}>
             {editId ? "更新する" : "登録する"}
           </button>
-          {editId && (
-            <button
-              type="button"
-              className="btn btn--ghost btn--sm"
-              onClick={() => {
-                setEditId(null);
-                setForm(EMPTY);
-              }}
-            >
-              やめる
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => {
+              setEditId(null);
+              setForm(EMPTY);
+              setFormOpen(false);
+            }}
+          >
+            やめる
+          </button>
         </div>
       </div>
+      )}
+
+      <h2 className="section__title" style={{ fontSize: 16, margin: "0 0 10px" }}>
+        登録済みの関係先{partners ? `（${partners.length}件）` : ""}
+      </h2>
 
       {partners === null ? (
         <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p>
@@ -151,7 +167,7 @@ export default function MyPartnersPage() {
           <p className="empty-state__title">関係先はまだ登録されていません</p>
         </div>
       ) : (
-        partners.map((p) => (
+        partners.slice(0, shown).map((p) => (
           <div key={p.partner_id} className="request-card" style={{ marginBottom: 10 }}>
             <strong>{p.name}</strong>　<span className="instructor-card__tag">{PARTNER_KIND_TEXT[p.kind]}</span>{p.instructor_id ? <span className="instructor-card__tag">Kenshu Link講師と紐づけ済み</span> : null}
             {p.contact && <div style={{ fontSize: 13, marginTop: 4 }}>連絡先：{p.contact}</div>}
@@ -162,6 +178,7 @@ export default function MyPartnersPage() {
                 className="btn btn--ghost btn--sm"
                 onClick={() => {
                   setEditId(p.partner_id);
+                  setFormOpen(true);
                   setForm({ name: p.name, kind: p.kind, contact: p.contact ?? "", note: p.note ?? "", instructorId: p.instructor_id ?? "" });
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
@@ -174,6 +191,13 @@ export default function MyPartnersPage() {
             </div>
           </div>
         ))
+      )}
+      {partners && partners.length > shown && (
+        <p style={{ textAlign: "center", margin: "8px 0 0" }}>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => setShown((n) => n + 10)}>
+            もっと見る（残り{partners.length - shown}件）
+          </button>
+        </p>
       )}
     </main>
   );

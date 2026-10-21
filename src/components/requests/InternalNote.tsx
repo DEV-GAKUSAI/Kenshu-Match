@@ -49,16 +49,16 @@ export function InternalNote({ requestId, requesterId }: { requestId: string; re
   }
 
   return (
-    <div style={{ marginTop: 10, fontSize: 13 }}>
+    <div style={{ display: "contents" }}>
       {saved && !open && (saved.owner || saved.note) && (
-        <div style={{ color: "var(--color-ink-soft)", whiteSpace: "pre-wrap", marginBottom: 6 }}>
+        <div className="tool-block" style={{ color: "var(--color-ink-soft)", whiteSpace: "pre-wrap", marginBottom: 6 }}>
           <strong style={{ color: "var(--color-ink)" }}>社内メモ</strong>（講師には見えません）
           {saved.owner ? `\n担当：${saved.owner}` : ""}
           {saved.note ? `\n${saved.note}` : ""}
         </div>
       )}
       {open ? (
-        <div className="inline-quote-form is-open">
+        <div className="inline-quote-form is-open tool-block">
           <div className="form-field">
             <label>担当者</label>
             <input type="text" maxLength={80} value={owner} onChange={(e) => setOwner(e.target.value)} />
@@ -77,7 +77,7 @@ export function InternalNote({ requestId, requesterId }: { requestId: string; re
           </div>
         </div>
       ) : (
-        <button type="button" className="btn btn--ghost btn--sm" onClick={() => setOpen(true)}>
+        <button type="button" className="btn btn--ghost btn--sm tool-btn" onClick={() => setOpen(true)}>
           {saved ? "社内メモを編集" : "社内メモ・担当者"}
         </button>
       )}

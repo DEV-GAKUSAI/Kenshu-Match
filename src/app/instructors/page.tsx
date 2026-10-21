@@ -300,9 +300,12 @@ function InstructorsPageInner() {
           onChange={(e) => setKeyword(e.target.value)}
           style={{ flex: "1 1 280px", minWidth: 0 }}
         />
-        <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
           <input type="checkbox" checked={includeNoRate} onChange={(e) => setIncludeNoRate(e.target.checked)} />
-          単価が未登録の講師も含める
+          <span>
+            単価が未登録の講師も含める
+            <small style={{ display: "block", color: "var(--color-ink-soft)", fontSize: 11.5, marginTop: 2 }}>単価で絞り込むときに使います</small>
+          </span>
         </label>
       </div>
 

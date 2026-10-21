@@ -89,12 +89,15 @@ function proposalText(meeting: KenshuMineMeetingRow, viewer: "requester" | "inst
 }
 
 /** 「面談：10月12日(月) 10:00〜10:30 ［Google Meet に参加］」 */
+/** The meeting time is over: no join or change buttons any more. */
+const hasEnded = (meeting: KenshuMineMeetingRow) => Date.parse(meeting.ends_at) <= Date.now();
+
 export function MineMeetingLine({
   meeting,
   viewer,
   actions,
   compact = false,
-  finished = false,
+  finished: requestFinished = false,
 }: {
   meeting: KenshuMineMeetingRow;
   /** Who is looking: the company that booked, or the instructor. */
@@ -106,6 +109,7 @@ export function MineMeetingLine({
   /** The training is marked 研修完了: only the time is shown (no join or change buttons, no notes). */
   finished?: boolean;
 }) {
+  const finished = requestFinished || hasEnded(meeting);
   const when = formatMeetingTimeClient(meeting.starts_at, meeting.ends_at, meeting.time_zone);
   const proposal = finished ? null : proposalText(meeting, viewer);
   if (compact && meeting.status === "cancelled") {
