@@ -141,13 +141,6 @@ export function InstructorSurveyResults({ instructorId, bare = false, replyName 
         })}
       </ul>
 
-      {comments.length > 0 && (
-        <div>
-          <button type="button" className="btn btn--ghost btn--sm" aria-expanded={showComments} onClick={() => setShowComments((v) => !v)}>
-            {showComments ? "コメントを隠す" : `コメントを見る（${comments.length}件）`}
-          </button>
-        </div>
-      )}
 
       {showComments && comments.map((c) => (
         <div key={c.answer_id} className="review-item">
@@ -205,6 +198,14 @@ export function InstructorSurveyResults({ instructorId, bare = false, replyName 
           )}
         </div>
       ))}
+
+      {comments.length > 0 && (
+        <div>
+          <button type="button" className="btn btn--ghost btn--sm" aria-expanded={showComments} onClick={() => setShowComments((v) => !v)}>
+            {showComments ? "コメントを隠す" : `コメントを見る（${comments.length}件）`}
+          </button>
+        </div>
+      )}
       </div>
   );
   if (bare) return content;
