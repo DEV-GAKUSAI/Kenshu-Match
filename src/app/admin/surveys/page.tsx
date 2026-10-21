@@ -75,11 +75,13 @@ export default function AdminSurveysPage() {
     }
     const { data: pt } = await supabase.from("past_trainings").select("past_training_id, title, held_on, instructor_id").order("created_at", { ascending: false });
     setPastList((pt as { past_training_id: string; title: string; held_on: string; instructor_id: string }[] | null) ?? []);
-    const { data: ins } = await supabase.from("instructor_profiles").select("id, users!inner(name)").limit(500);
+    const { data: ip } = await supabase.from("instructor_profiles").select("id").limit(500);
+    const ids2 = ((ip as { id: string }[] | null) ?? []).map((row) => row.id);
+    const { data: us } = ids2.length ? await supabase.from("users").select("id, name").in("id", ids2) : { data: [] };
     setInstructors(
-      (((ins as unknown) as { id: string; users: { name: string | null } | { name: string | null }[] }[] | null) ?? [])
-        .map((row) => ({ id: row.id, name: (Array.isArray(row.users) ? row.users[0]?.name : row.users?.name) || row.id }))
-        .sort((a, b) => a.name.localeCompare(b.name, "ja")),
+      ((us as { id: string; name: string | null }[] | null) ?? [])
+        .map((row) => ({ id: row.id, name: row.name || row.id }))
+        .sort((x, y) => x.name.localeCompare(y.name, "ja")),
     );
     const { data: c } = await supabase
       .from("training_requests")
