@@ -9,6 +9,7 @@ import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { DetailsForm, EMPTY_DETAILS, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
 import { MoneyForm, EMPTY_MONEY, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
 import type { MinePublicProfile } from "@/lib/mine/public-profile";
+import { InstructorBookCard } from "@/components/requests/InstructorBookCard";
 import { MineProfileBlocks } from "@/components/mine/MineProfileBlocks";
 import { getInstructorById } from "@/lib/instructor/profile";
 import { getTrainingSubcategoryOptions } from "@/lib/instructor/expertise";
@@ -428,6 +429,7 @@ function InstructorDetailInner() {
               </div>
             </>
           )}
+          {isRealId && user && (user.role === "COMPANY" || user.role === "INDIVIDUAL") && <InstructorBookCard requesterId={user.id} instructorId={rawId} />}
           <div style={{ height: 32 }} />
         </div>
 

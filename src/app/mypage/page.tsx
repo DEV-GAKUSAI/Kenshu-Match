@@ -1154,9 +1154,14 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
           依頼一覧
           {unseenCount > 0 && <span className="status-badge status-badge--rejected" style={{ marginLeft: 6 }}>{unseenCount}</span>}
         </h2>
-        <Link href="/post-request" className="btn btn--primary btn--sm">
-          研修を依頼する（公募）
-        </Link>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/my-instructors" className="btn btn--ghost btn--sm">
+            自社の講師台帳
+          </Link>
+          <Link href="/post-request" className="btn btn--primary btn--sm">
+            研修を依頼する（公募）
+          </Link>
+        </div>
       </div>
       <div className="status-tabs">
         {tabs.map(([key, label]) => {
