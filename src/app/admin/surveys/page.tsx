@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { useToast } from "@/components/common/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
+import { SurveyImportPanel } from "@/components/survey/SurveyImportPanel";
 
 type Survey = {
   survey_id: string;
@@ -30,6 +31,7 @@ type Answer = {
   display_name: string | null;
   is_anonymous: boolean;
   is_hidden: boolean;
+  source?: "link" | "import";
   reported_at: string | null;
   reported_reason: string | null;
   created_at: string;
@@ -45,6 +47,8 @@ export default function AdminSurveysPage() {
   const [linkCounts, setLinkCounts] = useState<Record<string, number>>({});
   const [titles, setTitles] = useState<Record<string, string>>({});
   const [capInput, setCapInput] = useState<Record<string, string>>({});
+  const [candidates, setCandidates] = useState<{ request_id: string; title: string; status: string }[]>([]);
+  const [pickedRequest, setPickedRequest] = useState("");
   const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
@@ -62,6 +66,13 @@ export default function AdminSurveysPage() {
       const { data: t } = await supabase.from("training_requests").select("request_id, title").in("request_id", list.map((x) => x.request_id));
       setTitles(Object.fromEntries(((t as { request_id: string; title: string }[] | null) ?? []).map((row) => [row.request_id, row.title])));
     }
+    const { data: c } = await supabase
+      .from("training_requests")
+      .select("request_id, title, status")
+      .in("status", ["accepted", "completed"])
+      .order("created_at", { ascending: false })
+      .limit(300);
+    setCandidates((c as { request_id: string; title: string; status: string }[] | null) ?? []);
     setLoaded(true);
   }, [supabase]);
 
@@ -97,6 +108,20 @@ export default function AdminSurveysPage() {
         </p>
       </div>
 
+      <div className="request-card">
+        <div className="request-card__title">アンケート結果を取り込む</div>
+        <p className="request-card__meta" style={{ margin: "4px 0 10px" }}>承諾済み・完了の依頼を選んで、Excel／CSVの結果を取り込みます（研修の初日前でも可）。</p>
+        <select value={pickedRequest} onChange={(e) => setPickedRequest(e.target.value)} style={{ maxWidth: "100%", marginBottom: 10 }}>
+          <option value="">依頼を選ぶ</option>
+          {candidates.map((c) => (
+            <option key={c.request_id} value={c.request_id}>
+              {c.title}（{c.status === "completed" ? "完了" : "承諾済み"}）
+            </option>
+          ))}
+        </select>
+        {pickedRequest && <SurveyImportPanel key={pickedRequest} requestId={pickedRequest} onChanged={() => void load()} />}
+      </div>
+
       {!loaded && <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p>}
       {loaded && surveys.length === 0 && (
         <div className="empty-state">
@@ -114,7 +139,7 @@ export default function AdminSurveysPage() {
                 <div className="request-card__title">{titles[s.request_id] || s.request_id}</div>
                 <div className="request-card__meta">
                   <span>リンク {linkCounts[s.survey_id] ?? 0} / 上限 {s.max_links}</span>
-                  <span>回答 {mine.length}</span>
+                  <span>回答 {mine.length}{mine.some((a) => a.source === "import") ? `（取込 ${mine.filter((a) => a.source === "import").length}）` : ""}</span>
                   {s.closed_at && <span>受付終了</span>}
                 </div>
               </div>

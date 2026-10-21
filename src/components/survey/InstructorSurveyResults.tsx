@@ -21,6 +21,7 @@ type Summary = {
   hirer_count: number;
   hirer_avg: number | null;
   links_issued: number;
+  imported_count?: number;
 };
 type Comment = {
   answer_id: string;
@@ -115,6 +116,15 @@ export function InstructorSurveyResults({ instructorId, bare = false, replyName 
             <small>件</small>
           </strong>
         </div>
+        {(summary.imported_count ?? 0) > 0 && (
+          <div className="survey-tile">
+            <span className="survey-tile__label">取込</span>
+            <strong>
+              {summary.imported_count}
+              <small>件</small>
+            </strong>
+          </div>
+        )}
       </div>
       <ul className="survey-avgs">
         {SURVEY_QUESTIONS.map((q) => {
