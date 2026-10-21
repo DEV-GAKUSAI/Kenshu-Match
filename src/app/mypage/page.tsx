@@ -23,6 +23,7 @@ import {
   releaseInstructorName,
   submitInstructorResponse,
 } from "@/lib/requests/instructor-responses";
+import { ResponseManage } from "@/components/requests/ResponseManage";
 import { finalizeResponse } from "@/lib/requests/actions";
 import { budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
 import type { InstructorResponseRow, TrainingRequestRow } from "@/types/database";
@@ -238,7 +239,7 @@ function instructorDisplayStatus(r: ReqWithJoins, myResponse: InstructorResponse
   if (r.status === "completed") return { key: "completed", label: "完了" };
   if (r.status === "accepted") return { key: "accepted", label: "承諾済み" };
   if (myResponse) {
-    if (myResponse.action === "reject" || myResponse.action === "withdrawn") return { key: "rejected", label: "却下済み" };
+    if (myResponse.action === "reject" || myResponse.action === "withdrawn") return { key: "rejected", label: myResponse.action === "withdrawn" ? "取り下げ済み" : "却下済み" };
     return { key: "quoted", label: "返信済み（依頼者の確定待ち）" };
   }
   return { key: "pending", label: "対応待ち" };
@@ -356,9 +357,10 @@ function InstructorRequestCard({
         <div className="request-card__response">
           <strong>
             あなたの対応：
-            {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? quoteText(myResponse) : "却下"}
+            {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? quoteText(myResponse) : myResponse.action === "withdrawn" ? "取り下げ" : "却下"}
           </strong>
           {myResponse.message || "（メッセージなし）"}
+          <ResponseManage response={myResponse} request={r} onChanged={onChanged} />
         </div>
       )}
 

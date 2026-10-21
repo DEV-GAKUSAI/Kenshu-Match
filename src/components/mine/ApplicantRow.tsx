@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
-import { quoteText } from "@/lib/requests/money";
+import { formatMoney, quoteText } from "@/lib/requests/money";
+import { getResponseChanges, type ResponseChange } from "@/lib/requests/instructor-responses";
 import { MineMeetingLine } from "@/components/mine/MineMeeting";
 import { formatMeetingTimeClient } from "@/lib/mine/meeting-format";
 import type { InstructorResponseRow, KenshuMineMeetingRow } from "@/types/database";
@@ -50,6 +51,15 @@ export function ApplicantRow({
   onCancelRequest?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [changes, setChanges] = useState<ResponseChange[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    void getResponseChanges(response.response_id).then((rows) => alive && setChanges(rows.filter((c) => c.kind === "revised")));
+    return () => {
+      alive = false;
+    };
+  }, [open, response.response_id, response.quote_price]);
   // The meeting while it is still upcoming (not cancelled, not finished).
   const live = meeting && isActive(meeting) ? meeting : undefined;
   const needsAnswer = live?.status === "change_requested" && live.proposed_by === "host";
@@ -165,6 +175,17 @@ export function ApplicantRow({
       {open && (
         <div style={{ borderTop: "1px solid var(--color-border)", padding: "12px 14px" }}>
           {message && <p style={{ margin: "0 0 10px", whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{message}</p>}
+          {changes.length > 0 && (
+            <div style={{ margin: "0 0 10px", color: "var(--color-ink-soft)" }}>
+              <strong style={{ color: "var(--color-ink)" }}>見積りの変更履歴</strong>
+              {changes.map((c) => (
+                <div key={c.change_id}>
+                  {new Date(c.created_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" })}　
+                  {c.old_price ? formatMoney(c.old_price, response.quote_unit, null) : "承諾のみ"} → {formatMoney(c.new_price, response.quote_unit, null)}
+                </div>
+              ))}
+            </div>
+          )}
           {meeting && <MineMeetingLine meeting={meeting} viewer="requester" compact />}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: message || meeting ? 12 : 0 }}>
             {!declined && meetingButton}

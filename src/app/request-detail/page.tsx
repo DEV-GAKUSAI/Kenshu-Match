@@ -12,6 +12,7 @@ import {
   getTrainingRequestWithResponses,
 } from "@/lib/requests/training-requests";
 import { budgetText, costLines, isHourly, normalUnit, quoteText, UNIT_OPTIONS, type MoneyFields } from "@/lib/requests/money";
+import { ResponseManage } from "@/components/requests/ResponseManage";
 import { declineInterview, releaseInstructorName, submitInstructorResponse } from "@/lib/requests/instructor-responses";
 import { useConfirm } from "@/components/common/ConfirmDialog";
 import { flushMineNotices } from "@/lib/mine/flush-client";
@@ -75,7 +76,7 @@ function displayStatus(r: TrainingRequestRow, myResponse: InstructorResponseRow 
     return myResponse?.is_selected ? { key: "selected", label: "あなたに決定" } : { key: "not-selected", label: "応募終了" };
   }
   if (myResponse) {
-    if (myResponse.action === "reject" || myResponse.action === "withdrawn") return { key: "rejected", label: "却下済み" };
+    if (myResponse.action === "reject" || myResponse.action === "withdrawn") return { key: "rejected", label: myResponse.action === "withdrawn" ? "取り下げ済み" : "却下済み" };
     return { key: "quoted", label: "返信済み（依頼者の確定待ち）" };
   }
   return { key: "pending", label: "募集中" };
@@ -328,9 +329,10 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
           <div className="request-card__response" style={{ marginTop: 20 }}>
             <strong>
               あなたの対応：
-              {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? quoteText(myResponse) : "却下"}
+              {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? quoteText(myResponse) : myResponse.action === "withdrawn" ? "取り下げ" : "却下"}
             </strong>
             {myResponse.message ? myResponse.message : "（メッセージなし）"}
+            <ResponseManage response={myResponse} request={r} onChanged={load} />
           </div>
         )}
 

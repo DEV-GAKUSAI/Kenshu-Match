@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
+import { ResponseManage } from "@/components/requests/ResponseManage";
 import { budgetText, isHourly, quoteText } from "@/lib/requests/money";
 import { getOpenRequestsPublicPreview, getOpenRequestsForInstructor } from "@/lib/requests/training-requests";
 import { markResultsSeenByInstructor, submitInstructorResponse } from "@/lib/requests/instructor-responses";
@@ -73,7 +74,7 @@ function displayStatus(r: RequestWithJoins) {
     return r.myResponse?.is_selected ? { key: "selected", label: "あなたに決定" } : { key: "not-selected", label: "応募終了" };
   }
   if (r.myResponse) {
-    if (r.myResponse.action === "reject" || r.myResponse.action === "withdrawn") return { key: "rejected", label: "却下済み" };
+    if (r.myResponse.action === "reject" || r.myResponse.action === "withdrawn") return { key: "rejected", label: r.myResponse.action === "withdrawn" ? "取り下げ済み" : "却下済み" };
     return { key: "quoted", label: "返信済み（依頼者の確定待ち）" };
   }
   return { key: "pending", label: "募集中" };
@@ -505,9 +506,12 @@ export default function OpenRequestsPage() {
                     ? "承諾"
                     : r.myResponse.action === "quote"
                       ? quoteText(r.myResponse)
-                      : "却下"}
+                      : r.myResponse.action === "withdrawn"
+                        ? "取り下げ"
+                        : "却下"}
                 </strong>
                 {r.myResponse.message ? r.myResponse.message : "（メッセージなし）"}
+                <ResponseManage response={r.myResponse} request={r} onChanged={() => setReloadKey((k) => k + 1)} />
               </div>
             )}
 
