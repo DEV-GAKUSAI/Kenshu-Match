@@ -24,6 +24,7 @@ import {
   submitInstructorResponse,
 } from "@/lib/requests/instructor-responses";
 import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
+import { InvoicePanel } from "@/components/requests/InvoicePanel";
 import { OrderPanel } from "@/components/requests/OrderPanel";
 import { InternalNote } from "@/components/requests/InternalNote";
 import { ResponseManage } from "@/components/requests/ResponseManage";
@@ -368,6 +369,7 @@ function InstructorRequestCard({
         </div>
       )}
       {myResponse?.is_selected && (r.status === "accepted" || r.status === "completed") && <OrderPanel responseId={myResponse.response_id} role="instructor" />}
+      {myResponse?.is_selected && (r.status === "accepted" || r.status === "completed") && <InvoicePanel responseId={myResponse.response_id} role="instructor" />}
 
       {myResponse?.interview_status === "requested" && r.status === "pending" && (
         <div className="contact-box">
@@ -1033,7 +1035,10 @@ function RequesterRequestCard({
       )}
 
       {(st.key === "accepted" || st.key === "completed") && (selectedResp || (resp?.is_selected ? resp : null)) && (
-        <OrderPanel responseId={(selectedResp ?? resp)!.response_id} role="requester" />
+        <>
+          <OrderPanel responseId={(selectedResp ?? resp)!.response_id} role="requester" />
+          <InvoicePanel responseId={(selectedResp ?? resp)!.response_id} role="requester" />
+        </>
       )}
 
       {st.key === "accepted" && (
