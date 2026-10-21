@@ -1,4 +1,5 @@
 "use client";
+import { Select } from "@/components/ui/Select";
 
 export type ApplyValue = { allDays: "" | "all" | "partial" | "none"; role: string; experience: string; materials: "" | "existing" | "create" | "either" };
 
@@ -27,23 +28,23 @@ export function ApplyFields({ value, onChange }: { value: ApplyValue; onChange: 
           <label>
             全日程への対応<span className="field-optional">任意</span>
           </label>
-          <select value={value.allDays} onChange={(e) => set({ allDays: e.target.value as ApplyValue["allDays"] })}>
+          <Select value={value.allDays} onChange={(e) => set({ allDays: e.target.value as ApplyValue["allDays"] })}>
             <option value="">選ばない</option>
             <option value="all">{ALL_DAYS_TEXT.all}</option>
             <option value="partial">{ALL_DAYS_TEXT.partial}</option>
             <option value="none">{ALL_DAYS_TEXT.none}</option>
-          </select>
+          </Select>
         </div>
         <div className="form-field">
           <label>
             教材の対応<span className="field-optional">任意</span>
           </label>
-          <select value={value.materials} onChange={(e) => set({ materials: e.target.value as ApplyValue["materials"] })}>
+          <Select value={value.materials} onChange={(e) => set({ materials: e.target.value as ApplyValue["materials"] })}>
             <option value="">選ばない</option>
             <option value="existing">{MATERIALS_TEXT.existing}</option>
             <option value="create">{MATERIALS_TEXT.create}</option>
             <option value="either">{MATERIALS_TEXT.either}</option>
-          </select>
+          </Select>
         </div>
       </div>
       <div className="form-field">

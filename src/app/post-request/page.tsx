@@ -12,6 +12,7 @@ import { flushMineNotices } from "@/lib/mine/flush-client";
 import type { RequestFormat } from "@/types/database";
 import { DetailsForm, EMPTY_DETAILS, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
 import { MoneyForm, EMPTY_MONEY, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
+import { Select } from "@/components/ui/Select";
 
 interface SubcategoryOption {
   id: string;
@@ -224,7 +225,7 @@ export default function PostRequestPage() {
 
             <div className="form-field">
               <label htmlFor="reqExpertise">希望分野</label>
-              <select id="reqExpertise" required value={expertise} onChange={(e) => setExpertise(e.target.value)}>
+              <Select id="reqExpertise" required value={expertise} onChange={(e) => setExpertise(e.target.value)}>
                 {subcategories.length === 0 ? (
                   <option value="">分野データを読み込めませんでした</option>
                 ) : (
@@ -234,7 +235,7 @@ export default function PostRequestPage() {
                     </option>
                   ))
                 )}
-              </select>
+              </Select>
               <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
                 <input
                   type="text"
@@ -260,11 +261,11 @@ export default function PostRequestPage() {
             <div className="form-row">
               <div className="form-field">
                 <label htmlFor="reqFormat">希望形態</label>
-                <select id="reqFormat" required value={format} onChange={(e) => setFormat(e.target.value as RequestFormat)}>
+                <Select id="reqFormat" required value={format} onChange={(e) => setFormat(e.target.value as RequestFormat)}>
                   <option value="online">オンライン</option>
                   <option value="offline">対面</option>
                   <option value="both">オンライン・対面 両方</option>
-                </select>
+                </Select>
               </div>
               <div className="form-field">
                 <label htmlFor="reqParticipants">対象人数</label>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useToast } from "@/components/common/Toast";
 import { deleteBookEntry, getBookEntryFor, saveBookEntryFor, type BookEntry, type BookKind } from "@/lib/requester/book";
+import { Select } from "@/components/ui/Select";
 
 /** 自社の講師台帳 on an instructor's page: only the company sees it (#55 評価・メモ, #57 候補・取引先). */
 export function InstructorBookCard({ requesterId, instructorId }: { requesterId: string; instructorId: string }) {
@@ -76,22 +77,22 @@ export function InstructorBookCard({ requesterId, instructorId }: { requesterId:
           <div className="form-row">
             <div className="form-field">
               <label>区分</label>
-              <select value={kind} onChange={(e) => setKind(e.target.value as "" | BookKind)}>
+              <Select value={kind} onChange={(e) => setKind(e.target.value as "" | BookKind)}>
                 <option value="">選んでください</option>
                 <option value="candidate">候補</option>
                 <option value="regular">取引先</option>
-              </select>
+              </Select>
             </div>
             <div className="form-field">
               <label>社内評価</label>
-              <select value={rating} onChange={(e) => setRating(e.target.value)}>
+              <Select value={rating} onChange={(e) => setRating(e.target.value)}>
                 <option value="">なし</option>
                 {[5, 4, 3, 2, 1].map((n) => (
                   <option key={n} value={n}>
                     {"★".repeat(n)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
           <div className="form-field">

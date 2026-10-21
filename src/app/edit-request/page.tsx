@@ -14,6 +14,7 @@ import { MoneyForm, moneyPayload, type MoneyFormValue } from "@/components/reque
 import { normalUnit } from "@/lib/requests/money";
 import { normalizeDays } from "@/lib/requests/schedule";
 import type { RequestFormat, TrainingRequestRow } from "@/types/database";
+import { Select } from "@/components/ui/Select";
 
 /** 依頼内容の編集 (#45): only the owner, only while the request is open and nobody is decided yet. */
 function EditRequestInner() {
@@ -148,11 +149,11 @@ function EditRequestInner() {
             <div className="form-row">
               <div className="form-field">
                 <label htmlFor="edFormat">希望形態</label>
-                <select id="edFormat" value={format} onChange={(e) => setFormat(e.target.value as RequestFormat)}>
+                <Select id="edFormat" value={format} onChange={(e) => setFormat(e.target.value as RequestFormat)}>
                   <option value="online">オンライン</option>
                   <option value="offline">対面</option>
                   <option value="both">オンライン・対面 両方</option>
-                </select>
+                </Select>
               </div>
               <div className="form-field">
                 <label htmlFor="edParticipants">対象人数</label>

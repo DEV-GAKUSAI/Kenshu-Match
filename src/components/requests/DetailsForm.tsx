@@ -1,6 +1,7 @@
 "use client";
 
 import { cleanDays, EMPTY_DAY, MAX_DAYS, type DayFormat, type ScheduleDay } from "@/lib/requests/schedule";
+import { Select } from "@/components/ui/Select";
 
 export type DetailsFormValue = {
   days: ScheduleDay[];
@@ -41,11 +42,11 @@ export function DetailsForm({ value, onChange, idPrefix = "req" }: { value: Deta
               <input type="time" aria-label="開始" value={d.start} onChange={(e) => setDay(i, { start: e.target.value })} />
               <span>〜</span>
               <input type="time" aria-label="終了" value={d.end} onChange={(e) => setDay(i, { end: e.target.value })} />
-              <select aria-label="形態" value={d.format} onChange={(e) => setDay(i, { format: e.target.value as DayFormat })}>
+              <Select aria-label="形態" value={d.format} onChange={(e) => setDay(i, { format: e.target.value as DayFormat })}>
                 <option value="undecided">形態未定</option>
                 <option value="online">オンライン</option>
                 <option value="offline">対面</option>
-              </select>
+              </Select>
               <button type="button" className="btn btn--ghost btn--sm" onClick={() => set({ days: value.days.filter((_, k) => k !== i) })}>
                 削除
               </button>

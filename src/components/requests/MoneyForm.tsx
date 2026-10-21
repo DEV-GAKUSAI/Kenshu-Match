@@ -1,6 +1,7 @@
 "use client";
 
 import { UNIT_OPTIONS, type BudgetUnit, type CostShare, type PrepCost, type TaxMode } from "@/lib/requests/money";
+import { Select } from "@/components/ui/Select";
 
 export type MoneyFormValue = {
   budget: string;
@@ -36,13 +37,13 @@ export function MoneyForm({ value, onChange, idPrefix = "req" }: { value: MoneyF
       <div className="form-field">
         <label htmlFor={`${idPrefix}Budget`}>想定予算（円）</label>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <select aria-label="金額の種類" value={value.unit} onChange={(e) => set({ unit: e.target.value as BudgetUnit })} style={{ flex: "0 1 190px" }}>
+          <Select aria-label="金額の種類" value={value.unit} onChange={(e) => set({ unit: e.target.value as BudgetUnit })} style={{ flex: "0 1 190px" }}>
             {UNIT_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
-          </select>
+          </Select>
           <input
             type="number"
             id={`${idPrefix}Budget`}
@@ -53,43 +54,43 @@ export function MoneyForm({ value, onChange, idPrefix = "req" }: { value: MoneyF
             onChange={(e) => set({ budget: e.target.value })}
             style={{ flex: "1 1 140px", minWidth: 0 }}
           />
-          <select aria-label="税" value={value.tax} onChange={(e) => set({ tax: e.target.value as TaxMode })} style={{ flex: "0 1 130px" }}>
+          <Select aria-label="税" value={value.tax} onChange={(e) => set({ tax: e.target.value as TaxMode })} style={{ flex: "0 1 130px" }}>
             <option value="unspecified">税の指定なし</option>
             <option value="included">税込</option>
             <option value="excluded">税別</option>
-          </select>
+          </Select>
         </div>
       </div>
 
       <div className="form-row">
         <div className="form-field">
           <label htmlFor={`${idPrefix}Transport`}>交通費</label>
-          <select id={`${idPrefix}Transport`} value={value.transport} onChange={(e) => share(e.target.value)}>
+          <Select id={`${idPrefix}Transport`} value={value.transport} onChange={(e) => share(e.target.value)}>
             <option value="unspecified">未指定</option>
             <option value="company">企業が負担</option>
             <option value="included">料金に含む</option>
             <option value="none">なし</option>
-          </select>
+          </Select>
         </div>
         <div className="form-field">
           <label htmlFor={`${idPrefix}Lodging`}>宿泊費</label>
-          <select id={`${idPrefix}Lodging`} value={value.lodging} onChange={(e) => set({ lodging: e.target.value as CostShare })}>
+          <Select id={`${idPrefix}Lodging`} value={value.lodging} onChange={(e) => set({ lodging: e.target.value as CostShare })}>
             <option value="unspecified">未指定</option>
             <option value="company">企業が負担</option>
             <option value="included">料金に含む</option>
             <option value="none">なし</option>
-          </select>
+          </Select>
         </div>
       </div>
 
       <div className="form-row">
         <div className="form-field">
           <label htmlFor={`${idPrefix}Prep`}>準備・事前打合せの費用</label>
-          <select id={`${idPrefix}Prep`} value={value.prep} onChange={(e) => set({ prep: e.target.value as PrepCost })}>
+          <Select id={`${idPrefix}Prep`} value={value.prep} onChange={(e) => set({ prep: e.target.value as PrepCost })}>
             <option value="unspecified">未指定</option>
             <option value="included">料金に含む</option>
             <option value="extra">別途</option>
-          </select>
+          </Select>
         </div>
         <div className="form-field">
           <label htmlFor={`${idPrefix}PayTerms`}>支払条件（任意）</label>

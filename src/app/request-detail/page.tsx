@@ -30,6 +30,7 @@ import type {
   OpenRequestPublicPreviewRow,
   TrainingRequestRow,
 } from "@/types/database";
+import { Select } from "@/components/ui/Select";
 
 const FORMAT_LABEL: Record<string, string> = { online: "オンライン", offline: "対面", both: "オンライン・対面" };
 const HIDDEN_KEY = "kenshulink_hidden_open_requests";
@@ -374,11 +375,11 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
                 </label>
                 <div style={{ display: "flex", gap: 8 }}>
                   <input type="number" min={1} step={1} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
-                  <select aria-label="税" value={quoteTax} onChange={(e) => setQuoteTax(e.target.value as "" | "included" | "excluded")} style={{ flex: "0 0 120px" }}>
+                  <Select aria-label="税" value={quoteTax} onChange={(e) => setQuoteTax(e.target.value as "" | "included" | "excluded")} style={{ flex: "0 0 120px" }}>
                     <option value="">税の指定なし</option>
                     <option value="included">税込</option>
                     <option value="excluded">税別</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
               <ApplyFields value={apply} onChange={setApply} />
