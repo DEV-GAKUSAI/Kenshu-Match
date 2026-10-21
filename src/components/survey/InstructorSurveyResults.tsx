@@ -109,13 +109,6 @@ export function InstructorSurveyResults({ instructorId, bare = false, replyName 
             <small>（{summary.hirer_count}件）</small>
           </strong>
         </div>
-        <div className="survey-tile">
-          <span className="survey-tile__label">リンク発行</span>
-          <strong>
-            {summary.links_issued}
-            <small>件</small>
-          </strong>
-        </div>
         {(summary.imported_count ?? 0) > 0 && (
           <div className="survey-tile">
             <span className="survey-tile__label">取込</span>
