@@ -8,6 +8,7 @@ import { useToast } from "@/components/common/Toast";
 import { createClient } from "@/lib/supabase/client";
 import { SURVEY_QUESTIONS, SURVEY_SCALE } from "@/lib/survey/answers";
 import { checkImport, decodeCsvBytes, fileHash, importErrorMessage, parseCsv, templateCsv, type ImportCheck } from "@/lib/survey/import";
+import { looksLikeXlsx, readXlsx, templateXlsx } from "@/lib/survey/xlsx";
 
 type BatchRow = { batch_id: string; file_name: string | null; row_count: number; created_at: string; undone_at: string | null };
 type Preview = { fileName: string; hash: string; check: ImportCheck };
@@ -44,11 +45,15 @@ export function SurveyImportPanel({ requestId, onChanged }: { requestId: string;
     if (open) void loadBatches();
   }, [open, loadBatches]);
 
-  function downloadTemplate() {
-    const url = URL.createObjectURL(new Blob([templateCsv()], { type: "text/csv;charset=utf-8" }));
+  function downloadTemplate(kind: "xlsx" | "csv") {
+    const blob =
+      kind === "xlsx"
+        ? new Blob([templateXlsx() as BlobPart], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+        : new Blob([templateCsv()], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "研修アンケート取込テンプレート.csv";
+    a.download = `研修アンケート取込テンプレート.${kind}`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -61,7 +66,14 @@ export function SurveyImportPanel({ requestId, onChanged }: { requestId: string;
       return;
     }
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const check = checkImport(parseCsv(decodeCsvBytes(bytes)));
+    let cells: string[][];
+    try {
+      cells = looksLikeXlsx(bytes) ? await readXlsx(bytes) : parseCsv(decodeCsvBytes(bytes));
+    } catch {
+      setPreview({ fileName: file.name, hash: "", check: { total: 0, rows: [], problems: [{ line: 0, message: "ファイルを読み込めませんでした。テンプレートのExcelファイルかCSVファイルをお使いください。" }], badLines: 1 } });
+      return;
+    }
+    const check = checkImport(cells);
     setPreview({ fileName: file.name, hash: await fileHash(bytes), check });
   }
 
@@ -127,15 +139,18 @@ export function SurveyImportPanel({ requestId, onChanged }: { requestId: string;
           </div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-            <button type="button" className="btn btn--primary btn--sm" onClick={downloadTemplate}>
-              テンプレートをダウンロード
+            <button type="button" className="btn btn--primary btn--sm" onClick={() => downloadTemplate("xlsx")}>
+              テンプレート（Excel）
+            </button>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => downloadTemplate("csv")}>
+              テンプレート（CSV）
             </button>
             <label className="btn btn--ghost btn--sm" style={{ cursor: "pointer" }}>
-              ファイルを選ぶ（CSV）
+              ファイルを選ぶ（Excel／CSV）
               <input
                 ref={fileInput}
                 type="file"
-                accept=".csv,text/csv"
+                accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 style={{ display: "none" }}
                 onChange={(e) => void handleFile(e.target.files?.[0])}
               />
