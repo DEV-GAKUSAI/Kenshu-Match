@@ -45,3 +45,13 @@
   .req-badge { order: 1; }
   .req-row__chev { order: 1; margin-left: auto; }
 }
+
+/* ---- 研修アンケート summary tiles ---- */
+.survey-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; }
+.survey-tile--main { grid-column: span 2; }
+.survey-tile { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 10px; background: #fafcfb; }
+.survey-tile--main { background: #fff8e8; border-color: #f3e2b8; }
+.survey-tile__label { font-size: 11.5px; color: var(--color-ink-soft); font-weight: 600; }
+.survey-tile strong { font-size: 18px; font-weight: 800; color: var(--color-ink); }
+.survey-tile small { font-size: 11.5px; font-weight: 600; color: var(--color-ink-soft); margin-left: 2px; }
+@media (max-width: 640px) { .survey-tiles { grid-template-columns: 1fr 1fr; } }

@@ -8,6 +8,7 @@ import { useToast } from "@/components/common/Toast";
 import { createClient } from "@/lib/supabase/client";
 import { SURVEY_QUESTIONS, SURVEY_SCALE } from "@/lib/survey/answers";
 import { checkImport, decodeCsvBytes, fileHash, importErrorMessage, parseCsv, templateCsv, type ImportCheck } from "@/lib/survey/import";
+import { looksLikeXlsx, readXlsx, templateXlsx } from "@/lib/survey/xlsx";
 
 type BatchRow = { batch_id: string; file_name: string | null; row_count: number; created_at: string; undone_at: string | null };
 type Preview = { fileName: string; hash: string; check: ImportCheck };
@@ -20,7 +21,8 @@ const SHOWN_PROBLEMS = 20;
  * saved until the person presses the import button. One wrong row stops the
  * whole import. An import can be undone as a whole.
  */
-export function SurveyImportPanel({ requestId, onChanged }: { requestId: string; onChanged?: () => void }) {
+/** Give a requestId (a request in Kenshu Link) or, for admin, a pastTrainingId (a past training record). */
+export function SurveyImportPanel({ requestId, pastTrainingId, onChanged }: { requestId?: string; pastTrainingId?: string; onChanged?: () => void }) {
   const { showToast } = useToast();
   const confirm = useConfirm();
   // The survey tables are new, so they are not in the generated types yet.
@@ -34,21 +36,25 @@ export function SurveyImportPanel({ requestId, onChanged }: { requestId: string;
   const loadBatches = useCallback(async () => {
     const { data } = await supabase
       .from("training_survey_import_batches")
-      .select("batch_id, file_name, row_count, created_at, undone_at, training_surveys!inner(request_id)")
-      .eq("training_surveys.request_id", requestId)
+      .select("batch_id, file_name, row_count, created_at, undone_at, training_surveys!inner(request_id, past_training_id)")
+      .eq(pastTrainingId ? "training_surveys.past_training_id" : "training_surveys.request_id", (pastTrainingId ?? requestId) as string)
       .order("created_at", { ascending: false });
     setBatches((data as BatchRow[] | null) ?? []);
-  }, [supabase, requestId]);
+  }, [supabase, requestId, pastTrainingId]);
 
   useEffect(() => {
     if (open) void loadBatches();
   }, [open, loadBatches]);
 
-  function downloadTemplate() {
-    const url = URL.createObjectURL(new Blob([templateCsv()], { type: "text/csv;charset=utf-8" }));
+  function downloadTemplate(kind: "xlsx" | "csv") {
+    const blob =
+      kind === "xlsx"
+        ? new Blob([templateXlsx() as BlobPart], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+        : new Blob([templateCsv()], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "研修アンケート取込テンプレート.csv";
+    a.download = `研修アンケート取込テンプレート.${kind}`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -61,19 +67,24 @@ export function SurveyImportPanel({ requestId, onChanged }: { requestId: string;
       return;
     }
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const check = checkImport(parseCsv(decodeCsvBytes(bytes)));
+    let cells: string[][];
+    try {
+      cells = looksLikeXlsx(bytes) ? await readXlsx(bytes) : parseCsv(decodeCsvBytes(bytes));
+    } catch {
+      setPreview({ fileName: file.name, hash: "", check: { total: 0, rows: [], problems: [{ line: 0, message: "ファイルを読み込めませんでした。テンプレートのExcelファイルかCSVファイルをお使いください。" }], badLines: 1 } });
+      return;
+    }
+    const check = checkImport(cells);
     setPreview({ fileName: file.name, hash: await fileHash(bytes), check });
   }
 
   async function handleImport() {
     if (!preview || preview.check.problems.length > 0 || preview.check.rows.length === 0) return;
     setBusy(true);
-    const { error } = await supabase.rpc("import_training_survey_answers", {
-      p_request_id: requestId,
-      p_rows: preview.check.rows,
-      p_file_hash: preview.hash,
-      p_file_name: preview.fileName,
-    });
+    const rowsArgs = { p_rows: preview.check.rows, p_file_hash: preview.hash, p_file_name: preview.fileName };
+    const { error } = pastTrainingId
+      ? await supabase.rpc("admin_import_past_training_answers", { p_past_training_id: pastTrainingId, ...rowsArgs })
+      : await supabase.rpc("import_training_survey_answers", { p_request_id: requestId, ...rowsArgs });
     setBusy(false);
     if (error) return showToast(importErrorMessage(error.message));
     showToast(`${preview.check.rows.length}件を取り込みました。`);
@@ -127,15 +138,18 @@ export function SurveyImportPanel({ requestId, onChanged }: { requestId: string;
           </div>
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-            <button type="button" className="btn btn--primary btn--sm" onClick={downloadTemplate}>
-              テンプレートをダウンロード
+            <button type="button" className="btn btn--primary btn--sm" onClick={() => downloadTemplate("xlsx")}>
+              テンプレート（Excel）
+            </button>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => downloadTemplate("csv")}>
+              テンプレート（CSV）
             </button>
             <label className="btn btn--ghost btn--sm" style={{ cursor: "pointer" }}>
-              ファイルを選ぶ（CSV）
+              ファイルを選ぶ（Excel／CSV）
               <input
                 ref={fileInput}
                 type="file"
-                accept=".csv,text/csv"
+                accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 style={{ display: "none" }}
                 onChange={(e) => void handleFile(e.target.files?.[0])}
               />

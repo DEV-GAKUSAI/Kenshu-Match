@@ -21,6 +21,7 @@ type Summary = {
   hirer_count: number;
   hirer_avg: number | null;
   links_issued: number;
+  imported_count?: number;
 };
 type Comment = {
   answer_id: string;
@@ -40,6 +41,7 @@ export function InstructorSurveyResults({ instructorId, bare = false, replyName 
   const supabase = useMemo(() => createClient() as unknown as SupabaseClient, []);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [showComments, setShowComments] = useState(false);
   const [form, setForm] = useState<{ id: string; mode: "reply" | "report" } | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -85,8 +87,44 @@ export function InstructorSurveyResults({ instructorId, bare = false, replyName 
 
   const content = (
       <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingBottom: 16 }}>
-      <div style={{ fontSize: 13, color: "var(--color-ink-soft)" }}>
-        参加者 {fmt(summary.participant_avg)}（{summary.participant_count}件）／ 依頼企業 {fmt(summary.hirer_avg)}（{summary.hirer_count}件）／ リンク発行 {summary.links_issued}件
+      <div className="survey-tiles">
+        <div className="survey-tile survey-tile--main">
+          <span className="survey-tile__label">全体</span>
+          <strong>
+            <span style={{ color: "#f2b84b" }}>★</span> {fmt(summary.overall_avg)}
+            <small> / 4（{summary.answer_count}件）</small>
+          </strong>
+        </div>
+        <div className="survey-tile">
+          <span className="survey-tile__label">参加者</span>
+          <strong>
+            {fmt(summary.participant_avg)}
+            <small>（{summary.participant_count}件）</small>
+          </strong>
+        </div>
+        <div className="survey-tile">
+          <span className="survey-tile__label">依頼企業</span>
+          <strong>
+            {fmt(summary.hirer_avg)}
+            <small>（{summary.hirer_count}件）</small>
+          </strong>
+        </div>
+        <div className="survey-tile">
+          <span className="survey-tile__label">リンク発行</span>
+          <strong>
+            {summary.links_issued}
+            <small>件</small>
+          </strong>
+        </div>
+        {(summary.imported_count ?? 0) > 0 && (
+          <div className="survey-tile">
+            <span className="survey-tile__label">取込</span>
+            <strong>
+              {summary.imported_count}
+              <small>件</small>
+            </strong>
+          </div>
+        )}
       </div>
       <ul className="survey-avgs">
         {SURVEY_QUESTIONS.map((q) => {
@@ -103,7 +141,15 @@ export function InstructorSurveyResults({ instructorId, bare = false, replyName 
         })}
       </ul>
 
-      {comments.map((c) => (
+      {comments.length > 0 && (
+        <div>
+          <button type="button" className="btn btn--ghost btn--sm" aria-expanded={showComments} onClick={() => setShowComments((v) => !v)}>
+            {showComments ? "コメントを隠す" : `コメントを見る（${comments.length}件）`}
+          </button>
+        </div>
+      )}
+
+      {showComments && comments.map((c) => (
         <div key={c.answer_id} className="review-item">
           <div className="review-item__top">
             <span className="review-item__name">{c.author_label}</span>

@@ -13,13 +13,60 @@ export function DetailTabs({
   tabs,
   active,
   onChange,
+  variant = "folder",
 }: {
+  variant?: "folder" | "underline";
   id?: string;
   tabs: DetailTab[];
   active: string;
   onChange: (key: string) => void;
 }) {
   const border = "1px solid var(--color-border)";
+  if (variant === "underline") {
+    // Equal-width light tabs; the selected one is white with a green underline. Panels stay mounted but hidden.
+    return (
+      <div id={id} style={{ background: "#fff", border, borderRadius: 12, overflow: "hidden" }}>
+        <div role="tablist" style={{ display: "flex", borderBottom: border, background: "#f6f9f8" }}>
+          {tabs.map((t) => {
+            const selected = t.key === active;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                onClick={() => onChange(t.key)}
+                style={{
+                  flex: 1,
+                  padding: "13px 8px",
+                  fontFamily: "inherit",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  border: 0,
+                  borderBottom: `3px solid ${selected ? "var(--color-primary)" : "transparent"}`,
+                  marginBottom: -1,
+                  background: selected ? "#fff" : "transparent",
+                  color: selected ? "var(--color-primary)" : "var(--color-ink-soft)",
+                }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+        {tabs.some((t) => t.key === active) && (
+          <div style={{ padding: "20px 22px 4px" }}>
+            {tabs.map((t) => (
+              <div key={t.key} role="tabpanel" hidden={t.key !== active}>
+                {t.content}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
   // When none of the tabs is selected (a card that starts closed) the tabs form one bar and no panel shows.
   const none = !tabs.some((t) => t.key === active);
   const firstSelected = tabs[0]?.key === active;
