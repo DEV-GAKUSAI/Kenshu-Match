@@ -24,6 +24,7 @@ import {
   submitInstructorResponse,
 } from "@/lib/requests/instructor-responses";
 import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
+import { InternalNote } from "@/components/requests/InternalNote";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { finalizeResponse } from "@/lib/requests/actions";
 import { budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
@@ -1007,6 +1008,8 @@ function RequesterRequestCard({
           )}
         </>
       )}
+
+      <InternalNote requestId={r.request_id} requesterId={userId} />
 
       {st.key === "pending" && (
         <div className="request-card__actions">
