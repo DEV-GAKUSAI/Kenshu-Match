@@ -23,7 +23,13 @@ import {
   releaseInstructorName,
   submitInstructorResponse,
 } from "@/lib/requests/instructor-responses";
+import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
+import { InvoicePanel } from "@/components/requests/InvoicePanel";
+import { OrderPanel } from "@/components/requests/OrderPanel";
+import { InternalNote } from "@/components/requests/InternalNote";
+import { ResponseManage } from "@/components/requests/ResponseManage";
 import { finalizeResponse } from "@/lib/requests/actions";
+import { budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
 import type { InstructorResponseRow, TrainingRequestRow } from "@/types/database";
 import type { CurrentUser } from "@/lib/auth/auth";
 import { ApplicantRow, applicantPriority } from "@/components/mine/ApplicantRow";
@@ -237,7 +243,7 @@ function instructorDisplayStatus(r: ReqWithJoins, myResponse: InstructorResponse
   if (r.status === "completed") return { key: "completed", label: "完了" };
   if (r.status === "accepted") return { key: "accepted", label: "承諾済み" };
   if (myResponse) {
-    if (myResponse.action === "reject" || myResponse.action === "withdrawn") return { key: "rejected", label: "却下済み" };
+    if (myResponse.action === "reject" || myResponse.action === "withdrawn") return { key: "rejected", label: myResponse.action === "withdrawn" ? "取り下げ済み" : "却下済み" };
     return { key: "quoted", label: "返信済み（依頼者の確定待ち）" };
   }
   return { key: "pending", label: "対応待ち" };
@@ -266,6 +272,8 @@ function InstructorRequestCard({
 
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quotePrice, setQuotePrice] = useState("");
+  const [apply, setApply] = useState<ApplyValue>(EMPTY_APPLY);
+  const [quoteTax, setQuoteTax] = useState<"" | "included" | "excluded">("");
   const [quoteMessage, setQuoteMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -313,7 +321,7 @@ function InstructorRequestCard({
     const price = Number(quotePrice) || null;
     if (!price) return showToast("見積り金額を入力してください");
     setBusy(true);
-    const { error } = await submitInstructorResponse(r.request_id, userId, "quote", { quote_price: price, message: quoteMessage.trim() || null });
+    const { error } = await submitInstructorResponse(r.request_id, userId, "quote", { quote_price: price, quote_tax_mode: quoteTax || null, message: quoteMessage.trim() || null, ...applyPayload(apply) });
     setBusy(false);
     if (error) return showToast(`エラー：${error.message}`);
     showToast("見積りを送信しました。");
@@ -344,7 +352,7 @@ function InstructorRequestCard({
       <p className="request-card__desc">{r.description}</p>
       <div className="request-card__tags">
         <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
-        {r.budget ? <span className="instructor-card__tag">予算 ¥{Number(r.budget).toLocaleString()}</span> : null}
+        {budgetText(r) ? <span className="instructor-card__tag">{budgetText(r)}</span> : null}
         {r.participant_count ? <span className="instructor-card__tag">対象{r.participant_count}名</span> : null}
         {r.location ? <span className="instructor-card__tag">{r.location}</span> : null}
         {r.preferred_schedule ? <span className="instructor-card__tag">{r.preferred_schedule}</span> : null}
@@ -354,11 +362,14 @@ function InstructorRequestCard({
         <div className="request-card__response">
           <strong>
             あなたの対応：
-            {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? `見積り ¥${Number(myResponse.quote_price || 0).toLocaleString()}` : "却下"}
+            {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? quoteText(myResponse) : myResponse.action === "withdrawn" ? "取り下げ" : "却下"}
           </strong>
           {myResponse.message || "（メッセージなし）"}
+          <ResponseManage response={myResponse} request={r} onChanged={onChanged} />
         </div>
       )}
+      {myResponse?.is_selected && (r.status === "accepted" || r.status === "completed") && <OrderPanel responseId={myResponse.response_id} role="instructor" />}
+      {myResponse?.is_selected && (r.status === "accepted" || r.status === "completed") && <InvoicePanel responseId={myResponse.response_id} role="instructor" />}
 
       {myResponse?.interview_status === "requested" && r.status === "pending" && (
         <div className="contact-box">
@@ -419,9 +430,17 @@ function InstructorRequestCard({
           </div>
           <div className={`inline-quote-form${quoteOpen ? " is-open" : ""}`}>
             <div className="form-field">
-              <label>見積り金額（時間あたり）</label>
-              <input type="number" min={0} step={1000} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} />
+              <label>見積り金額（{UNIT_OPTIONS.find((o) => o.value === normalUnit(r.budget_unit))?.label}・円）</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input type="number" min={0} step={1000} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+                <select aria-label="税" value={quoteTax} onChange={(e) => setQuoteTax(e.target.value as "" | "included" | "excluded")} style={{ flex: "0 0 120px" }}>
+                  <option value="">税の指定なし</option>
+                  <option value="included">税込</option>
+                  <option value="excluded">税別</option>
+                </select>
+              </div>
             </div>
+            <ApplyFields value={apply} onChange={setApply} />
             <div className="form-field">
               <label>メッセージ</label>
               <textarea rows={2} placeholder="見積りの補足があればご記入ください" value={quoteMessage} onChange={(e) => setQuoteMessage(e.target.value)} />
@@ -470,7 +489,7 @@ function InstructorRequestRow({
       : null;
   const parts = [
     who,
-    r.budget ? `予算 ¥${Number(r.budget).toLocaleString()}` : null,
+    budgetText(r),
     meetingText,
     fmtDate(r.created_at),
   ].filter(Boolean);
@@ -862,6 +881,7 @@ function RequesterRequestCard({
           <div className="request-card__meta">
             <span>{isBroadcast ? (st.key === "accepted" || st.key === "completed" ? `決定：${instr.name || "講師"} 先生` : "公募依頼") : `依頼先：${instr.name || "講師"} 先生`}</span>
             <span>{fmtDate(r.created_at)}</span>
+            <span>案件番号 {r.request_id.slice(0, 8)}</span>
           </div>
         </div>
         <span className={`status-badge status-badge--${st.key === "quoted" ? "quoted" : st.key === "rejected" ? "rejected" : st.key}`}>{st.label}</span>
@@ -870,7 +890,7 @@ function RequesterRequestCard({
       <p className="request-card__desc">{r.description}</p>
       <div className="request-card__tags">
         <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
-        {r.budget ? <span className="instructor-card__tag">予算 ¥{Number(r.budget).toLocaleString()}</span> : null}
+        {budgetText(r) ? <span className="instructor-card__tag">{budgetText(r)}</span> : null}
         {r.participant_count ? <span className="instructor-card__tag">対象{r.participant_count}名</span> : null}
       </div>
 
@@ -961,7 +981,7 @@ function RequesterRequestCard({
           {resp ? (
             <div className="request-card__response">
               <strong>
-                講師からの返信：{resp.action === "accept" ? "承諾" : resp.action === "quote" ? `見積り ¥${Number(resp.quote_price || 0).toLocaleString()}` : "却下"}
+                講師からの返信：{resp.action === "accept" ? "承諾" : resp.action === "quote" ? quoteText(resp) : "却下"}
               </strong>
               {resp.requester_seen_at === null && (
                 <span className="status-badge status-badge--rejected" style={{ marginLeft: 6, fontSize: 10 }}>
@@ -982,6 +1002,9 @@ function RequesterRequestCard({
               <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => finalize(resp.response_id, resp.instructor_id)}>
                 この内容で依頼を確定する
               </button>
+              <Link href={`/edit-request?id=${r.request_id}`} className="btn btn--ghost btn--sm">
+                内容を編集する
+              </Link>
               <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={handleCancel}>
                 依頼をキャンセルする
               </button>
@@ -990,8 +1013,13 @@ function RequesterRequestCard({
         </>
       )}
 
+      <InternalNote requestId={r.request_id} requesterId={userId} />
+
       {st.key === "pending" && (
         <div className="request-card__actions">
+          <Link href={`/edit-request?id=${r.request_id}`} className="btn btn--ghost btn--sm">
+            内容を編集する
+          </Link>
           <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={handleCancel}>
             依頼をキャンセルする
           </button>
@@ -1004,6 +1032,13 @@ function RequesterRequestCard({
 
       {(st.key === "accepted" || st.key === "completed") && (
         <CompanySurveyPanel requestId={r.request_id} title={r.title} participantCount={r.participant_count} completed={st.key === "completed"} />
+      )}
+
+      {(st.key === "accepted" || st.key === "completed") && (selectedResp || (resp?.is_selected ? resp : null)) && (
+        <>
+          <OrderPanel responseId={(selectedResp ?? resp)!.response_id} role="requester" />
+          <InvoicePanel responseId={(selectedResp ?? resp)!.response_id} role="requester" />
+        </>
       )}
 
       {st.key === "accepted" && (
@@ -1032,6 +1067,8 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [instructorMap, setInstructorMap] = useState<Record<string, { name?: string | null; contact_email?: string | null; contact_phone?: string | null }>>({});
   const [currentTab, setCurrentTab] = useState("all");
+  const [search, setSearch] = useState("");
+  const [year, setYear] = useState("");
   const [unseenCount, setUnseenCount] = useState(0);
 
   const load = useCallback(async () => {
@@ -1102,9 +1139,13 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
 
   const filtered = useMemo(() => {
     if (!all) return [];
-    if (currentTab === "all") return all;
-    return all.filter((r) => requesterDisplayStatus(r).key === currentTab);
-  }, [all, currentTab]);
+    const kw = search.trim().toLowerCase();
+    return all
+      .filter((r) => currentTab === "all" || requesterDisplayStatus(r).key === currentTab)
+      .filter((r) => !year || new Date(r.created_at).getFullYear() === Number(year))
+      .filter((r) => !kw || `${r.title} ${r.description} ${r.location ?? ""} ${r.request_id}`.toLowerCase().includes(kw));
+  }, [all, currentTab, search, year]);
+  const years = useMemo(() => [...new Set((all || []).map((r) => new Date(r.created_at).getFullYear()))].sort((x, y) => y - x), [all]);
   const mineLinked = useMineLinkedInstructors(
     (all || []).flatMap((r) => (r.instructor_responses || []).map((x) => x.instructor_id)),
   );
@@ -1133,9 +1174,14 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
           依頼一覧
           {unseenCount > 0 && <span className="status-badge status-badge--rejected" style={{ marginLeft: 6 }}>{unseenCount}</span>}
         </h2>
-        <Link href="/post-request" className="btn btn--primary btn--sm">
-          研修を依頼する（公募）
-        </Link>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Link href="/my-instructors" className="btn btn--ghost btn--sm">
+            自社の講師台帳
+          </Link>
+          <Link href="/post-request" className="btn btn--primary btn--sm">
+            研修を依頼する（公募）
+          </Link>
+        </div>
       </div>
       <div className="status-tabs">
         {tabs.map(([key, label]) => {
@@ -1147,6 +1193,19 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
             </button>
           );
         })}
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 14px" }}>
+        <input type="search" placeholder="案件名・キーワード・案件番号で探す" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: "1 1 220px", minWidth: 0 }} />
+        {years.length > 1 && (
+          <select aria-label="年" value={year} onChange={(e) => setYear(e.target.value)} style={{ flex: "0 0 120px" }}>
+            <option value="">すべての年</option>
+            {years.map((y) => (
+              <option key={y} value={String(y)}>
+                {y}年
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       {loadError && <p style={{ color: "var(--color-danger)", fontSize: 13 }}>読み込みエラー：{loadError}</p>}
       {!loadError && all === null && <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p>}

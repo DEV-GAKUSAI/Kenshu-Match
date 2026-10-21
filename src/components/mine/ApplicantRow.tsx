@@ -1,7 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
+import { ALL_DAYS_TEXT, MATERIALS_TEXT } from "@/components/requests/ApplyFields";
+import { formatMoney, quoteText } from "@/lib/requests/money";
+import { getResponseChanges, type ResponseChange } from "@/lib/requests/instructor-responses";
 import { MineMeetingLine } from "@/components/mine/MineMeeting";
 import { formatMeetingTimeClient } from "@/lib/mine/meeting-format";
 import type { InstructorResponseRow, KenshuMineMeetingRow } from "@/types/database";
@@ -49,12 +52,21 @@ export function ApplicantRow({
   onCancelRequest?: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [changes, setChanges] = useState<ResponseChange[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    void getResponseChanges(response.response_id).then((rows) => alive && setChanges(rows.filter((c) => c.kind === "revised")));
+    return () => {
+      alive = false;
+    };
+  }, [open, response.response_id, response.quote_price]);
   // The meeting while it is still upcoming (not cancelled, not finished).
   const live = meeting && isActive(meeting) ? meeting : undefined;
   const needsAnswer = live?.status === "change_requested" && live.proposed_by === "host";
   const meetUrl = live?.meeting_type === "google_meet" || live?.meeting_type === "zoom" ? live.meeting_url : null;
   const isNew = response.requester_seen_at === null;
-  const offer = response.action === "accept" ? "承諾" : `見積り ¥${Number(response.quote_price || 0).toLocaleString()}`;
+  const offer = response.action === "accept" ? "承諾" : quoteText(response);
   const message = (response.message ?? "").trim();
   const interview = response.interview_status;
   const declined = interview === "declined";
@@ -164,6 +176,26 @@ export function ApplicantRow({
       {open && (
         <div style={{ borderTop: "1px solid var(--color-border)", padding: "12px 14px" }}>
           {message && <p style={{ margin: "0 0 10px", whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{message}</p>}
+          {(response.apply_all_days || response.apply_materials || response.apply_role || response.apply_experience) && (
+            <div style={{ margin: "0 0 10px", color: "var(--color-ink-soft)" }}>
+              <strong style={{ color: "var(--color-ink)" }}>応募内容</strong>
+              {response.apply_all_days && <div>全日程への対応：{ALL_DAYS_TEXT[response.apply_all_days]}</div>}
+              {response.apply_role && <div>希望する役割：{response.apply_role}</div>}
+              {response.apply_materials && <div>教材の対応：{MATERIALS_TEXT[response.apply_materials]}</div>}
+              {response.apply_experience && <div style={{ whiteSpace: "pre-line", overflowWrap: "anywhere" }}>関連する実績：{response.apply_experience}</div>}
+            </div>
+          )}
+          {changes.length > 0 && (
+            <div style={{ margin: "0 0 10px", color: "var(--color-ink-soft)" }}>
+              <strong style={{ color: "var(--color-ink)" }}>見積りの変更履歴</strong>
+              {changes.map((c) => (
+                <div key={c.change_id}>
+                  {new Date(c.created_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" })}　
+                  {c.old_price ? formatMoney(c.old_price, response.quote_unit, null) : "承諾のみ"} → {formatMoney(c.new_price, response.quote_unit, null)}
+                </div>
+              ))}
+            </div>
+          )}
           {meeting && <MineMeetingLine meeting={meeting} viewer="requester" compact />}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: message || meeting ? 12 : 0 }}>
             {!declined && meetingButton}

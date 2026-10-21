@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 import type { RequestFormat, RequesterType } from "@/types/database";
+import type { ScheduleDay } from "@/lib/requests/schedule";
+import type { BudgetUnit, CostShare, PrepCost, TaxMode } from "@/lib/requests/money";
 
 export interface NewTrainingRequestInput {
   requester_id: string;
@@ -8,6 +10,16 @@ export interface NewTrainingRequestInput {
   description: string;
   expertise_field: string;
   budget: number | null;
+  budget_unit: BudgetUnit;
+  tax_mode: TaxMode;
+  transport_cost: CostShare;
+  lodging_cost: CostShare;
+  prep_cost: PrepCost;
+  payment_terms: string | null;
+  schedule_days: ScheduleDay[];
+  all_days_required: boolean;
+  req_skills: string | null;
+  req_prep: string | null;
   participant_count: number | null;
   preferred_format: RequestFormat;
   location: string | null;

@@ -10,6 +10,8 @@ import { getTrainingSubcategoryOptions, findOrCreateSubcategory, getOtherCategor
 import { createTrainingRequest } from "@/lib/requests/training-requests";
 import { flushMineNotices } from "@/lib/mine/flush-client";
 import type { RequestFormat } from "@/types/database";
+import { DetailsForm, EMPTY_DETAILS, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
+import { MoneyForm, EMPTY_MONEY, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
 
 interface SubcategoryOption {
   id: string;
@@ -30,7 +32,8 @@ export default function PostRequestPage() {
 
   const [title, setTitle] = useState("");
   const [format, setFormat] = useState<RequestFormat>("online");
-  const [budget, setBudget] = useState("");
+  const [details, setDetails] = useState<DetailsFormValue>(EMPTY_DETAILS);
+  const [money, setMoney] = useState<MoneyFormValue>(EMPTY_MONEY);
   const [participants, setParticipants] = useState("");
   const [location, setLocation] = useState("");
   const [schedule, setSchedule] = useState("");
@@ -122,7 +125,8 @@ export default function PostRequestPage() {
       title: title.trim(),
       description: description.trim(),
       expertise_field: expertise,
-      budget: Number(budget) || null,
+      ...moneyPayload(money),
+      ...detailsPayload(details),
       participant_count: Number(participants),
       preferred_format: format,
       location: format === "online" ? null : location.trim(),
@@ -263,15 +267,12 @@ export default function PostRequestPage() {
                 </select>
               </div>
               <div className="form-field">
-                <label htmlFor="reqBudget">想定予算（時間あたり）</label>
-                <input type="number" id="reqBudget" placeholder="例：15000" min={0} step={1000} value={budget} onChange={(e) => setBudget(e.target.value)} />
+                <label htmlFor="reqParticipants">対象人数</label>
+                <input type="number" id="reqParticipants" required placeholder="例：10" min={1} step={1} value={participants} onChange={(e) => setParticipants(e.target.value)} />
               </div>
             </div>
 
-            <div className="form-field">
-              <label htmlFor="reqParticipants">対象人数</label>
-              <input type="number" id="reqParticipants" required placeholder="例：10" min={1} step={1} value={participants} onChange={(e) => setParticipants(e.target.value)} />
-            </div>
+            <MoneyForm value={money} onChange={setMoney} />
 
             {format !== "online" && (
               <div className="form-field" id="reqLocationField">
@@ -281,9 +282,11 @@ export default function PostRequestPage() {
             )}
 
             <div className="form-field">
-              <label htmlFor="reqSchedule">希望日程</label>
+              <label htmlFor="reqSchedule">希望日程（おおまかに）</label>
               <input type="text" id="reqSchedule" placeholder="例：8月中旬 平日午後" value={schedule} onChange={(e) => setSchedule(e.target.value)} />
             </div>
+
+            <DetailsForm value={details} onChange={setDetails} />
 
             <div className={`form-field${descriptionHasError ? " has-error" : ""}`}>
               <label htmlFor="reqDescription">依頼内容の詳細</label>

@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { ResponseAction } from "@/types/database";
 
@@ -5,7 +6,15 @@ export async function submitInstructorResponse(
   requestId: string,
   instructorId: string,
   action: ResponseAction,
-  extra?: { quote_price?: number | null; message?: string | null }
+  extra?: {
+    quote_price?: number | null;
+    quote_tax_mode?: "included" | "excluded" | null;
+    message?: string | null;
+    apply_all_days?: "all" | "partial" | "none" | null;
+    apply_role?: string | null;
+    apply_experience?: string | null;
+    apply_materials?: "existing" | "create" | "either" | null;
+  }
 ) {
   const supabase = createClient();
   const { error } = await supabase.from("instructor_responses").insert({
@@ -13,7 +22,12 @@ export async function submitInstructorResponse(
     instructor_id: instructorId,
     action,
     quote_price: extra?.quote_price ?? null,
+    quote_tax_mode: extra?.quote_price ? (extra?.quote_tax_mode ?? null) : null,
     message: extra?.message ?? null,
+    apply_all_days: extra?.apply_all_days ?? null,
+    apply_role: extra?.apply_role ?? null,
+    apply_experience: extra?.apply_experience ?? null,
+    apply_materials: extra?.apply_materials ?? null,
   });
   return { error };
 }
@@ -74,4 +88,42 @@ export async function declineInterview(responseId: string) {
   const supabase = createClient();
   const { error } = await supabase.rpc("decline_interview", { p_response_id: responseId });
   return { error };
+}
+
+const REVISE_ERRORS: Record<string, string> = {
+  not_editable: "すでに確定または受付終了のため、変更できません。",
+  not_found: "対象の応募が見つかりません。",
+  bad_price: "見積り金額は1円以上の整数で入力してください。",
+  bad_message: "メッセージが長すぎます。",
+};
+
+function reviseMessage(raw: string): string {
+  const key = Object.keys(REVISE_ERRORS).find((k) => raw.includes(k));
+  return key ? REVISE_ERRORS[key] : "処理できませんでした。";
+}
+
+/** 見積りの変更（確定前のみ）: price, tax and message. The company sees it as NEW with a history row. */
+export async function reviseQuote(responseId: string, price: number, tax: "included" | "excluded" | null, message: string | null) {
+  const supabase = createClient() as unknown as SupabaseClient;
+  const { error } = await supabase.rpc("revise_instructor_quote", { p_response_id: responseId, p_price: price, p_tax: tax, p_message: message });
+  return { error: error ? { message: reviseMessage(error.message) } : null };
+}
+
+/** 応募の取り下げ（確定前のみ）. */
+export async function withdrawResponse(responseId: string) {
+  const supabase = createClient() as unknown as SupabaseClient;
+  const { error } = await supabase.rpc("withdraw_instructor_response", { p_response_id: responseId });
+  return { error: error ? { message: reviseMessage(error.message) } : null };
+}
+
+export type ResponseChange = { change_id: string; kind: "revised" | "withdrawn"; old_price: number | null; new_price: number | null; created_at: string };
+
+export async function getResponseChanges(responseId: string): Promise<ResponseChange[]> {
+  const supabase = createClient() as unknown as SupabaseClient;
+  const { data } = await supabase
+    .from("instructor_response_changes")
+    .select("change_id, kind, old_price, new_price, created_at")
+    .eq("response_id", responseId)
+    .order("created_at", { ascending: false });
+  return (data as unknown as ResponseChange[] | null) ?? [];
 }

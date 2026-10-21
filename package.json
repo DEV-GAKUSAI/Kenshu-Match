@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test src/lib/mine/*.test.ts src/lib/survey/*.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/mine/*.test.ts src/lib/survey/*.test.ts src/lib/requests/*.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",

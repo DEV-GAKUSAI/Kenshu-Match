@@ -11,6 +11,10 @@ import {
   getTrainingRequestDetail,
   getTrainingRequestWithResponses,
 } from "@/lib/requests/training-requests";
+import { budgetText, costLines, isHourly, normalUnit, quoteText, UNIT_OPTIONS, type MoneyFields } from "@/lib/requests/money";
+import { DetailsView } from "@/components/requests/DetailsView";
+import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
+import { ResponseManage } from "@/components/requests/ResponseManage";
 import { declineInterview, releaseInstructorName, submitInstructorResponse } from "@/lib/requests/instructor-responses";
 import { useConfirm } from "@/components/common/ConfirmDialog";
 import { flushMineNotices } from "@/lib/mine/flush-client";
@@ -36,14 +40,24 @@ function fmtDate(iso: string | null) {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function Tags({ r }: { r: { preferred_format: string; budget: number | null; location: string | null; preferred_schedule: string | null } }) {
+function Tags({ r }: { r: { preferred_format: string; location: string | null; preferred_schedule: string | null; schedule_days?: unknown; all_days_required?: boolean | null; req_skills?: string | null; req_prep?: string | null } & MoneyFields }) {
+  const lines = costLines(r);
   return (
-    <div className="request-card__tags" style={{ margin: "18px 0" }}>
-      <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
-      {r.budget ? <span className="instructor-card__tag">予算 ¥{Number(r.budget).toLocaleString()}</span> : null}
-      {r.location ? <span className="instructor-card__tag">{r.location}</span> : null}
-      {r.preferred_schedule ? <span className="instructor-card__tag">{r.preferred_schedule}</span> : null}
-    </div>
+    <>
+      <div className="request-card__tags" style={{ margin: "18px 0" }}>
+        <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
+        {budgetText(r) ? <span className="instructor-card__tag">{budgetText(r)}</span> : null}
+        {r.location ? <span className="instructor-card__tag">{r.location}</span> : null}
+        {r.preferred_schedule ? <span className="instructor-card__tag">{r.preferred_schedule}</span> : null}
+      </div>
+      {lines.length > 0 && (
+        <div className="request-card__response" style={{ margin: "0 0 14px", fontSize: 13 }}>
+          <strong>費用・支払い</strong>
+          {lines.join("　／　")}
+        </div>
+      )}
+      <DetailsView r={r} />
+    </>
   );
 }
 
@@ -65,7 +79,7 @@ function displayStatus(r: TrainingRequestRow, myResponse: InstructorResponseRow 
     return myResponse?.is_selected ? { key: "selected", label: "あなたに決定" } : { key: "not-selected", label: "応募終了" };
   }
   if (myResponse) {
-    if (myResponse.action === "reject" || myResponse.action === "withdrawn") return { key: "rejected", label: "却下済み" };
+    if (myResponse.action === "reject" || myResponse.action === "withdrawn") return { key: "rejected", label: myResponse.action === "withdrawn" ? "取り下げ済み" : "却下済み" };
     return { key: "quoted", label: "返信済み（依頼者の確定待ち）" };
   }
   return { key: "pending", label: "募集中" };
@@ -131,6 +145,8 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
   const [r, setR] = useState<ReqWithJoins | null | undefined>(undefined);
   const [requesterInfo, setRequesterInfo] = useState<{ name?: string; email?: string; phone?: string | null; company_name?: string | null } | null>(null);
   const [quotePrice, setQuotePrice] = useState("");
+  const [apply, setApply] = useState<ApplyValue>(EMPTY_APPLY);
+  const [quoteTax, setQuoteTax] = useState<"" | "included" | "excluded">("");
   const [quoteMessage, setQuoteMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const actionsRef = useRef<HTMLDivElement>(null);
@@ -279,7 +295,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
     }
     const message = quoteMessage.trim() || null;
     setBusy(true);
-    const { error } = await submitInstructorResponse(requestId, instructorId, price ? "quote" : "accept", { quote_price: price, message });
+    const { error } = await submitInstructorResponse(requestId, instructorId, price ? "quote" : "accept", { quote_price: price, quote_tax_mode: quoteTax || null, message, ...applyPayload(apply) });
     setBusy(false);
     if (error) {
       showToast(`エラー：${error.message}`);
@@ -317,9 +333,10 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
           <div className="request-card__response" style={{ marginTop: 20 }}>
             <strong>
               あなたの対応：
-              {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? `見積り ¥${Number(myResponse.quote_price || 0).toLocaleString()}` : "却下"}
+              {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? quoteText(myResponse) : myResponse.action === "withdrawn" ? "取り下げ" : "却下"}
             </strong>
             {myResponse.message ? myResponse.message : "（メッセージなし）"}
+            <ResponseManage response={myResponse} request={r} onChanged={load} />
           </div>
         )}
 
@@ -353,10 +370,18 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
             <div className="inline-quote-form is-open" ref={actionsRef} style={{ marginTop: 24 }}>
               <div className="form-field">
                 <label>
-                  見積り金額（時間あたり・円）<span className="field-optional">任意</span>
+                  見積り金額（{UNIT_OPTIONS.find((o) => o.value === normalUnit(r.budget_unit))?.label}・円）<span className="field-optional">任意</span>
                 </label>
-                <input type="number" min={1} step={1} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input type="number" min={1} step={1} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+                  <select aria-label="税" value={quoteTax} onChange={(e) => setQuoteTax(e.target.value as "" | "included" | "excluded")} style={{ flex: "0 0 120px" }}>
+                    <option value="">税の指定なし</option>
+                    <option value="included">税込</option>
+                    <option value="excluded">税別</option>
+                  </select>
+                </div>
               </div>
+              <ApplyFields value={apply} onChange={setApply} />
               <div className="form-field">
                 <label>
                   メッセージ<span className="field-optional">任意</span>
@@ -448,11 +473,12 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
           (row.preferred_format === "online" && (ins.work_style === "ONLINE" || ins.work_style === "HYBRID")) ||
           (row.preferred_format === "offline" && (ins.work_style === "ONSITE" || ins.work_style === "HYBRID"));
         if (formatOk) reasons.push("形態");
-        if (row.budget != null && ins.desired_rate_min != null && ins.desired_rate_min <= row.budget) reasons.push("予算");
+        if (isHourly(row) && row.budget != null && ins.desired_rate_min != null && ins.desired_rate_min <= row.budget) reasons.push("予算");
         return reasons;
       }
+      // おすすめ = 専門分野が合う講師だけ。形態・予算だけ合う講師は「参考候補」(#60).
       function isRecommended(reasons: string[]) {
-        return reasons.includes("分野") || reasons.length >= 2;
+        return reasons.includes("分野");
       }
       const shown = await withSurveySummary(await withMineDisplay(instructors as InstructorPublicDirectoryRow[]));
       const result = shown
@@ -515,7 +541,7 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
           {matched === null && <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p>}
           {matched?.length === 0 && <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>現在、条件に合う講師が見つかりませんでした。</p>}
           {matched?.map(({ ins, reasons }) => {
-            const isRecommended = reasons.includes("分野") || reasons.length >= 2;
+            const isRecommended = reasons.includes("分野");
             return (
               <Link href={`/instructor-detail?id=${ins.id}`} key={ins.id} style={{ display: "block", marginBottom: 10 }}>
                 <div className="request-card">
@@ -536,7 +562,7 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
                     className={`notice-banner${isRecommended ? " is-visible" : ""}`}
                     style={{ margin: "8px 0", fontSize: 12, ...(isRecommended ? {} : { opacity: 0.65, background: "var(--color-bg)" }) }}
                   >
-                    {reasons.join("・")}が合致
+                    {isRecommended ? `おすすめ：${reasons.join("・")}が合致` : `参考候補（分野は未一致）：${reasons.join("・")}が合致`}
                   </div>
                   <p className="request-card__desc">{ins.self_pr || "自己紹介は未登録です。"}</p>
                 </div>

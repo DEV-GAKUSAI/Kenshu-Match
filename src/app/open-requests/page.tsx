@@ -4,12 +4,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
+import { ResponseManage } from "@/components/requests/ResponseManage";
+import { budgetText, isHourly, quoteText } from "@/lib/requests/money";
 import { getOpenRequestsPublicPreview, getOpenRequestsForInstructor } from "@/lib/requests/training-requests";
 import { markResultsSeenByInstructor, submitInstructorResponse } from "@/lib/requests/instructor-responses";
 import { useToast } from "@/components/common/Toast";
 import { useConfirm } from "@/components/common/ConfirmDialog";
 import { flushMineNotices } from "@/lib/mine/flush-client";
 import { getMyMatchingProfile } from "@/lib/instructor/profile";
+import { getTrainingSubcategoryOptions } from "@/lib/instructor/expertise";
 import { getRequesterContacts } from "@/lib/requester/profile";
 import type { OpenRequestPublicPreviewRow, TrainingRequestRow, InstructorResponseRow } from "@/types/database";
 
@@ -58,11 +61,12 @@ function matchReasons(
     (r.preferred_format === "online" && (myProfile.workStyle === "ONLINE" || myProfile.workStyle === "HYBRID")) ||
     (r.preferred_format === "offline" && (myProfile.workStyle === "ONSITE" || myProfile.workStyle === "HYBRID"));
   if (formatOk) reasons.push("形態");
-  if (r.budget != null && myProfile.desiredRateMin != null && r.budget >= myProfile.desiredRateMin) reasons.push("予算");
+  if (isHourly(r) && r.budget != null && myProfile.desiredRateMin != null && r.budget >= myProfile.desiredRateMin) reasons.push("予算");
   return reasons;
 }
+// おすすめ = 専門分野が合う案件だけ。形態・予算だけ合う案件は「参考」(#60).
 function isRecommended(reasons: string[]) {
-  return reasons.includes("分野") || reasons.length >= 2;
+  return reasons.includes("分野");
 }
 
 function displayStatus(r: RequestWithJoins) {
@@ -71,7 +75,7 @@ function displayStatus(r: RequestWithJoins) {
     return r.myResponse?.is_selected ? { key: "selected", label: "あなたに決定" } : { key: "not-selected", label: "応募終了" };
   }
   if (r.myResponse) {
-    if (r.myResponse.action === "reject" || r.myResponse.action === "withdrawn") return { key: "rejected", label: "却下済み" };
+    if (r.myResponse.action === "reject" || r.myResponse.action === "withdrawn") return { key: "rejected", label: r.myResponse.action === "withdrawn" ? "取り下げ済み" : "却下済み" };
     return { key: "quoted", label: "返信済み（依頼者の確定待ち）" };
   }
   return { key: "pending", label: "募集中" };
@@ -127,7 +131,7 @@ function PublicPreviewList() {
           <p className="request-card__desc">{r.description}</p>
           <div className="request-card__tags">
             <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
-            {r.budget ? <span className="instructor-card__tag">予算 ¥{Number(r.budget).toLocaleString()}</span> : null}
+            {budgetText(r) ? <span className="instructor-card__tag">{budgetText(r)}</span> : null}
             {r.location ? <span className="instructor-card__tag">{r.location}</span> : null}
           </div>
           <div className="request-card__actions">
@@ -160,6 +164,14 @@ export default function OpenRequestsPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState<"recommended" | "open" | "mine">("recommended");
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
+  // 検索・絞り込み (#61)
+  const [q, setQ] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [fField, setFField] = useState("");
+  const [fArea, setFArea] = useState("");
+  const [fFormat, setFFormat] = useState("");
+  const [fRate, setFRate] = useState("");
+  const [fieldOptions, setFieldOptions] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     if (!authReady) return;
@@ -171,6 +183,8 @@ export default function OpenRequestsPage() {
 
       const profile = await getMyMatchingProfile(user.id);
       setMyProfile(profile);
+      const { data: subs } = await getTrainingSubcategoryOptions();
+      setFieldOptions(((subs as unknown as { id: string; name: string }[] | null) ?? []).map((x) => ({ id: x.id, name: x.name })));
 
       const { data, error } = await getOpenRequestsForInstructor();
       if (error) {
@@ -230,7 +244,7 @@ export default function OpenRequestsPage() {
   async function quickApply(r: RequestWithJoins) {
     if (!user) return;
     const lines = [
-      r.budget ? `予算 ¥${Number(r.budget).toLocaleString()}` : null,
+      budgetText(r),
       r.participant_count ? `対象${r.participant_count}名` : null,
       r.preferred_schedule || null,
     ].filter(Boolean);
@@ -273,6 +287,22 @@ export default function OpenRequestsPage() {
   }, [allRequests, hiddenIds, myProfile]);
 
   const filtered = useMemo(() => {
+    const list = filteredByTab();
+    const kw = q.trim().toLowerCase();
+    const area = fArea.trim().toLowerCase();
+    const rate = Number(fRate) || 0;
+    return list.filter((r) => {
+      if (kw) {
+        const hay = `${r.title} ${r.description} ${r.preferred_schedule ?? ""} ${r.request_id}`.toLowerCase();
+        if (!hay.includes(kw)) return false;
+      }
+      if (fField && r.expertise_field !== fField) return false;
+      if (area && !(r.location ?? "").toLowerCase().includes(area)) return false;
+      if (fFormat && r.preferred_format !== fFormat && r.preferred_format !== "both") return false;
+      if (rate && !(isHourly(r) && r.budget != null && r.budget >= rate)) return false;
+      return true;
+    });
+    function filteredByTab() {
     if (currentTab === "recommended") {
       return allRequests
         .filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id) && matchReasons(r, myProfile).length > 0)
@@ -288,7 +318,10 @@ export default function OpenRequestsPage() {
       return allRequests.filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id));
     }
     return allRequests.filter((r) => r.myResponse);
-  }, [allRequests, currentTab, hiddenIds, myProfile]);
+    }
+  }, [allRequests, currentTab, hiddenIds, myProfile, q, fField, fArea, fFormat, fRate]);
+
+  const filterActive = !!(q.trim() || fField || fArea.trim() || fFormat || fRate);
 
   if (!authReady || (user && user.role === "INSTRUCTOR" && loading)) {
     return (
@@ -347,12 +380,75 @@ export default function OpenRequestsPage() {
         ))}
       </div>
 
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 12px" }}>
+        <input
+          type="search"
+          placeholder="キーワード・案件番号で探す"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          style={{ flex: "1 1 220px", minWidth: 0 }}
+        />
+        <button type="button" className={`btn btn--sm ${filterOpen || filterActive ? "btn--primary" : "btn--ghost"}`} onClick={() => setFilterOpen((v) => !v)}>
+          絞り込み{filterActive ? "（中）" : ""}
+        </button>
+      </div>
+      {filterOpen && (
+        <div className="request-card" style={{ marginBottom: 12 }}>
+          <div className="form-row">
+            <div className="form-field">
+              <label>分野</label>
+              <select value={fField} onChange={(e) => setFField(e.target.value)}>
+                <option value="">すべて</option>
+                {fieldOptions.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-field">
+              <label>形態</label>
+              <select value={fFormat} onChange={(e) => setFFormat(e.target.value)}>
+                <option value="">すべて</option>
+                <option value="online">オンライン</option>
+                <option value="offline">対面</option>
+              </select>
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-field">
+              <label>地域（実施場所）</label>
+              <input type="text" placeholder="例：東京" value={fArea} onChange={(e) => setFArea(e.target.value)} />
+            </div>
+            <div className="form-field">
+              <label>時間あたり単価（円以上）</label>
+              <input type="number" min={0} step={1000} placeholder="例：10000" value={fRate} onChange={(e) => setFRate(e.target.value)} />
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => {
+              setQ("");
+              setFField("");
+              setFArea("");
+              setFFormat("");
+              setFRate("");
+            }}
+          >
+            条件をクリア
+          </button>
+        </div>
+      )}
+
       {error && <p style={{ color: "var(--color-danger)", fontSize: 13 }}>読み込みエラー：{error}</p>}
 
       {!error && filtered.length === 0 && (
         <div className="empty-state">
           <p className="empty-state__title">
-            {currentTab === "recommended"
+            {filterActive
+              ? "条件に合う案件はありません"
+              : currentTab === "recommended"
               ? "現在、あなたにおすすめの案件はありません"
               : currentTab === "open"
                 ? "現在、応募可能な公募依頼はありません"
@@ -376,6 +472,7 @@ export default function OpenRequestsPage() {
                 <div className="request-card__meta">
                   <span>{r.requester_type === "company" ? "企業" : "生徒"}からの公募</span>
                   <span title={fmtDate(r.created_at)}>{ageLabel(r.created_at)}</span>
+                  <span>案件番号 {r.request_id.slice(0, 8)}</span>
                 </div>
               </div>
               <span className={`status-badge status-badge--${badgeClass(st.key)}`}>{st.label}</span>
@@ -384,7 +481,7 @@ export default function OpenRequestsPage() {
             {reasons.length > 0 && (
               <div className={`match-banner${isRecommended(reasons) ? " is-strong" : ""}`}>
                 {isRecommended(reasons) && <span className="match-banner__star">★</span>}
-                <span className="match-banner__text">{isRecommended(reasons) ? "あなたにぴったりの案件です" : "あなたの条件に一部合っています"}</span>
+                <span className="match-banner__text">{isRecommended(reasons) ? "あなたにぴったりの案件です" : "参考：分野は一致していませんが、条件に一部合っています"}</span>
                 <span className="match-banner__chips">
                   {reasons.map((x) => (
                     <span className="match-chip" key={x}>{x} ✓</span>
@@ -395,7 +492,7 @@ export default function OpenRequestsPage() {
 
             <p className="request-card__desc request-card__desc--clamp">{r.description}</p>
             <div className="request-card__tags">
-              {r.budget ? <span className="open-tag open-tag--budget">予算 ¥{Number(r.budget).toLocaleString()}</span> : null}
+              {budgetText(r) ? <span className="open-tag open-tag--budget">{budgetText(r)}</span> : null}
               <span className="open-tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
               {r.participant_count ? <span className="open-tag">対象{r.participant_count}名</span> : null}
               {r.location ? <span className="open-tag">{r.location}</span> : null}
@@ -409,10 +506,13 @@ export default function OpenRequestsPage() {
                   {r.myResponse.action === "accept"
                     ? "承諾"
                     : r.myResponse.action === "quote"
-                      ? `見積り ¥${Number(r.myResponse.quote_price || 0).toLocaleString()}`
-                      : "却下"}
+                      ? quoteText(r.myResponse)
+                      : r.myResponse.action === "withdrawn"
+                        ? "取り下げ"
+                        : "却下"}
                 </strong>
                 {r.myResponse.message ? r.myResponse.message : "（メッセージなし）"}
+                <ResponseManage response={r.myResponse} request={r} onChanged={() => setReloadKey((k) => k + 1)} />
               </div>
             )}
 
