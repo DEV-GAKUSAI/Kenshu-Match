@@ -67,7 +67,7 @@ begin
 end $$;
 
 -- Existing quotes were all "per hour".
-update public.instructor_responses set quote_unit = 'hour' where quote_price is not null and quote_unit is null;
+update public.instructor_responses set quote_unit = 'hour' where quote_price > 0 and quote_unit is null;
 
 -- New quotes copy the unit of their request.
 create or replace function private.instructor_responses_set_quote_unit()
