@@ -20,6 +20,8 @@ export function DetailTabs({
   onChange: (key: string) => void;
 }) {
   const border = "1px solid var(--color-border)";
+  // When none of the tabs is selected (a card that starts closed) the tabs form one bar and no panel shows.
+  const none = !tabs.some((t) => t.key === active);
   const firstSelected = tabs[0]?.key === active;
   return (
     <div id={id} style={{ scrollMarginTop: 96 }}>
@@ -33,12 +35,16 @@ export function DetailTabs({
       <div
         role="tablist"
         className="detail-tabs__list"
-        style={{ display: "flex", alignItems: "flex-end", gap: 0, overflowX: "auto", overflowY: "hidden", position: "relative", zIndex: 1, marginBottom: -1 }}
+        style={{ display: "flex", alignItems: "flex-end", gap: 0, overflowX: "auto", overflowY: "hidden", position: "relative", zIndex: 1, marginBottom: none ? 0 : -1 }}
       >
         {tabs.map((t, index) => {
           const selected = t.key === active;
           // Tabs touch each other: only the outer corners of the row and the selected tab are rounded.
-          const radius = selected ? "12px 12px 0 0" : `${index === 0 ? 12 : 0}px ${index === tabs.length - 1 ? 12 : 0}px 0 0`;
+          const radius = none
+            ? `${index === 0 ? 12 : 0}px ${index === tabs.length - 1 ? 12 : 0}px ${index === tabs.length - 1 ? 12 : 0}px ${index === 0 ? 12 : 0}px`
+            : selected
+              ? "12px 12px 0 0"
+              : `${index === 0 ? 12 : 0}px ${index === tabs.length - 1 ? 12 : 0}px 0 0`;
           return (
             <button
               key={t.key}
@@ -56,7 +62,7 @@ export function DetailTabs({
                 cursor: "pointer",
                 border: 0,
                 borderRadius: radius,
-                marginBottom: selected ? 0 : 1,
+                marginBottom: selected || none ? 0 : 1,
                 background: selected ? "#fff" : "color-mix(in srgb, var(--color-primary) 8%, #f3f6f5)",
                 color: selected ? "var(--color-primary)" : "var(--color-ink-soft)",
               }}
@@ -67,6 +73,7 @@ export function DetailTabs({
         })}
       </div>
       <div
+        hidden={none}
         style={{
           background: "#fff",
           border,

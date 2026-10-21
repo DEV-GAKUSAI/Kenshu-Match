@@ -11,3 +11,35 @@
 .btn--pulse {
   animation: kenshulink-pulse 1.6s ease-out infinite;
 }
+
+/* ---- Instructor request list: slim two-line rows that open on click ---- */
+.req-group-title { display: flex; align-items: center; gap: 8px; margin: 18px 0 8px; font-size: 13px; font-weight: 700; color: var(--color-ink-soft); }
+.req-group-title--attn { color: #c0392b; }
+.req-group-title__count { font-weight: 600; }
+.req-row { position: relative; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-m, 12px); margin-bottom: 8px; overflow: hidden; }
+.req-row--attn { border-color: #f1c4bf; box-shadow: inset 4px 0 0 #d64545; background: #fffafa; }
+.req-row__head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; background: transparent; border: 0; cursor: pointer; text-align: left; font: inherit; color: var(--color-ink); }
+.req-row__head:hover { background: rgba(20, 60, 50, 0.03); }
+.req-row__main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.req-row__line1 { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; min-width: 0; }
+.req-row__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.req-row__dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: #d64545; box-shadow: 0 0 0 3px rgba(214, 69, 69, 0.18); }
+.req-row__line2 { font-size: 12.5px; color: var(--color-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.req-row__chev { flex: none; color: var(--color-ink-soft); transition: transform .15s; }
+.req-row.is-open .req-row__chev { transform: rotate(180deg); }
+.req-row__body { padding: 2px 14px 14px; border-top: 1px solid var(--color-border); }
+.req-row .request-card--embedded { border: 0; box-shadow: none; padding: 12px 0 0; margin: 0; background: transparent; }
+.req-badge { flex: none; display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.req-badge--attn { background: #fde8e6; color: #b42f2f; }
+.req-badge--quoted { background: #e6f0fb; color: #2a5d9f; }
+.req-badge--accepted { background: #e1f6ee; color: #0f7a5f; }
+.req-badge--completed { background: #eaf0f4; color: #42586a; }
+.req-badge--cancelled, .req-badge--rejected, .req-badge--notselected { background: #f1f3f2; color: #7b8580; }
+.req-more { display: flex; justify-content: center; margin: 14px 0 4px; }
+@media (max-width: 640px) {
+  .req-row__head { align-items: flex-start; flex-wrap: wrap; }
+  .req-row__main { flex-basis: 100%; order: 2; }
+  .req-row__line2 { white-space: normal; }
+  .req-badge { order: 1; }
+  .req-row__chev { order: 1; margin-left: auto; }
+}

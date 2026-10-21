@@ -37,6 +37,8 @@ export async function GET() {
     {
       linked: true,
       public: !!profile,
+      // The same public profile companies see (only what the instructor allowed in Mine).
+      profile: profile ?? null,
       initials: profile?.initials || initialsFromName((userRow?.name as string | null) ?? null) || null,
       prefectures: conditions?.prefectures ?? [],
       hourly_rate: typeof conditions?.hourly_rate_min === "number" ? conditions.hourly_rate_min : null,

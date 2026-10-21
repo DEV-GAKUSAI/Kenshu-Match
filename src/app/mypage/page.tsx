@@ -33,6 +33,10 @@ import { InstructorSurveyResults } from "@/components/survey/InstructorSurveyRes
 import { BookMineMeetingButton, MineMeetingLine, useMineLinkedInstructors, useMineMeetings } from "@/components/mine/MineMeeting";
 import type { KenshuMineMeetingRow } from "@/types/database";
 import { flushMineNotices } from "@/lib/mine/flush-client";
+import { MineProfileBlocks } from "@/components/mine/MineProfileBlocks";
+import { DetailTabs } from "@/components/common/DetailTabs";
+import { createClient as createBrowserClient } from "@/lib/supabase/client";
+import type { MinePublicProfile } from "@/lib/mine/public-profile";
 import "./mypage.css";
 
 const FORMAT_LABEL: Record<string, string> = { online: "オンライン", offline: "対面", both: "オンライン・対面" };
@@ -49,13 +53,28 @@ type ReqWithJoins = TrainingRequestRow & { instructor_responses: InstructorRespo
    講師側マイページ
    =================================================================== */
 
-type MineCard = { linked: boolean; public?: boolean; initials?: string | null; prefectures?: string[]; hourly_rate?: number | null; work_style?: string | null; mine_url?: string };
+type MineCard = { linked: boolean; public?: boolean; profile?: MinePublicProfile | null; initials?: string | null; prefectures?: string[]; hourly_rate?: number | null; work_style?: string | null; mine_url?: string };
 const WORK_STYLE_LABEL: Record<string, string> = { ONLINE: "オンライン", ONSITE: "対面", HYBRID: "オンライン・対面どちらも可" };
+
+function hasMineBlocks(m: MinePublicProfile, group: "profile" | "career") {
+  if (group === "career") return !!(m.skills?.length || m.qualifications?.length || m.work_history?.length || m.education?.length);
+  return !!(m.occupations?.length || m.self_introduction || m.professional_summary || m.languages || m.area);
+}
 
 function ProfileStatusCard({ userId }: { userId: string }) {
   const [profile, setProfile] = useState<{ id: string; is_public: boolean; prefectures: string[] | null; self_pr: string | null; contact_email: string | null; contact_phone: string | null } | null | undefined>(undefined);
   // Mine users: the profile lives in Mine, this card only shows it. undefined = still loading.
   const [mine, setMine] = useState<MineCard | undefined>(undefined);
+  const [openTab, setOpenTab] = useState(""); // every tab starts closed
+  const [surveyScore, setSurveyScore] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const supabase = createBrowserClient() as unknown as { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => { maybeSingle: () => Promise<{ data: { overall_avg: number | null; answer_count: number } | null }> } } } };
+      const { data } = await supabase.from("instructor_survey_summary").select("overall_avg, answer_count").eq("instructor_id", userId).maybeSingle();
+      setSurveyScore(data && data.overall_avg !== null ? `${Number(data.overall_avg).toFixed(1)} / 4（${data.answer_count}件）` : null);
+    })();
+  }, [userId]);
 
   useEffect(() => {
     (async () => {
@@ -99,17 +118,53 @@ function ProfileStatusCard({ userId }: { userId: string }) {
         ) : (
           <p className="request-card__desc">Mineで公開設定をオンにすると、「講師を探す」に表示され、依頼を受けられるようになります。</p>
         )}
-        <p className="request-card__meta" style={{ marginBottom: 6 }}>この内容はMineの設定が表示されています。</p>
-        <p className="request-card__meta" style={{ marginBottom: 14 }}>決定後、Mineに登録したメールアドレスと電話番号（任意）が企業に共有されます。</p>
+        <div style={{ marginBottom: 16 }}>
+          <DetailTabs
+            active={openTab}
+            onChange={(k) => setOpenTab((cur) => (cur === k ? "" : k))}
+            tabs={[
+              {
+                key: "profile",
+                label: <>プロフィール</>,
+                content:
+                  mine.public && mine.profile && hasMineBlocks(mine.profile, "profile") ? (
+                    <MineProfileBlocks mine={mine.profile} group="profile" />
+                  ) : (
+                    <p style={{ fontSize: 13, color: "var(--color-ink-soft)", margin: "0 0 16px" }}>{mine.public ? "公開している内容はまだありません。" : "公開設定をオンにすると、ここに表示されます。"}</p>
+                  ),
+              },
+              {
+                key: "career",
+                label: <>経歴・スキル</>,
+                content:
+                  mine.public && mine.profile && hasMineBlocks(mine.profile, "career") ? (
+                    <MineProfileBlocks mine={mine.profile} group="career" />
+                  ) : (
+                    <p style={{ fontSize: 13, color: "var(--color-ink-soft)", margin: "0 0 16px" }}>{mine.public ? "公開している内容はまだありません。" : "公開設定をオンにすると、ここに表示されます。"}</p>
+                  ),
+              },
+              {
+                key: "survey",
+                label: (
+                  <>
+                    研修アンケートの結果
+                    {surveyScore ? (
+                      <>
+                        {" "}
+                        <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}
+                      </>
+                    ) : null}
+                  </>
+                ),
+                content: <InstructorSurveyResults instructorId={userId} bare />,
+              },
+            ]}
+          />
+        </div>
         <div className="request-card__actions">
           <a href={mine.mine_url || "https://mine-omega-one.vercel.app/apps"} target="_blank" rel="noopener noreferrer" className="btn btn--primary btn--sm">
             Mineで編集する
           </a>
-          {mine.public && (
-            <Link href={`/instructor-detail?id=${userId}`} className="btn btn--ghost btn--sm">
-              公開ページを見る
-            </Link>
-          )}
         </div>
       </div>
     );
@@ -119,18 +174,24 @@ function ProfileStatusCard({ userId }: { userId: string }) {
 
   if (!profile) {
     return (
+      <>
       <div className="request-card">
         <p className="request-card__desc">プロフィールを作成すると「講師を探す」の検索結果に表示され、依頼を受けられるようになります。</p>
         <Link href="/instructor-profile-edit" className="btn btn--primary btn--sm">
           プロフィールを作成する
         </Link>
       </div>
+      <div style={{ marginTop: 28 }}>
+        <InstructorSurveyResults instructorId={userId} />
+      </div>
+      </>
     );
   }
 
   const missingContact = !profile.contact_email || !profile.contact_phone;
 
   return (
+    <>
     <div className="request-card">
       <div className="request-card__top">
         <div>
@@ -159,6 +220,10 @@ function ProfileStatusCard({ userId }: { userId: string }) {
         </Link>
       </div>
     </div>
+    <div style={{ marginTop: 28 }}>
+      <InstructorSurveyResults instructorId={userId} />
+    </div>
+    </>
   );
 }
 
@@ -186,12 +251,14 @@ function InstructorRequestCard({
   requester,
   meetings,
   onChanged,
+  embedded = false,
 }: {
   r: ReqWithJoins;
   userId: string;
   requester: { name?: string; email?: string; phone?: string | null } | undefined;
   meetings: Record<string, KenshuMineMeetingRow>;
   onChanged: () => void;
+  embedded?: boolean;
 }) {
   const { showToast } = useToast();
   const confirm = useConfirm();
@@ -256,7 +323,12 @@ function InstructorRequestCard({
   }
 
   return (
-    <div className="request-card">
+    <div className={embedded ? "request-card request-card--embedded" : "request-card"}>
+      {embedded ? (
+        <div className="request-card__meta" style={{ marginBottom: 8 }}>
+          <Link href={`/request-detail?id=${r.request_id}`} style={{ textDecoration: "underline", textUnderlineOffset: 3 }}>依頼の詳細ページを開く</Link>
+        </div>
+      ) : (
       <div className="request-card__top">
         <div>
           <div className="request-card__title">
@@ -269,6 +341,7 @@ function InstructorRequestCard({
         </div>
         <span className={`status-badge status-badge--${st.key === "quoted" ? "quoted" : st.key === "rejected" || st.key === "notselected" ? "rejected" : st.key}`}>{st.label}</span>
       </div>
+      )}
 
       <p className="request-card__desc">{r.description}</p>
       <div className="request-card__tags">
@@ -331,7 +404,7 @@ function InstructorRequestCard({
 
       {(st.key === "accepted" || st.key === "completed") && <InstructorSurveyPanel requestId={r.request_id} />}
 
-      {meeting && <MineMeetingLine meeting={meeting} viewer="instructor" />}
+      {meeting && <MineMeetingLine meeting={meeting} viewer="instructor" finished={r.status === "completed"} />}
 
       {!myResponse && r.status === "pending" && (
         <>
@@ -366,12 +439,78 @@ function InstructorRequestCard({
   );
 }
 
+/** What needs the instructor's action right now (shown as a red dot). */
+function instructorAttention(r: ReqWithJoins, myResponse: InstructorResponseRow | null): { label: string } | null {
+  if (r.status !== "pending") return null;
+  if (!myResponse) return { label: "要対応" };
+  if (myResponse.interview_status === "requested") return { label: "面談の依頼" };
+  return null;
+}
+
+function InstructorRequestRow({
+  r,
+  userId,
+  requester,
+  meetings,
+  onChanged,
+}: {
+  r: ReqWithJoins;
+  userId: string;
+  requester: { name?: string; email?: string; phone?: string | null; company_name?: string | null } | undefined;
+  meetings: Record<string, KenshuMineMeetingRow>;
+  onChanged: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const myResponse = (r.instructor_responses || []).find((x) => x.instructor_id === userId) || null;
+  const st = instructorDisplayStatus(r, myResponse);
+  const attn = instructorAttention(r, myResponse);
+  const meeting = myResponse ? meetings[myResponse.response_id] : undefined;
+  const who = requester?.company_name || (r.requester_type === "company" ? "企業" : "生徒");
+  const meetingText =
+    meeting && meeting.status !== "cancelled"
+      ? `面談 ${new Date(meeting.starts_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" })}`
+      : null;
+  const parts = [
+    who,
+    r.budget ? `予算 ¥${Number(r.budget).toLocaleString()}` : null,
+    r.participant_count ? `${r.participant_count}名` : null,
+    FORMAT_LABEL[r.preferred_format] || r.preferred_format,
+    meetingText,
+    fmtDate(r.created_at),
+  ].filter(Boolean);
+  const badgeKey = attn ? "attn" : st.key;
+  const badgeLabel = attn ? attn.label : st.key === "quoted" ? "返信済み" : st.label;
+  return (
+    <div className={`req-row${attn ? " req-row--attn" : ""}${open ? " is-open" : ""}`}>
+      <button type="button" className="req-row__head" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        <span className="req-row__main">
+          <span className="req-row__line1">
+            {attn && <span className="req-row__dot" aria-hidden="true" />}
+            <span className="req-row__title">{r.title}</span>
+          </span>
+          <span className="req-row__line2">{parts.join("　・　")}</span>
+        </span>
+        <span className={`req-badge req-badge--${badgeKey}`}>{badgeLabel}</span>
+        <svg className="req-row__chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && (
+        <div className="req-row__body">
+          <InstructorRequestCard r={r} userId={userId} requester={requester} meetings={meetings} onChanged={onChanged} embedded />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InstructorMypage({ user }: { user: CurrentUser }) {
   const { byResponse: meetings } = useMineMeetings(user.id);
   const [all, setAll] = useState<ReqWithJoins[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [requesterMap, setRequesterMap] = useState<Record<string, { name?: string; email?: string; phone?: string | null; company_name?: string | null }>>({});
   const [currentTab, setCurrentTab] = useState("all");
+  const [shownCount, setShownCount] = useState(10);
   const [openRequestsUnseen, setOpenRequestsUnseen] = useState(0);
 
   const load = useCallback(async () => {
@@ -426,7 +565,6 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
       <div style={{ marginBottom: 28 }}>
         <ProfileStatusCard userId={user.id} />
       </div>
-      <InstructorSurveyResults instructorId={user.id} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h2 className="section__title" style={{ fontSize: 18, margin: 0 }}>
           受け取った依頼
@@ -442,7 +580,10 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
             return instructorDisplayStatus(r, myResponse).key === key;
           }).length;
           return (
-            <button key={key} type="button" className={`status-tab${currentTab === key ? " is-active" : ""}`} onClick={() => setCurrentTab(key)}>
+            <button key={key} type="button" className={`status-tab${currentTab === key ? " is-active" : ""}`} onClick={() => {
+                setCurrentTab(key);
+                setShownCount(10);
+              }}>
               {label}
               <span className="status-tab__count">({count})</span>
             </button>
@@ -456,9 +597,41 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
           <p className="empty-state__title">該当する依頼はありません</p>
         </div>
       )}
-      {filtered.map((r) => (
-        <InstructorRequestCard key={r.request_id} r={r} userId={user.id} requester={requesterMap[r.requester_id]} meetings={meetings} onChanged={load} />
-      ))}
+      {(() => {
+        const needs = (r: ReqWithJoins) => !!instructorAttention(r, (r.instructor_responses || []).find((x) => x.instructor_id === user.id) || null);
+        const ordered = [...filtered.filter(needs), ...filtered.filter((r) => !needs(r))];
+        const shown = ordered.slice(0, shownCount);
+        const attnShown = shown.filter(needs);
+        const restShown = shown.filter((r) => !needs(r));
+        const row = (r: ReqWithJoins) => (
+          <InstructorRequestRow key={r.request_id} r={r} userId={user.id} requester={requesterMap[r.requester_id]} meetings={meetings} onChanged={load} />
+        );
+        return (
+          <>
+            {attnShown.length > 0 && (
+              <>
+                <div className="req-group-title req-group-title--attn">
+                  要対応 <span className="req-group-title__count">({filtered.filter(needs).length})</span>
+                </div>
+                {attnShown.map(row)}
+              </>
+            )}
+            {restShown.length > 0 && (
+              <>
+                {attnShown.length > 0 && <div className="req-group-title">その他</div>}
+                {restShown.map(row)}
+              </>
+            )}
+            {ordered.length > shown.length && (
+              <div className="req-more">
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => setShownCount((n) => n + 10)}>
+                  もっと見る（あと{ordered.length - shown.length}件）
+                </button>
+              </div>
+            )}
+          </>
+        );
+      })()}
     </>
   );
 }
@@ -572,7 +745,7 @@ function RequesterRequestCard({
       mineLinked.has(response.instructor_id) &&
       (!meeting || meeting.status === "cancelled" || Date.parse(meeting.ends_at) <= Date.now());
     // Mine Phase 3d: change the time or cancel an upcoming meeting.
-    const canChange = !!meeting && meeting.status !== "cancelled" && Date.parse(meeting.ends_at) > Date.now();
+    const canChange = requestOpen && !!meeting && meeting.status !== "cancelled" && Date.parse(meeting.ends_at) > Date.now();
     // Changing an upcoming meeting sits next to its Meet button; booking a first one stands alone.
     const button =
       canChange && meeting ? (
@@ -586,7 +759,7 @@ function RequesterRequestCard({
     const { meeting, button, canChange } = meetingParts(response);
     return (
       <>
-        {meeting && <MineMeetingLine meeting={meeting} viewer="requester" actions={canChange ? button : undefined} />}
+        {meeting && <MineMeetingLine meeting={meeting} viewer="requester" actions={canChange ? button : undefined} finished={r.status === "completed"} />}
         {!canChange && button && <div style={{ marginTop: 8, marginBottom: 12 }}>{button}</div>}
       </>
     );
