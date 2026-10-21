@@ -74,7 +74,7 @@ function OrderInner() {
           <span>発行日：{issued}</span>
         </div>
         <p style={{ fontSize: 15, margin: "0 0 4px" }}>
-          <strong>{seller || "受注者"} 様</strong>
+          <strong>{order.party_name || seller || "受注者"} 様</strong>
         </p>
         <p style={{ fontSize: 13, margin: "0 0 18px" }}>発注者：{buyer || "（発注者）"}</p>
         <p style={{ fontSize: 14, margin: "0 0 14px" }}>下記のとおり、研修の講師業務を発注いたします。</p>
@@ -83,6 +83,12 @@ function OrderInner() {
             <dt>件名</dt>
             <dd>{order.title}</dd>
           </div>
+          {order.speaker_name && (
+            <div>
+              <dt>登壇講師</dt>
+              <dd>{order.speaker_name}</dd>
+            </div>
+          )}
           <div>
             <dt>日程</dt>
             <dd style={{ whiteSpace: "pre-line" }}>{order.schedule_text || "別途調整"}</dd>

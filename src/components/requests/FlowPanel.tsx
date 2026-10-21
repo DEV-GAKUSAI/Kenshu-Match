@@ -72,7 +72,7 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
       {open ? (
         <div className="inline-quote-form is-open">
           <p style={{ margin: "0 0 8px", color: "var(--color-ink-soft)" }}>
-            空のままなら「決定した講師と直接取引」になります。関係先は
+            空のままなら「決定した講師と直接取引」になります。Kenshu Linkの講師と紐づけた講師を登壇講師にすると、研修アンケートの評価がその講師につきます（アンケートのリンクを作る前に設定してください）。関係先は
             <Link href="/my-partners"> 関係先の管理</Link>
             で登録できます。
           </p>

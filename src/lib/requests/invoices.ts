@@ -21,6 +21,8 @@ export type InvoiceRow = {
   extra_amount: number | null;
   extra_note: string | null;
   note: string | null;
+  party_name: string | null;
+  speaker_name: string | null;
   status: InvoiceStatus;
   return_reason: string | null;
   revision: number;

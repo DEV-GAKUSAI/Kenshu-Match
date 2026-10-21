@@ -12,6 +12,7 @@ export type Partner = {
   kind: PartnerKind;
   contact: string | null;
   note: string | null;
+  instructor_id: string | null;
 };
 
 export type RequestFlow = {
@@ -29,16 +30,16 @@ function db() {
 }
 
 export async function getPartners(): Promise<Partner[]> {
-  const { data } = await db().from("requester_partners").select("partner_id, name, kind, contact, note").order("created_at", { ascending: false });
+  const { data } = await db().from("requester_partners").select("partner_id, name, kind, contact, note, instructor_id").order("created_at", { ascending: false });
   return (data as Partner[] | null) ?? [];
 }
 
-export async function addPartner(requesterId: string, p: { name: string; kind: PartnerKind; contact: string | null; note: string | null }) {
+export async function addPartner(requesterId: string, p: { name: string; kind: PartnerKind; contact: string | null; note: string | null; instructor_id: string | null }) {
   const { error } = await db().from("requester_partners").insert({ requester_id: requesterId, ...p, name: p.name.trim() });
   return { error };
 }
 
-export async function updatePartner(partnerId: string, p: { name: string; kind: PartnerKind; contact: string | null; note: string | null }) {
+export async function updatePartner(partnerId: string, p: { name: string; kind: PartnerKind; contact: string | null; note: string | null; instructor_id: string | null }) {
   const { error } = await db().from("requester_partners").update({ ...p, name: p.name.trim() }).eq("partner_id", partnerId);
   return { error };
 }
