@@ -180,7 +180,7 @@ export function CompanySurveyPanel({
   const summary = !loaded ? "" : links.length ? `参加者の回答 ${answered} / ${links.length}` : "リンク未作成";
 
   return (
-    <div style={{ marginTop: 12 }}>
+    <div style={{ marginTop: 12, ...(open ? { border: "1.5px solid #5FD0AA", borderRadius: "var(--radius-s)", background: "#fff" } : {}) }}>
       <button
         type="button"
         aria-expanded={open}
@@ -192,7 +192,7 @@ export function CompanySurveyPanel({
           width: "100%",
           padding: "10px 12px",
           background: "#fff",
-          border: open ? "1.5px solid #5FD0AA" : "1px solid var(--color-border)",
+          border: open ? "0" : "1px solid var(--color-border)",
           borderRadius: "var(--radius-s)",
           cursor: "pointer",
           font: "inherit",
@@ -222,7 +222,7 @@ export function CompanySurveyPanel({
       </button>
 
       {open && (
-        <div style={{ padding: "14px 4px 4px", display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ padding: "14px 14px 14px", borderTop: "1px solid var(--color-border)", display: "flex", flexDirection: "column", gap: 14 }}>
           {completed && loaded && (
             hirerDone ? (
               <p className="request-card__desc" style={{ margin: 0 }}>

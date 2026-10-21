@@ -56,7 +56,7 @@ export function InstructorSurveyPanel({ requestId }: { requestId: string }) {
   const svg = qrSvg(surveyLinkUrl(typeof window === "undefined" ? "" : window.location.origin, current.token), 260);
 
   return (
-    <div style={{ marginTop: 12 }}>
+    <div style={{ marginTop: 12, ...(open ? { border: "1.5px solid #5FD0AA", borderRadius: "var(--radius-s)", background: "#fff" } : {}) }}>
       <button
         type="button"
         aria-expanded={open}
@@ -68,7 +68,7 @@ export function InstructorSurveyPanel({ requestId }: { requestId: string }) {
           width: "100%",
           padding: "10px 12px",
           background: "#fff",
-          border: open ? "1.5px solid #5FD0AA" : "1px solid var(--color-border)",
+          border: open ? "0" : "1px solid var(--color-border)",
           borderRadius: "var(--radius-s)",
           cursor: "pointer",
           font: "inherit",
@@ -99,7 +99,7 @@ export function InstructorSurveyPanel({ requestId }: { requestId: string }) {
       </button>
 
       {open && (
-        <div style={{ padding: "14px 4px 4px", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+        <div style={{ padding: "14px 14px 14px", borderTop: "1px solid var(--color-border)", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
           {survey.opens_at && (
             <p className="request-card__desc" style={{ margin: 0, color: "var(--color-ink-soft)" }}>
               開始日：{formatOpenDate(survey.opens_at)}
