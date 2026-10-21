@@ -876,6 +876,7 @@ function RequesterRequestCard({
           <div className="request-card__meta">
             <span>{isBroadcast ? (st.key === "accepted" || st.key === "completed" ? `決定：${instr.name || "講師"} 先生` : "公募依頼") : `依頼先：${instr.name || "講師"} 先生`}</span>
             <span>{fmtDate(r.created_at)}</span>
+            <span>案件番号 {r.request_id.slice(0, 8)}</span>
           </div>
         </div>
         <span className={`status-badge status-badge--${st.key === "quoted" ? "quoted" : st.key === "rejected" ? "rejected" : st.key}`}>{st.label}</span>
@@ -1046,6 +1047,8 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [instructorMap, setInstructorMap] = useState<Record<string, { name?: string | null; contact_email?: string | null; contact_phone?: string | null }>>({});
   const [currentTab, setCurrentTab] = useState("all");
+  const [search, setSearch] = useState("");
+  const [year, setYear] = useState("");
   const [unseenCount, setUnseenCount] = useState(0);
 
   const load = useCallback(async () => {
@@ -1116,9 +1119,13 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
 
   const filtered = useMemo(() => {
     if (!all) return [];
-    if (currentTab === "all") return all;
-    return all.filter((r) => requesterDisplayStatus(r).key === currentTab);
-  }, [all, currentTab]);
+    const kw = search.trim().toLowerCase();
+    return all
+      .filter((r) => currentTab === "all" || requesterDisplayStatus(r).key === currentTab)
+      .filter((r) => !year || new Date(r.created_at).getFullYear() === Number(year))
+      .filter((r) => !kw || `${r.title} ${r.description} ${r.location ?? ""} ${r.request_id}`.toLowerCase().includes(kw));
+  }, [all, currentTab, search, year]);
+  const years = useMemo(() => [...new Set((all || []).map((r) => new Date(r.created_at).getFullYear()))].sort((x, y) => y - x), [all]);
   const mineLinked = useMineLinkedInstructors(
     (all || []).flatMap((r) => (r.instructor_responses || []).map((x) => x.instructor_id)),
   );
@@ -1161,6 +1168,19 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
             </button>
           );
         })}
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 14px" }}>
+        <input type="search" placeholder="案件名・キーワード・案件番号で探す" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: "1 1 220px", minWidth: 0 }} />
+        {years.length > 1 && (
+          <select aria-label="年" value={year} onChange={(e) => setYear(e.target.value)} style={{ flex: "0 0 120px" }}>
+            <option value="">すべての年</option>
+            {years.map((y) => (
+              <option key={y} value={String(y)}>
+                {y}年
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       {loadError && <p style={{ color: "var(--color-danger)", fontSize: 13 }}>読み込みエラー：{loadError}</p>}
       {!loadError && all === null && <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p>}
