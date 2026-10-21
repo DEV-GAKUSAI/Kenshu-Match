@@ -24,6 +24,7 @@ import {
   submitInstructorResponse,
 } from "@/lib/requests/instructor-responses";
 import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
+import { DetailsView } from "@/components/requests/DetailsView";
 import { InvoicePanel } from "@/components/requests/InvoicePanel";
 import { OrderPanel } from "@/components/requests/OrderPanel";
 import { InternalNote } from "@/components/requests/InternalNote";
@@ -893,6 +894,13 @@ function RequesterRequestCard({
         {budgetText(r) ? <span className="instructor-card__tag">{budgetText(r)}</span> : null}
         {r.participant_count ? <span className="instructor-card__tag">対象{r.participant_count}名</span> : null}
       </div>
+      {costLines(r).length > 0 && (
+        <div className="request-card__response" style={{ margin: "0 0 14px", fontSize: 13 }}>
+          <strong>費用・支払い</strong>
+          {costLines(r).join("　／　")}
+        </div>
+      )}
+      <DetailsView r={r} />
 
       {isBroadcast ? (
         <>

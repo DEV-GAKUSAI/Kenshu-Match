@@ -53,6 +53,8 @@ function InvoiceInner() {
   }
   if (inv === undefined) return <main className="detail-page"><p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p></main>;
 
+  const perUnit = inv.amount_unit === "hour" || inv.amount_unit === "day";
+  const qty = perUnit && inv.quantity ? inv.quantity : 0;
   const base = inv.base_amount ?? 0;
   const extra = inv.extra_amount ?? 0;
   const taxText = inv.tax_mode === "excluded" ? "（税別）" : inv.tax_mode === "included" ? "（税込）" : "";
@@ -89,6 +91,15 @@ function InvoiceInner() {
             <dt>講師料</dt>
             <dd>{inv.base_amount ? formatMoney(inv.base_amount, inv.amount_unit, inv.tax_mode) : "別途協議"}</dd>
           </div>
+          {qty > 0 && (
+            <div>
+              <dt>{inv.amount_unit === "hour" ? "時間数" : "日数"}</dt>
+              <dd>
+                {qty}
+                {inv.amount_unit === "hour" ? "時間" : "日"}
+              </dd>
+            </div>
+          )}
           {extra > 0 && (
             <div>
               <dt>追加費用</dt>
@@ -98,11 +109,11 @@ function InvoiceInner() {
               </dd>
             </div>
           )}
-          {inv.base_amount && inv.amount_unit === "total" && (
+          {inv.base_amount && (inv.amount_unit === "total" || qty > 0) && (
             <div>
               <dt>ご請求額合計</dt>
               <dd>
-                <strong>¥{(base + extra).toLocaleString("ja-JP")}{taxText}</strong>
+                <strong>¥{((qty > 0 ? base * qty : base) + extra).toLocaleString("ja-JP")}{taxText}</strong>
               </dd>
             </div>
           )}

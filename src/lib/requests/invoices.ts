@@ -17,6 +17,7 @@ export type InvoiceRow = {
   base_amount: number | null;
   amount_unit: string | null;
   tax_mode: string | null;
+  quantity: number | null;
   extra_amount: number | null;
   extra_note: string | null;
   note: string | null;
@@ -60,8 +61,8 @@ export async function getInvoice(invoiceId: string): Promise<InvoiceRow | null> 
   return (data as InvoiceRow | null) ?? null;
 }
 
-export async function submitInvoice(responseId: string, extra: number | null, extraNote: string | null, note: string | null) {
-  const { data, error } = await db().rpc("submit_invoice", { p_response_id: responseId, p_extra: extra, p_extra_note: extraNote, p_note: note });
+export async function submitInvoice(responseId: string, extra: number | null, extraNote: string | null, note: string | null, quantity: number | null = null) {
+  const { data, error } = await db().rpc("submit_invoice", { p_response_id: responseId, p_extra: extra, p_extra_note: extraNote, p_note: note, p_quantity: quantity });
   return { invoiceId: (data as string | null) ?? null, error: error ? { message: message(error.message) } : null };
 }
 
