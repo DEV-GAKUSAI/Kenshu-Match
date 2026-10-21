@@ -27,6 +27,7 @@ import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/compo
 import { DetailsView } from "@/components/requests/DetailsView";
 import { InvoicePanel } from "@/components/requests/InvoicePanel";
 import { OrderPanel } from "@/components/requests/OrderPanel";
+import { FlowPanel } from "@/components/requests/FlowPanel";
 import { InternalNote } from "@/components/requests/InternalNote";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { finalizeResponse } from "@/lib/requests/actions";
@@ -1022,6 +1023,7 @@ function RequesterRequestCard({
       )}
 
       <InternalNote requestId={r.request_id} requesterId={userId} />
+      <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} />
 
       {st.key === "pending" && (
         <div className="request-card__actions">
@@ -1185,6 +1187,9 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Link href="/my-instructors" className="btn btn--ghost btn--sm">
             自社の講師台帳
+          </Link>
+          <Link href="/my-partners" className="btn btn--ghost btn--sm">
+            関係先の管理
           </Link>
           <Link href="/post-request" className="btn btn--primary btn--sm">
             研修を依頼する（公募）
