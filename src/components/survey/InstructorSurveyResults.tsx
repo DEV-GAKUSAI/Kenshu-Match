@@ -35,7 +35,7 @@ type Comment = {
 const fmt = (v: number | null | undefined) => (v === null || v === undefined ? "—" : Number(v).toFixed(1));
 
 /** The instructor's 研修アンケート results: averages, comments, reply and report. */
-export function InstructorSurveyResults({ instructorId }: { instructorId: string }) {
+export function InstructorSurveyResults({ instructorId, bare = false }: { instructorId: string; bare?: boolean }) {
   const { showToast } = useToast();
   const supabase = useMemo(() => createClient() as unknown as SupabaseClient, []);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -75,6 +75,7 @@ export function InstructorSurveyResults({ instructorId }: { instructorId: string
   }
 
   if (!summary) {
+    if (bare) return <p style={{ fontSize: 13, color: "var(--color-ink-soft)", margin: "0 0 16px" }}>まだ回答はありません。</p>;
     return (
       <ProfileSection title="研修アンケートの結果">
         <p style={{ fontSize: 13, color: "var(--color-ink-soft)", margin: 0 }}>まだ回答はありません。</p>
@@ -82,16 +83,8 @@ export function InstructorSurveyResults({ instructorId }: { instructorId: string
     );
   }
 
-  return (
-    <ProfileSection
-      title="研修アンケートの結果"
-      meta={
-        <>
-          {fmt(summary.overall_avg)} / 4（{summary.answer_count}件）
-        </>
-      }
-    >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+  const content = (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14, paddingBottom: 16 }}>
       <div style={{ fontSize: 13, color: "var(--color-ink-soft)" }}>
         参加者 {fmt(summary.participant_avg)}（{summary.participant_count}件）／ 依頼企業 {fmt(summary.hirer_avg)}（{summary.hirer_count}件）／ リンク発行 {summary.links_issued}件
       </div>
@@ -166,7 +159,20 @@ export function InstructorSurveyResults({ instructorId }: { instructorId: string
           )}
         </div>
       ))}
-    </div>
+      </div>
+  );
+  if (bare) return content;
+
+  return (
+    <ProfileSection
+      title="研修アンケートの結果"
+      meta={
+        <>
+          {fmt(summary.overall_avg)} / 4（{summary.answer_count}件）
+        </>
+      }
+    >
+      {content}
     </ProfileSection>
   );
 }
