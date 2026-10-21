@@ -191,7 +191,7 @@ export function ApplicantRow({
               {changes.map((c) => (
                 <div key={c.change_id}>
                   {new Date(c.created_at).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Tokyo" })}　
-                  {c.old_price ? formatMoney(c.old_price, response.quote_unit, null) : "承諾のみ"} → {formatMoney(c.new_price, response.quote_unit, null)}
+                  {c.old_price ? formatMoney(c.old_price, response.quote_unit, null) : "承諾のみ"} → {formatMoney(c.new_price, response.quote_unit, response.quote_tax_mode)}
                 </div>
               ))}
             </div>

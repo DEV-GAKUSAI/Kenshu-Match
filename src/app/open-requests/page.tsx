@@ -363,7 +363,7 @@ export default function OpenRequestsPage() {
       <div className="status-tabs">
         {(
           [
-            ["recommended", "あなたにおすすめ", counts.recommended],
+            ["recommended", "あなたに合う案件", counts.recommended],
             ["open", "応募可能", counts.open],
             ["mine", "応募済み", counts.mine],
           ] as const
@@ -449,7 +449,7 @@ export default function OpenRequestsPage() {
             {filterActive
               ? "条件に合う案件はありません"
               : currentTab === "recommended"
-              ? "現在、あなたにおすすめの案件はありません"
+              ? "現在、あなたに合う案件はありません"
               : currentTab === "open"
                 ? "現在、応募可能な公募依頼はありません"
                 : "まだ応募した公募依頼はありません"}

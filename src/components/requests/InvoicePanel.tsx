@@ -12,6 +12,7 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
   const [inv, setInv] = useState<InvoiceRow | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState(false);
+  const [qty, setQty] = useState("");
   const [extra, setExtra] = useState("");
   const [extraNote, setExtraNote] = useState("");
   const [note, setNote] = useState("");
@@ -22,6 +23,7 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
   async function load() {
     const i = await getInvoiceForResponse(responseId);
     setInv(i);
+    setQty(i?.quantity ? String(i.quantity) : "");
     setExtra(i?.extra_amount ? String(i.extra_amount) : "");
     setExtraNote(i?.extra_note ?? "");
     setNote(i?.note ?? "");
@@ -39,8 +41,10 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
   async function submit() {
     const n = extra.trim() === "" ? null : Number(extra);
     if (n !== null && (!Number.isFinite(n) || n < 0)) return showToast("追加費用は0以上の数字で入力してください。");
+    const q = qty.trim() === "" ? null : Number(qty);
+    if (q !== null && (!Number.isFinite(q) || q <= 0)) return showToast("時間数・日数は0より大きい数字で入力してください。");
     setBusy(true);
-    const { error } = await submitInvoice(responseId, n, extraNote.trim() || null, note.trim() || null);
+    const { error } = await submitInvoice(responseId, n, extraNote.trim() || null, note.trim() || null, q);
     setBusy(false);
     if (error) return showToast(error.message);
     showToast(inv ? "請求書を修正して再提出しました。" : "請求書を提出しました。");
@@ -114,6 +118,10 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
       )}
       {open && canEdit && (
         <div className="inline-quote-form is-open" style={{ marginTop: 10 }}>
+          <div className="form-field">
+            <label>時間数・日数（「時間あたり」「1日あたり」の見積りのとき）</label>
+            <input type="number" min={0} step="any" inputMode="decimal" placeholder="例：7（時間または日）" value={qty} onChange={(e) => setQty(e.target.value)} />
+          </div>
           <div className="form-field">
             <label>追加費用（円・任意）</label>
             <input type="number" min={0} inputMode="numeric" placeholder="例：交通費 5000" value={extra} onChange={(e) => setExtra(e.target.value)} />
