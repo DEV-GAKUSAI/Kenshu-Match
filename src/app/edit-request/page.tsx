@@ -61,7 +61,7 @@ function EditRequestInner() {
         prep: r.prep_cost ?? "unspecified",
         paymentTerms: r.payment_terms ?? "",
       });
-      setDetails({ days: normalizeDays(r.schedule_days), allDaysRequired: !!r.all_days_required, skills: r.req_skills ?? "", prep: r.req_prep ?? "" });
+      setDetails({ days: normalizeDays(r.schedule_days), allDaysRequired: !!r.all_days_required, skills: r.req_skills ?? "", prep: r.req_prep ?? "", optionIds: r.detail_option_ids ?? [], otherTools: r.detail_other_tools ?? "" });
       setState("ok");
     })();
     return () => {
@@ -115,7 +115,7 @@ function EditRequestInner() {
         preferred_schedule: schedule.trim() || null,
         participant_count: n,
         ...moneyPayload(money!),
-        ...detailsPayload(details!),
+        ...detailsPayload(details!, true),
       })
       .eq("request_id", id)
       .eq("status", "pending");
