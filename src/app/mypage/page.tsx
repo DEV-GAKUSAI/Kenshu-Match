@@ -1006,7 +1006,7 @@ function RequesterRequestCard({
         <div className="request-card__response" style={{ margin: "0 0 14px", fontSize: 13 }}>
           <strong>募集職種と決定状況（決定／必要）</strong>
           {progressSummary(slotStats)}
-          {totalRemaining(slotStats) > 0 ? `　（あと${totalRemaining(slotStats)}名）` : "　（募集枠がすべて埋まりました）"}
+          {totalRemaining(slotStats) > 0 ? (r.status === "pending" ? `　（あと${totalRemaining(slotStats)}名）` : `　（募集は終了しました。空き枠 ${totalRemaining(slotStats)}名）`) : "　（募集枠がすべて埋まりました）"}
           {r.status === "pending" && selectedResps.length > 0 && totalRemaining(slotStats) > 0 && (
             <div style={{ marginTop: 8 }}>
               <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={handleCloseRecruiting}>
