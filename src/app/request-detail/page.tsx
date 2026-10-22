@@ -14,6 +14,7 @@ import {
 import { budgetText, costLines, isHourly, normalUnit, quoteText, UNIT_OPTIONS, type MoneyFields } from "@/lib/requests/money";
 import { DetailsView } from "@/components/requests/DetailsView";
 import { normalizeSlots } from "@/lib/requests/roles";
+import { STAGE_LABEL, stageOf } from "@/lib/requests/stage";
 import { requestFormatLabel } from "@/lib/requests/schedule";
 import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
 import { ResponseManage } from "@/components/requests/ResponseManage";
@@ -300,6 +301,10 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
       }
     }
     const message = quoteMessage.trim() || null;
+    if (normalizeSlots(r?.role_slots).length > 0 && !apply.role.trim()) {
+      showToast("希望する役割・職種を選んでください");
+      return;
+    }
     setBusy(true);
     const ap = applyPayload(apply);
     const { error } =
@@ -349,6 +354,11 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
             {myResponse.message ? myResponse.message : "（メッセージなし）"}
             <MyResponseDetails response={myResponse} />
             <ResponseManage response={myResponse} request={r} onChanged={load} />
+            {(myResponse.action === "accept" || myResponse.action === "quote") && (
+              <div style={{ marginTop: 6, fontSize: 12.5, color: "var(--color-ink-soft)" }}>
+                <span>選考状況：{STAGE_LABEL[stageOf(myResponse, r.status === "accepted" || r.status === "completed")]}</span>
+              </div>
+            )}
             {myResponse.action === "withdrawn" && r.status === "pending" && !myResponse.is_selected && !reapplying && (
               <div style={{ marginTop: 10 }}>
                 <button type="button" className="btn btn--primary btn--sm" onClick={() => setReapplying(true)}>

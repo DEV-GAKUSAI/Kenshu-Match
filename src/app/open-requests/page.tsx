@@ -257,6 +257,11 @@ export default function OpenRequestsPage() {
 
   async function quickApply(r: RequestWithJoins) {
     if (!user) return;
+    // A request with roles needs a role choice, which only the detail page asks for.
+    if (normalizeSlots(r.role_slots).length > 0) {
+      window.location.assign(`/request-detail?id=${r.request_id}`);
+      return;
+    }
     const lines = [
       budgetText(r),
       r.participant_count ? `対象${r.participant_count}名` : null,

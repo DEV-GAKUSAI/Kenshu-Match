@@ -49,11 +49,12 @@ export function ApplyFields({ value, onChange, roleOptions }: { value: ApplyValu
       </div>
       <div className="form-field">
         <label>
-          希望する役割・職種<span className="field-optional">任意</span>
+          希望する役割・職種
+          {roleOptions && roleOptions.length > 0 ? <span className="field-optional" style={{ color: "var(--color-danger, #c0392b)" }}>必須</span> : <span className="field-optional">任意</span>}
         </label>
         {roleOptions && roleOptions.length > 0 ? (
           <Select value={value.role} onChange={(e) => set({ role: e.target.value })}>
-            <option value="">選ばない</option>
+            <option value="">選んでください</option>
             {roleOptions.map((name) => (
               <option key={name} value={name}>
                 {name}

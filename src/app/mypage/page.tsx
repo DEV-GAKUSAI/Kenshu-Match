@@ -329,6 +329,7 @@ function InstructorRequestCard({
   async function submitQuote() {
     const price = Number(quotePrice) || null;
     if (!price) return showToast("見積り金額を入力してください");
+    if (normalizeSlots(r.role_slots).length > 0 && !apply.role.trim()) return showToast("希望する役割・職種を選んでください");
     setBusy(true);
     const { error } = await submitInstructorResponse(r.request_id, userId, "quote", { quote_price: price, quote_tax_mode: quoteTax || null, message: quoteMessage.trim() || null, ...applyPayload(apply) });
     setBusy(false);
@@ -377,7 +378,7 @@ function InstructorRequestCard({
           <ResponseManage response={myResponse} request={r} onChanged={onChanged} />
           {(myResponse.action === "accept" || myResponse.action === "quote") && (
             <div style={{ marginTop: 6, fontSize: 12.5, color: "var(--color-ink-soft)" }}>
-              選考状況：<strong>{STAGE_LABEL[stageOf(myResponse, r.status === "accepted" || r.status === "completed")]}</strong>
+              <span>選考状況：{STAGE_LABEL[stageOf(myResponse, r.status === "accepted" || r.status === "completed")]}</span>
             </div>
           )}
         </div>
@@ -767,7 +768,10 @@ function requesterDisplayStatus(r: ReqWithJoins) {
   const slotList = normalizeSlots(r.role_slots);
   const decidedCount = (r.instructor_responses || []).filter((x) => x.is_selected).length;
   if (slotList.length > 0 && decidedCount > 0) return { key: "quoted", label: `募集中（決定${decidedCount}/${totalNeeded(slotList)}名）` };
-  if (anyActionable) return { key: "quoted", label: "見積り提示中" };
+  if (anyActionable) {
+    const anyQuote = (r.instructor_responses || []).some((x) => x.action === "quote");
+    return { key: "quoted", label: anyQuote ? "見積り提示中" : "応募あり" };
+  }
   return { key: "pending", label: "対応待ち" };
 }
 
@@ -795,6 +799,7 @@ function RequesterRequestCard({
     const meeting = meetings[response.response_id];
     const canBook =
       requestOpen &&
+      response.stage !== "passed" &&
       (response.action === "accept" || response.action === "quote") &&
       mineLinked.has(response.instructor_id) &&
       (!meeting || meeting.status === "cancelled" || Date.parse(meeting.ends_at) <= Date.now());
@@ -846,8 +851,11 @@ function RequesterRequestCard({
   // The whole request is one slim row; its details open on a click (same as the instructor side).
   const [cardOpen, setCardOpen] = useState(false);
   const attention = (st.key === "pending" || st.key === "quoted") && (newApplicants > 0 || answerNeeded > 0);
+  const decidedNames = selectedResps.map((sr) => instructorMap[sr.instructor_id]?.name || "講師");
   const rowWho = isBroadcast
-    ? st.key === "accepted" || st.key === "completed"
+    ? hasRoles && decidedNames.length > 0
+      ? `決定：${decidedNames.join("・")} 先生`
+      : st.key === "accepted" || st.key === "completed"
       ? `決定：${instr.name || "講師"} 先生`
       : "公募依頼"
     : `依頼先：${instr.name || "講師"} 先生`;
@@ -1137,8 +1145,8 @@ function RequesterRequestCard({
                           </Select>
                         ) : null
                       }
-                      // While nobody is chosen yet the whole request can still be cancelled.
-                      onCancelRequest={st.key === "quoted" ? handleCancel : undefined}
+                      // While nobody is decided yet the whole request can still be cancelled (after that, close recruiting instead).
+                      onCancelRequest={st.key === "quoted" && selectedResps.length === 0 ? handleCancel : undefined}
                     />
                   );
                 })}
@@ -1245,7 +1253,7 @@ function RequesterRequestCard({
             </>
           )}
 
-      {st.key === "accepted" && (
+      {(st.key === "accepted" || (hasRoles && r.status === "pending" && selectedResps.length >= 1)) && (
         <>
           {hasRoles && selectedResps.length > 1 ? (
             <div className="contact-box">
@@ -1269,11 +1277,13 @@ function RequesterRequestCard({
             <div>電話番号：{instr.contact_phone || "未登録"}</div>
           </div>
           )}
-          <div className="request-card__actions">
-            <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={handleComplete}>
-              研修完了として記録する
-            </button>
-          </div>
+          {st.key === "accepted" && (
+            <div className="request-card__actions">
+              <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={handleComplete}>
+                研修完了として記録する
+              </button>
+            </div>
+          )}
         </>
       )}
 
@@ -1389,7 +1399,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
     ["all", "すべて"],
     ...((all || []).some((r) => r.publish_state === "draft") ? ([["draft", "下書き"]] as [string, string][]) : []),
     ["pending", "対応待ち"],
-    ["quoted", "見積り提示中"],
+    ["quoted", "応募・見積り"],
     ["accepted", "承諾済み"],
     ["completed", "完了"],
     ["rejected", "却下"],
