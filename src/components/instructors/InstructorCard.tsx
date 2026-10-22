@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { InstructorPublicDirectoryRow, WorkStyle } from "@/types/database";
 import { surveyScoreLabel } from "@/lib/survey/summary";
+import { periodLabel, rolesLabel } from "@/lib/mine/availability";
 
 const WORK_STYLE_LABEL: Record<WorkStyle, string> = {
   ONLINE: "オンラインのみ",
@@ -25,6 +26,11 @@ export function InstructorCard({ instructor: ins, maxTags = DEFAULT_MAX_TAGS }: 
   const tags = allTags.slice(0, maxTags);
   const moreTags = allTags.length - tags.length;
   const occupation = (ins.occupation_names || []).join("、");
+  const availParts = [
+    ins.available_from || ins.available_until ? `稼働 ${periodLabel(ins)}` : "",
+    (ins.training_languages || []).join("・"),
+    rolesLabel(ins.roles).replace("、", "・"),
+  ].filter(Boolean);
   const hasScore = !!ins.survey_count && ins.survey_avg != null;
 
   return (
@@ -58,6 +64,12 @@ export function InstructorCard({ instructor: ins, maxTags = DEFAULT_MAX_TAGS }: 
         {occupation && (
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             {occupation}
+          </div>
+        )}
+
+        {availParts.length > 0 && (
+          <div style={{ fontSize: 12, color: "var(--color-ink-soft)", marginBottom: 8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {availParts.join(" ／ ")}
           </div>
         )}
 

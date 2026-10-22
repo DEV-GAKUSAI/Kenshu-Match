@@ -361,7 +361,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
                 <span>選考状況：{STAGE_LABEL[stageOf(myResponse, r.status === "accepted" || r.status === "completed")]}</span>
               </div>
             )}
-            {myResponse.action === "withdrawn" && r.status === "pending" && !myResponse.is_selected && !reapplying && (
+            {myResponse.action === "withdrawn" && r.status === "pending" && !myResponse.is_selected && !reapplying && !deadlinePassed(r.apply_deadline) && (
               <div style={{ marginTop: 10 }}>
                 <button type="button" className="btn btn--primary btn--sm" onClick={() => setReapplying(true)}>
                   再度応募する

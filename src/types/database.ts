@@ -201,6 +201,11 @@ export type InstructorPublicDirectoryRow = {
   /** Added on the page from the 研修アンケート summary (not a column of the view). */
   /** 職種 from Mine (not a column of the view). */
   occupation_names?: string[] | null;
+  /** 稼働条件 from Mine (not columns of the view). */
+  available_from?: string | null;
+  available_until?: string | null;
+  training_languages?: string[] | null;
+  roles?: string[] | null;
   survey_avg?: number | null;
   survey_count?: number | null;
 };

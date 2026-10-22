@@ -9,6 +9,7 @@ import { withSurveySummary } from "@/lib/survey/summary-client";
 import { sortBySurveyAvg } from "@/lib/survey/summary";
 import { InstructorCard } from "@/components/instructors/InstructorCard";
 import type { InstructorPublicDirectoryRow } from "@/types/database";
+import { EMPTY_AVAILABILITY_FILTER, ROLE_LABEL, isAvailabilityFilterActive, matchesAvailability, type AvailabilityFilter } from "@/lib/mine/availability";
 import "./instructors.css";
 
 const ONLINE_AREA = "オンライン対応（全国）";
@@ -61,6 +62,8 @@ function MultiSelect({
     </details>
   );
 }
+
+const AVAIL_LANGUAGES = ["日本語", "英語", "ベトナム語", "中国語", "その他"];
 
 const RATE_PRESETS = [3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 20000];
 
@@ -148,9 +151,10 @@ function InstructorsPageInner() {
   const [rateMax, setRateMax] = useState("");
   const [keyword, setKeyword] = useState("");
   const [includeNoRate, setIncludeNoRate] = useState(false);
+  const [avail, setAvail] = useState<AvailabilityFilter>(EMPTY_AVAILABILITY_FILTER);
 
   // Only one filter panel open at a time (mirrors the legacy <details> group behavior).
-  const [openPanel, setOpenPanel] = useState<"area" | "format" | "expertise" | "rateMin" | "rateMax" | null>(null);
+  const [openPanel, setOpenPanel] = useState<"area" | "format" | "expertise" | "rateMin" | "rateMax" | "lang" | "role" | null>(null);
   const areaOpen = openPanel === "area";
   const formatOpen = openPanel === "format";
   const expertiseOpen = openPanel === "expertise";
@@ -236,6 +240,7 @@ function InstructorsPageInner() {
     setRateMax("");
     setKeyword("");
     setIncludeNoRate(false);
+    setAvail(EMPTY_AVAILABILITY_FILTER);
   }
 
   const filtered = useMemo(() => {
@@ -265,11 +270,12 @@ function InstructorsPageInner() {
         if (min != null && (ins.desired_rate_max == null || ins.desired_rate_max < min)) return false;
         if (max != null && (ins.desired_rate_min == null || ins.desired_rate_min > max)) return false;
       }
+      if (!matchesAvailability(ins, avail)) return false;
       if (selectedFields.length && !selectedFields.some((f) => (ins.expertise_fields || []).includes(f))) return false;
       if (categorySubcategoryNames && !(ins.expertise_fields || []).some((f) => categorySubcategoryNames.includes(f))) return false;
       return true;
     });
-  }, [allInstructors, selectedAreas, selectedFormats, selectedFields, rateMin, rateMax, categorySubcategoryNames, keyword, includeNoRate]);
+  }, [allInstructors, selectedAreas, selectedFormats, selectedFields, rateMin, rateMax, categorySubcategoryNames, keyword, includeNoRate, avail]);
 
   return (
     <main className="list-page" style={{ maxWidth: 1240 }}>
@@ -363,6 +369,45 @@ function InstructorsPageInner() {
           条件をリセット
         </button>
       </div>
+
+      <div className="filter-bar" style={{ gridTemplateColumns: "1.4fr 1fr 1fr", marginTop: 12 }}>
+        <div className="filter-field">
+          <label>稼働できる期間（この期間すべて）</label>
+          <span style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
+            <input type="date" aria-label="期間の始まり" value={avail.from} onChange={(e) => setAvail((a) => ({ ...a, from: e.target.value }))} />
+            <span>〜</span>
+            <input type="date" aria-label="期間の終わり" value={avail.until} min={avail.from || undefined} onChange={(e) => setAvail((a) => ({ ...a, until: e.target.value }))} />
+          </span>
+        </div>
+        <div className="filter-field">
+          <label>対応できる言語（複数選択可）</label>
+          <MultiSelect
+            options={AVAIL_LANGUAGES}
+            selected={avail.languages}
+            onToggle={(v) => setAvail((a) => ({ ...a, languages: a.languages.includes(v) ? a.languages.filter((x) => x !== v) : [...a.languages, v] }))}
+            open={openPanel === "lang"}
+            onOpenChange={(o) => setOpenPanel(o ? "lang" : (p) => (p === "lang" ? null : p))}
+          />
+        </div>
+        <div className="filter-field">
+          <label>講師の経験（複数選択可）</label>
+          <MultiSelect
+            options={["メイン講師", "サブ講師"]}
+            selected={avail.roles.map((r) => ROLE_LABEL[r])}
+            onToggle={(v) => {
+              const key = v === "メイン講師" ? "MAIN" : "SUB";
+              setAvail((a) => ({ ...a, roles: a.roles.includes(key) ? a.roles.filter((x) => x !== key) : [...a.roles, key] }));
+            }}
+            open={openPanel === "role"}
+            onOpenChange={(o) => setOpenPanel(o ? "role" : (p) => (p === "role" ? null : p))}
+          />
+        </div>
+      </div>
+      {isAvailabilityFilterActive(avail) && (
+        <p style={{ fontSize: 12, color: "var(--color-ink-soft)", margin: "6px 0 0" }}>
+          言語・経験を選ぶと、Mineで未入力の講師は表示されません。期間が未入力の講師は「いつでも稼働可」として表示されます。
+        </p>
+      )}
 
       <div className="instructor-grid">
         {loading && <div className="empty-state"><p className="empty-state__desc">読み込み中…</p></div>}
