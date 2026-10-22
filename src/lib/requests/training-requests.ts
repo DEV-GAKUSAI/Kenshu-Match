@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import type { PublishState, RequestFormat, RequesterType } from "@/types/database";
+import type { RoleSlot } from "@/lib/requests/roles";
 import type { ScheduleDay } from "@/lib/requests/schedule";
 import type { BudgetUnit, CostShare, PrepCost, TaxMode } from "@/lib/requests/money";
 
@@ -23,6 +24,7 @@ export interface NewTrainingRequestInput {
   detail_option_ids?: string[];
   detail_other_tools?: string | null;
   publish_state?: PublishState;
+  role_slots?: RoleSlot[];
   participant_count: number | null;
   preferred_format: RequestFormat;
   location: string | null;

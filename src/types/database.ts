@@ -126,6 +126,7 @@ export type TrainingRequestRow = {
   detail_option_ids: string[];
   detail_other_tools: string | null;
   publish_state: PublishState;
+  role_slots: unknown;
   preferred_format: RequestFormat;
   location: string | null;
   preferred_schedule: string | null;
@@ -147,6 +148,7 @@ export type InstructorResponseRow = {
   quote_tax_mode: "included" | "excluded" | null;
   apply_all_days: "all" | "partial" | "none" | null;
   apply_role: string | null;
+  role_slot_id: string | null;
   apply_experience: string | null;
   apply_materials: "existing" | "create" | "either" | null;
   message: string | null;
@@ -223,6 +225,7 @@ export type OpenRequestPublicPreviewRow = {
   detail_option_ids: string[];
   detail_other_tools: string | null;
   publish_state: PublishState;
+  role_slots: unknown;
 };
 
 /** A meeting booked on the instructor's Mine page (sent by Mine; see 124_kenshu_mine_meetings.sql). */

@@ -40,10 +40,16 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: "unavailable" }, { status: 503, headers: noStore });
 
   const items: Record<string, { email: string | null; phone: string | null }> = {};
+  // Several instructors can be decided on one request (role slots): also answer per instructor.
+  const byInstructor: Record<string, { email: string | null; phone: string | null }> = {};
   for (const row of unlocks ?? []) {
     const { data } = await admin.rpc("mine_contact_for_kenshu", { p_kenshu_user_id: row.instructor_id as string });
     const contact = data as { email?: string | null; phone?: string | null } | null;
-    if (contact) items[row.request_id as string] = { email: contact.email ?? null, phone: contact.phone ?? null };
+    if (contact) {
+      const one = { email: contact.email ?? null, phone: contact.phone ?? null };
+      items[row.request_id as string] = one;
+      byInstructor[row.instructor_id as string] = one;
+    }
   }
-  return NextResponse.json({ items }, { headers: noStore });
+  return NextResponse.json({ items, byInstructor }, { headers: noStore });
 }

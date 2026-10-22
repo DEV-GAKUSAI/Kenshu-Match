@@ -30,7 +30,8 @@ import { OrderPanel } from "@/components/requests/OrderPanel";
 import { FlowPanel } from "@/components/requests/FlowPanel";
 import { InternalNote } from "@/components/requests/InternalNote";
 import { ResponseManage } from "@/components/requests/ResponseManage";
-import { finalizeResponse } from "@/lib/requests/actions";
+import { finalizeResponse, closeRecruiting } from "@/lib/requests/actions";
+import { normalizeSlots, openSlots, progressSummary, slotCounts, slotsSummary, totalNeeded, totalRemaining } from "@/lib/requests/roles";
 import { setPublishState } from "@/lib/requests/training-requests";
 import { budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
 import type { InstructorResponseRow, TrainingRequestRow } from "@/types/database";
@@ -246,6 +247,8 @@ function instructorDisplayStatus(r: ReqWithJoins, myResponse: InstructorResponse
   if (lostToOther) return { key: "notselected", label: "今回は決定されませんでした" };
   if (r.status === "completed") return { key: "completed", label: "完了" };
   if (r.status === "accepted") return { key: "accepted", label: "承諾済み" };
+  // Role slots: this instructor is decided while the company still recruits for other slots.
+  if (myResponse?.is_selected) return { key: "accepted", label: "決定済み" };
   if (myResponse) {
     if (myResponse.action === "reject" || myResponse.action === "withdrawn") return { key: "rejected", label: myResponse.action === "withdrawn" ? "取り下げ済み" : "却下済み" };
     return { key: "quoted", label: "返信済み（依頼者の確定待ち）" };
@@ -415,7 +418,7 @@ function InstructorRequestCard({
         </div>
       )}
 
-      {(st.key === "accepted" || st.key === "completed") && <InstructorSurveyPanel requestId={r.request_id} />}
+      {(r.status === "accepted" || r.status === "completed") && <InstructorSurveyPanel requestId={r.request_id} />}
 
       {meeting && <MineMeetingLine meeting={meeting} viewer="instructor" finished={r.status === "completed"} />}
 
@@ -753,6 +756,10 @@ function requesterDisplayStatus(r: ReqWithJoins) {
     return { key: "pending", label: "対応待ち" };
   }
   const anyActionable = (r.instructor_responses || []).some((x) => x.action === "accept" || x.action === "quote");
+  // Role slots: some are decided, others are still recruiting.
+  const slotList = normalizeSlots(r.role_slots);
+  const decidedCount = (r.instructor_responses || []).filter((x) => x.is_selected).length;
+  if (slotList.length > 0 && decidedCount > 0) return { key: "quoted", label: `募集中（決定${decidedCount}/${totalNeeded(slotList)}名）` };
   if (anyActionable) return { key: "quoted", label: "見積り提示中" };
   return { key: "pending", label: "対応待ち" };
 }
@@ -807,6 +814,13 @@ function RequesterRequestCard({
   const isBroadcast = !r.target_instructor_id;
   const resp = (r.instructor_responses || [])[0] || null;
   const selectedResp = (r.instructor_responses || []).find((x) => x.is_selected);
+  // Role slots (#42): 必要・決定・残 per role; several instructors can be decided.
+  const roleSlots = normalizeSlots(r.role_slots);
+  const hasRoles = roleSlots.length > 0;
+  const slotStats = slotCounts(roleSlots, r.instructor_responses || []);
+  const slotsOpen = openSlots(slotStats);
+  const selectedResps = (r.instructor_responses || []).filter((x) => x.is_selected);
+  const [slotPick, setSlotPick] = useState<Record<string, string>>({});
   const instrBase = instructorMap[r.target_instructor_id || (selectedResp || resp)?.instructor_id || ""] || {};
   // Full name only when the instructor released it for THIS request (direct accept, or 情報を公開する).
   const releasedForThis = (r.target_instructor_id ? resp : selectedResp)?.released_name?.trim() || null;
@@ -838,16 +852,32 @@ function RequesterRequestCard({
     `案件番号 ${r.request_id.slice(0, 8)}`,
   ].filter(Boolean);
 
-  async function finalize(responseId: string, instructorId: string) {
+  async function finalize(responseId: string, instructorId: string, roleSlotId?: string | null) {
     setBusy(true);
-    const { error } = await finalizeResponse({ requestId: r.request_id, responseId, instructorId });
+    const { error } = await finalizeResponse({ requestId: r.request_id, responseId, instructorId, roleSlotId });
     setBusy(false);
     if (error) return showToast(`エラー：${error.message}`);
-    showToast("依頼を確定しました。連絡先が開示されます。");
+    showToast(hasRoles ? "講師を決定しました。連絡先が開示されます。" : "依頼を確定しました。連絡先が開示されます。");
     onChanged();
   }
 
   async function handleFinalizeApplicant(responseId: string, instructorId: string) {
+    let slotId: string | null = null;
+    if (hasRoles) {
+      slotId = slotPick[responseId] || (slotsOpen.length === 1 ? slotsOpen[0].id : null);
+      if (!slotId) return showToast("決定する職種を選んでください。");
+      const slotName = roleSlots.find((x) => x.id === slotId)?.name ?? "";
+      const lastOne = totalRemaining(slotStats) <= 1;
+      const { ok } = await confirm({
+        title: `この講師を「${slotName}」に決定しますか？`,
+        message: lastOne
+          ? "これで募集枠がすべて埋まります。他の応募者には決定されなかった旨が表示されます。"
+          : "残りの枠は引き続き募集できます。他の応募者には、募集を終了したときにお知らせします。",
+        confirmLabel: "決定する",
+      });
+      if (!ok) return;
+      return finalize(responseId, instructorId, slotId);
+    }
     const { ok } = await confirm({
       title: "この講師に決定しますか？",
       message: "他の応募者には決定されなかった旨が表示されます。",
@@ -855,6 +885,22 @@ function RequesterRequestCard({
     });
     if (!ok) return;
     await finalize(responseId, instructorId);
+  }
+
+  async function handleCloseRecruiting() {
+    const { ok } = await confirm({
+      title: "募集を終了しますか？",
+      message: `空いている枠（あと${totalRemaining(slotStats)}名）の募集をやめます。他の応募者には、決定されなかった旨が表示されます。元に戻せません。`,
+      confirmLabel: "募集を終了する",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setBusy(true);
+    const { error } = await closeRecruiting(r.request_id);
+    setBusy(false);
+    if (error) return showToast(`エラー：${error.message}`);
+    showToast("募集を終了しました。");
+    onChanged();
   }
 
   async function handleCancel() {
@@ -955,7 +1001,21 @@ function RequesterRequestCard({
           {costLines(r).join("　／　")}
         </div>
       )}
-      <DetailsView r={r} />
+      <DetailsView r={r} showRoles={false} />
+      {hasRoles && (
+        <div className="request-card__response" style={{ margin: "0 0 14px", fontSize: 13 }}>
+          <strong>募集職種と決定状況（決定／必要）</strong>
+          {progressSummary(slotStats)}
+          {totalRemaining(slotStats) > 0 ? `　（あと${totalRemaining(slotStats)}名）` : "　（募集枠がすべて埋まりました）"}
+          {r.status === "pending" && selectedResps.length > 0 && totalRemaining(slotStats) > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={handleCloseRecruiting}>
+                募集を終了する
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {isBroadcast ? (
         <>
@@ -1046,6 +1106,19 @@ function RequesterRequestCard({
                       meetingButton={button}
                       busy={busy}
                       onDecide={() => handleFinalizeApplicant(a.response_id, a.instructor_id)}
+                      decidedLabel={a.is_selected ? `決定${hasRoles ? `：${roleSlots.find((x) => x.id === a.role_slot_id)?.name ?? ""}` : ""}` : null}
+                      decideExtra={
+                        hasRoles && slotsOpen.length > 1 ? (
+                          <Select aria-label="決定する職種" value={slotPick[a.response_id] ?? ""} onChange={(e) => setSlotPick({ ...slotPick, [a.response_id]: e.target.value })} style={{ minWidth: 150 }}>
+                            <option value="">職種を選ぶ</option>
+                            {slotsOpen.map((sl) => (
+                              <option key={sl.id} value={sl.id}>
+                                {sl.name}
+                              </option>
+                            ))}
+                          </Select>
+                        ) : null
+                      }
                       // While nobody is chosen yet the whole request can still be cancelled.
                       onCancelRequest={st.key === "quoted" ? handleCancel : undefined}
                     />
@@ -1130,21 +1203,48 @@ function RequesterRequestCard({
         <CompanySurveyPanel requestId={r.request_id} title={r.title} participantCount={r.participant_count} completed={st.key === "completed"} />
       )}
 
-      {(st.key === "accepted" || st.key === "completed") && (selectedResp || (resp?.is_selected ? resp : null)) && (
-        <>
-          <OrderPanel responseId={(selectedResp ?? resp)!.response_id} role="requester" />
-          <InvoicePanel responseId={(selectedResp ?? resp)!.response_id} role="requester" />
-        </>
-      )}
+      {(st.key === "accepted" || st.key === "completed") && hasRoles && selectedResps.length > 1
+        ? selectedResps.map((sr) => (
+            <div key={sr.response_id} style={{ marginTop: 10 }}>
+              <strong style={{ fontSize: 13 }}>
+                {instructorMap[sr.instructor_id]?.name || "講師"} 先生
+                {sr.role_slot_id ? `（${roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? ""}）` : ""}
+              </strong>
+              <OrderPanel responseId={sr.response_id} role="requester" />
+              <InvoicePanel responseId={sr.response_id} role="requester" />
+            </div>
+          ))
+        : (st.key === "accepted" || st.key === "completed") && (selectedResp || (resp?.is_selected ? resp : null)) && (
+            <>
+              <OrderPanel responseId={(selectedResp ?? resp)!.response_id} role="requester" />
+              <InvoicePanel responseId={(selectedResp ?? resp)!.response_id} role="requester" />
+            </>
+          )}
 
       {st.key === "accepted" && (
         <>
+          {hasRoles && selectedResps.length > 1 ? (
+            <div className="contact-box">
+              <strong>連絡先：</strong>
+              {selectedResps.map((sr) => (
+                <div key={sr.response_id} style={{ marginTop: 6 }}>
+                  <div>
+                    {instructorMap[sr.instructor_id]?.name || "講師"} 先生
+                    {sr.role_slot_id ? `（${roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? ""}）` : ""}
+                  </div>
+                  <div>メール：{instructorMap[sr.instructor_id]?.contact_email || "未登録"}</div>
+                  <div>電話番号：{instructorMap[sr.instructor_id]?.contact_phone || "未登録"}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
           <div className="contact-box">
             <strong>連絡先：</strong>
             <div>名前：{instr.name || "講師"}</div>
             <div>メール：{instr.contact_email || "未登録"}</div>
             <div>電話番号：{instr.contact_phone || "未登録"}</div>
           </div>
+          )}
           <div className="request-card__actions">
             <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={handleComplete}>
               研修完了として記録する
@@ -1198,7 +1298,16 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
     // A released name belongs to ONE reply (one request), so it is not put into this
     // per-instructor map: otherwise a name released on one request would show on all of them.
     // The cards and rows read response.released_name themselves.
-    const acceptedIds = rows.filter((r) => r.status === "accepted" || r.status === "completed").map((r) => resolveInstructorId(r)).filter((x): x is string => !!x);
+    const acceptedIds = [
+      ...new Set(
+        rows.flatMap((r) => {
+          const own = r.status === "accepted" || r.status === "completed" ? resolveInstructorId(r) : null;
+          // every decided instructor (several when the request has role slots)
+          const chosen = (r.instructor_responses || []).filter((x) => x.is_selected).map((x) => x.instructor_id);
+          return [...(own ? [own] : []), ...chosen];
+        }),
+      ),
+    ];
     if (acceptedIds.length) {
       const unlocked = await getInstructorContacts(acceptedIds);
       Object.keys(unlocked).forEach((id) => {
@@ -1206,7 +1315,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
       });
     }
     // Contact details of the decided instructor come from Mine (email, optional phone).
-    const decided = rows.filter((r) => r.status === "accepted" || r.status === "completed");
+    const decided = rows.filter((r) => r.status === "accepted" || r.status === "completed" || (r.instructor_responses || []).some((x) => x.is_selected));
     if (decided.length) {
       try {
         const res = await fetch("/api/requests/decided-contact", {
@@ -1216,7 +1325,10 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
           cache: "no-store",
         });
         if (res.ok) {
-          const body = (await res.json()) as { items?: Record<string, { email: string | null; phone: string | null }> };
+          const body = (await res.json()) as { items?: Record<string, { email: string | null; phone: string | null }>; byInstructor?: Record<string, { email: string | null; phone: string | null }> };
+          for (const [id, contact] of Object.entries(body.byInstructor ?? {})) {
+            map[id] = { ...map[id], contact_email: contact.email, contact_phone: contact.phone };
+          }
           for (const r of decided) {
             const contact = body.items?.[r.request_id];
             const id = resolveInstructorId(r);

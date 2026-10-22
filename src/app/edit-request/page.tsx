@@ -10,6 +10,8 @@ import { useToast } from "@/components/common/Toast";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { createClient } from "@/lib/supabase/client";
 import { DetailsForm, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
+import { RolesForm, rolesPayload, rolesToForm, type RolesFormValue } from "@/components/requests/RolesForm";
+import { normalizeSlots } from "@/lib/requests/roles";
 import { MoneyForm, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
 import { normalUnit } from "@/lib/requests/money";
 import { normalizeDays } from "@/lib/requests/schedule";
@@ -33,6 +35,9 @@ function EditRequestInner() {
   const [participants, setParticipants] = useState("");
   const [money, setMoney] = useState<MoneyFormValue | null>(null);
   const [details, setDetails] = useState<DetailsFormValue | null>(null);
+  const [roles, setRoles] = useState<RolesFormValue>([]);
+  const [hadRoles, setHadRoles] = useState(false);
+  const [decidedBySlot, setDecidedBySlot] = useState<Record<string, number>>({});
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -41,11 +46,18 @@ function EditRequestInner() {
     let alive = true;
     (async () => {
       const db = createClient() as unknown as SupabaseClient;
-      const { data } = await db.from("training_requests").select("*, instructor_responses(is_selected)").eq("request_id", id).maybeSingle();
+      const { data } = await db.from("training_requests").select("*, instructor_responses(is_selected, role_slot_id)").eq("request_id", id).maybeSingle();
       if (!alive) return;
-      const r = data as (TrainingRequestRow & { instructor_responses: { is_selected: boolean }[] }) | null;
+      const r = data as (TrainingRequestRow & { instructor_responses: { is_selected: boolean; role_slot_id: string | null }[] }) | null;
       if (!r || r.requester_id !== user.id) return setState("missing");
-      if (r.status !== "pending" || (r.instructor_responses || []).some((x) => x.is_selected)) return setState("locked");
+      const slots = normalizeSlots(r.role_slots);
+      // A request with role slots can be edited while it is still recruiting; others lock at the first decision.
+      if (r.status !== "pending" || (slots.length === 0 && (r.instructor_responses || []).some((x) => x.is_selected))) return setState("locked");
+      setRoles(rolesToForm(slots));
+      setHadRoles(slots.length > 0);
+      const taken: Record<string, number> = {};
+      for (const x of r.instructor_responses || []) if (x.is_selected && x.role_slot_id) taken[x.role_slot_id] = (taken[x.role_slot_id] ?? 0) + 1;
+      setDecidedBySlot(taken);
       setTitle(r.title);
       setDescription(r.description);
       setFormat(r.preferred_format);
@@ -102,6 +114,10 @@ function EditRequestInner() {
     if (!title.trim() || !description.trim()) return setError("タイトルと依頼内容を入力してください。");
     if (format !== "online" && !location.trim()) return setError("対面の場合は実施場所の入力が必要です。");
     if (!Number.isInteger(n) || n < 1) return setError("対象人数を入力してください。");
+    const slotsNow = rolesPayload(roles).role_slots;
+    const tooLow = slotsNow.find((sl) => (decidedBySlot[sl.id] ?? 0) > sl.headcount);
+    if (tooLow) return setError(`「${tooLow.name}」はすでに${decidedBySlot[tooLow.id]}名決定済みのため、それより少なくできません。`);
+    if (Object.keys(decidedBySlot).some((sid) => !slotsNow.some((sl) => sl.id === sid))) return setError("決定済みの講師がいる職種は削除できません。");
     setError("");
     setSaving(true);
     const db = createClient() as unknown as SupabaseClient;
@@ -116,6 +132,8 @@ function EditRequestInner() {
         participant_count: n,
         ...moneyPayload(money!),
         ...detailsPayload(details!, true),
+        // Only when roles are used (or were), so editing keeps working before migration 168 is run.
+        ...(hadRoles || rolesPayload(roles).role_slots.length > 0 ? rolesPayload(roles) : {}),
       })
       .eq("request_id", id)
       .eq("status", "pending");
@@ -171,6 +189,7 @@ function EditRequestInner() {
               <label htmlFor="edSchedule">希望日程（おおまかに）</label>
               <input type="text" id="edSchedule" value={schedule} onChange={(e) => setSchedule(e.target.value)} />
             </div>
+            <RolesForm value={roles} onChange={setRoles} decided={decidedBySlot} />
             <DetailsForm value={details} onChange={setDetails} idPrefix="ed" />
             <div className="form-field">
               <label htmlFor="edDescription">依頼内容の詳細</label>
