@@ -16,7 +16,8 @@ import { DetailsView } from "@/components/requests/DetailsView";
 import { requestFormatLabel } from "@/lib/requests/schedule";
 import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
 import { ResponseManage } from "@/components/requests/ResponseManage";
-import { declineInterview, releaseInstructorName, submitInstructorResponse } from "@/lib/requests/instructor-responses";
+import { MyResponseDetails } from "@/components/requests/ApplicationDetails";
+import { declineInterview, reapplyResponse, releaseInstructorName, submitInstructorResponse } from "@/lib/requests/instructor-responses";
 import { useConfirm } from "@/components/common/ConfirmDialog";
 import { flushMineNotices } from "@/lib/mine/flush-client";
 import { getRequesterContacts } from "@/lib/requester/profile";
@@ -152,6 +153,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
   const [quoteTax, setQuoteTax] = useState<"" | "included" | "excluded">("");
   const [quoteMessage, setQuoteMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reapplying, setReapplying] = useState(false);
   const actionsRef = useRef<HTMLDivElement>(null);
 
   async function load() {
@@ -298,14 +300,19 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
     }
     const message = quoteMessage.trim() || null;
     setBusy(true);
-    const { error } = await submitInstructorResponse(requestId, instructorId, price ? "quote" : "accept", { quote_price: price, quote_tax_mode: quoteTax || null, message, ...applyPayload(apply) });
+    const ap = applyPayload(apply);
+    const { error } =
+      myResponse && myResponse.action === "withdrawn"
+        ? await reapplyResponse(myResponse.response_id, { price, tax: quoteTax || null, message, ...ap })
+        : await submitInstructorResponse(requestId, instructorId, price ? "quote" : "accept", { quote_price: price, quote_tax_mode: quoteTax || null, message, ...ap });
     setBusy(false);
     if (error) {
       showToast(`エラー：${error.message}`);
       return;
     }
     flushMineNotices();
-    showToast("応募しました。依頼者の確定操作をお待ちください。");
+    setReapplying(false);
+    showToast(myResponse ? "再度応募しました。依頼者の確定操作をお待ちください。" : "応募しました。依頼者の確定操作をお待ちください。");
     load();
   }
 
@@ -339,7 +346,15 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
               {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? quoteText(myResponse) : myResponse.action === "withdrawn" ? "取り下げ" : "却下"}
             </strong>
             {myResponse.message ? myResponse.message : "（メッセージなし）"}
+            <MyResponseDetails response={myResponse} />
             <ResponseManage response={myResponse} request={r} onChanged={load} />
+            {myResponse.action === "withdrawn" && r.status === "pending" && !myResponse.is_selected && !reapplying && (
+              <div style={{ marginTop: 10 }}>
+                <button type="button" className="btn btn--primary btn--sm" onClick={() => setReapplying(true)}>
+                  再度応募する
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -368,7 +383,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
           </p>
         )}
 
-        {!myResponse && r.status === "pending" && (
+        {(!myResponse || reapplying) && r.status === "pending" && (
           <>
             <div className="inline-quote-form is-open" ref={actionsRef} style={{ marginTop: 24 }}>
               <div className="form-field">
@@ -391,10 +406,18 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
                 </label>
                 <textarea rows={2} placeholder="補足があればご記入ください" value={quoteMessage} onChange={(e) => setQuoteMessage(e.target.value)} />
               </div>
-              <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={submitApply}>
-                応募する
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={submitApply}>
+                  {myResponse ? "再度応募する" : "応募する"}
+                </button>
+                {myResponse && (
+                  <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={() => setReapplying(false)}>
+                    やめる
+                  </button>
+                )}
+              </div>
             </div>
+            {!myResponse && (
             <div className="request-card__actions" style={{ marginTop: 12 }}>
               <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={() => respond("reject")}>
                 興味なし（却下）
@@ -413,6 +436,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
                 この依頼を非表示にする
               </button>
             </div>
+            )}
           </>
         )}
 

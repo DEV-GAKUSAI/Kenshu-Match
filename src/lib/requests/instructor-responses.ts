@@ -93,6 +93,8 @@ export async function declineInterview(responseId: string) {
 const REVISE_ERRORS: Record<string, string> = {
   not_editable: "すでに確定または受付終了のため、変更できません。",
   not_found: "対象の応募が見つかりません。",
+  not_reapplicable: "すでに確定または受付終了のため、再度応募できません。",
+  bad_apply: "応募内容の入力を確認してください。",
   bad_price: "見積り金額は1円以上の整数で入力してください。",
   bad_message: "メッセージが長すぎます。",
 };
@@ -116,7 +118,34 @@ export async function withdrawResponse(responseId: string) {
   return { error: error ? { message: reviseMessage(error.message) } : null };
 }
 
-export type ResponseChange = { change_id: string; kind: "revised" | "withdrawn"; old_price: number | null; new_price: number | null; created_at: string };
+/** 再度応募する（取り下げ後・確定前のみ）. */
+export async function reapplyResponse(
+  responseId: string,
+  v: {
+    price: number | null;
+    tax: "included" | "excluded" | null;
+    message: string | null;
+    apply_all_days: string | null;
+    apply_role: string | null;
+    apply_experience: string | null;
+    apply_materials: string | null;
+  },
+) {
+  const supabase = createClient() as unknown as SupabaseClient;
+  const { error } = await supabase.rpc("reapply_instructor_response", {
+    p_response_id: responseId,
+    p_price: v.price,
+    p_tax: v.price ? v.tax : null,
+    p_message: v.message,
+    p_all_days: v.apply_all_days,
+    p_role: v.apply_role,
+    p_experience: v.apply_experience,
+    p_materials: v.apply_materials,
+  });
+  return { error: error ? { message: reviseMessage(error.message) } : null };
+}
+
+export type ResponseChange = { change_id: string; kind: "revised" | "withdrawn" | "reapplied"; old_price: number | null; new_price: number | null; created_at: string };
 
 export async function getResponseChanges(responseId: string): Promise<ResponseChange[]> {
   const supabase = createClient() as unknown as SupabaseClient;
