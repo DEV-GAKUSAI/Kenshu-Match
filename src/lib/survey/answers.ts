@@ -34,12 +34,20 @@ export function isSurveyToken(value: unknown): value is string {
 
 export type SurveyScores = Record<SurveyQuestionKey, number>;
 
+/** One instructor an answer is about (a request can have several chosen instructors). */
+export type SurveyInstructor = { id: string; name: string | null; role: string | null };
+
+/** The five answers (and an optional comment) about one instructor. instructorId is null only for the old one-instructor form. */
+export type SurveyEntry = { instructorId: string | null; scores: SurveyScores; comment: string | null };
+
 export type ParsedSubmission = {
   token: string;
-  scores: SurveyScores;
-  comment: string | null;
   name: string | null;
+  entries: SurveyEntry[];
 };
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const MAX_SURVEY_ENTRIES = 10;
 
 function cleanText(value: unknown, max: number): string | null | undefined {
   if (value === undefined || value === null) return null;
@@ -49,13 +57,7 @@ function cleanText(value: unknown, max: number): string | null | undefined {
   return trimmed === "" ? null : trimmed;
 }
 
-/** Returns the cleaned submission, or null when anything is missing or wrong. */
-export function parseSubmission(body: unknown): ParsedSubmission | null {
-  if (!body || typeof body !== "object") return null;
-  const b = body as Record<string, unknown>;
-  if (!isSurveyToken(b.token)) return null;
-
-  const answers = b.answers;
+function parseScores(answers: unknown): SurveyScores | null {
   if (!answers || typeof answers !== "object") return null;
   const scores = {} as SurveyScores;
   for (const q of SURVEY_QUESTIONS) {
@@ -63,11 +65,44 @@ export function parseSubmission(body: unknown): ParsedSubmission | null {
     if (typeof v !== "number" || !Number.isInteger(v) || v < 1 || v > 4) return null;
     scores[q.key] = v;
   }
+  return scores;
+}
 
-  const comment = cleanText(b.comment, COMMENT_MAX);
+/**
+ * Returns the cleaned submission, or null when anything is missing or wrong.
+ * New form: { token, name?, entries: [{ instructorId, answers, comment? }] } (one per instructor).
+ * Old form (one instructor): { token, answers, comment?, name? }.
+ */
+export function parseSubmission(body: unknown): ParsedSubmission | null {
+  if (!body || typeof body !== "object") return null;
+  const b = body as Record<string, unknown>;
+  if (!isSurveyToken(b.token)) return null;
   const name = cleanText(b.name, NAME_MAX);
-  if (comment === undefined || name === undefined) return null;
-  return { token: b.token, scores, comment, name };
+  if (name === undefined) return null;
+
+  if (Array.isArray(b.entries)) {
+    if (b.entries.length === 0 || b.entries.length > MAX_SURVEY_ENTRIES) return null;
+    const seen = new Set<string>();
+    const entries: SurveyEntry[] = [];
+    for (const raw of b.entries) {
+      if (!raw || typeof raw !== "object") return null;
+      const e = raw as Record<string, unknown>;
+      if (typeof e.instructorId !== "string" || !UUID_RE.test(e.instructorId)) return null;
+      const id = e.instructorId.toLowerCase();
+      if (seen.has(id)) return null;
+      seen.add(id);
+      const scores = parseScores(e.answers);
+      const comment = cleanText(e.comment, COMMENT_MAX);
+      if (!scores || comment === undefined) return null;
+      entries.push({ instructorId: id, scores, comment });
+    }
+    return { token: b.token, name, entries };
+  }
+
+  const scores = parseScores(b.answers);
+  const comment = cleanText(b.comment, COMMENT_MAX);
+  if (!scores || comment === undefined) return null;
+  return { token: b.token, name, entries: [{ instructorId: null, scores, comment }] };
 }
 
 export function unansweredCount(answers: Partial<SurveyScores>): number {

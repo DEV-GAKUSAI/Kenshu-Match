@@ -1218,7 +1218,13 @@ function RequesterRequestCard({
       )}
 
       {(st.key === "accepted" || st.key === "completed") && (
-        <CompanySurveyPanel requestId={r.request_id} title={r.title} participantCount={r.participant_count} completed={st.key === "completed"} />
+        <CompanySurveyPanel
+          requestId={r.request_id}
+          title={r.title}
+          participantCount={r.participant_count}
+          completed={st.key === "completed"}
+          instructors={(selectedResps.length ? selectedResps.map((sr) => ({ id: sr.instructor_id, name: instructorMap[sr.instructor_id]?.name || null, role: roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? null })) : r.target_instructor_id ? [{ id: r.target_instructor_id, name: instrBase.name || null, role: null }] : [])}
+        />
       )}
 
       {(st.key === "accepted" || st.key === "completed") && hasRoles && selectedResps.length > 1
