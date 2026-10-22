@@ -22,6 +22,8 @@ export type UserRole = "INSTRUCTOR" | "COMPANY" | "INDIVIDUAL" | "ADMIN";
 
 export type WorkStyle = "ONLINE" | "ONSITE" | "HYBRID";
 
+export type PublishState = "draft" | "published" | "paused";
+
 export type RequestFormat = "online" | "offline" | "both";
 
 export type RequesterType = "company" | "individual";
@@ -123,6 +125,7 @@ export type TrainingRequestRow = {
   req_prep: string | null;
   detail_option_ids: string[];
   detail_other_tools: string | null;
+  publish_state: PublishState;
   preferred_format: RequestFormat;
   location: string | null;
   preferred_schedule: string | null;
@@ -219,6 +222,7 @@ export type OpenRequestPublicPreviewRow = {
   req_prep: string | null;
   detail_option_ids: string[];
   detail_other_tools: string | null;
+  publish_state: PublishState;
 };
 
 /** A meeting booked on the instructor's Mine page (sent by Mine; see 124_kenshu_mine_meetings.sql). */
