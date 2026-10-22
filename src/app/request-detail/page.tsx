@@ -74,7 +74,7 @@ function NotFoundBlock() {
     <div className="empty-state" style={{ paddingTop: 80 }}>
       <p className="empty-state__title">依頼が見つかりませんでした</p>
       <p className="empty-state__desc">削除されたか、公募が終了している可能性があります。</p>
-      <p className="empty-state__desc">公開範囲が限られている依頼は、対象の講師アカウントでログインすると表示されます。</p>
+      <p className="empty-state__desc">公開範囲が限られている依頼（登録講師限定・招待限定）は、対象の講師にだけ表示されます。</p>
       <Link href="/open-requests" className="btn btn--primary" style={{ marginTop: 16 }}>
         一覧に戻る
       </Link>
