@@ -22,6 +22,7 @@ import {
   markResponsesSeenByRequester,
   releaseInstructorName,
   submitInstructorResponse,
+  setResponseStage,
 } from "@/lib/requests/instructor-responses";
 import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
 import { DetailsView } from "@/components/requests/DetailsView";
@@ -31,6 +32,7 @@ import { FlowPanel } from "@/components/requests/FlowPanel";
 import { InternalNote } from "@/components/requests/InternalNote";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { finalizeResponse, closeRecruiting } from "@/lib/requests/actions";
+import { stageOf, STAGE_LABEL } from "@/lib/requests/stage";
 import { normalizeSlots, openSlots, progressSummary, slotCounts, slotsSummary, totalNeeded, totalRemaining } from "@/lib/requests/roles";
 import { setPublishState } from "@/lib/requests/training-requests";
 import { budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
@@ -373,6 +375,11 @@ function InstructorRequestCard({
           </strong>
           {myResponse.message || "（メッセージなし）"}
           <ResponseManage response={myResponse} request={r} onChanged={onChanged} />
+          {(myResponse.action === "accept" || myResponse.action === "quote") && (
+            <div style={{ marginTop: 6, fontSize: 12.5, color: "var(--color-ink-soft)" }}>
+              選考状況：<strong>{STAGE_LABEL[stageOf(myResponse, r.status === "accepted" || r.status === "completed")]}</strong>
+            </div>
+          )}
         </div>
       )}
       {myResponse?.is_selected && (r.status === "accepted" || r.status === "completed") && <OrderPanel responseId={myResponse.response_id} role="instructor" />}
@@ -447,7 +454,7 @@ function InstructorRequestCard({
                 </Select>
               </div>
             </div>
-            <ApplyFields value={apply} onChange={setApply} />
+            <ApplyFields value={apply} onChange={setApply} roleOptions={normalizeSlots(r.role_slots).map((x) => x.name)} />
             <div className="form-field">
               <label>メッセージ</label>
               <textarea rows={2} placeholder="見積りの補足があればご記入ください" value={quoteMessage} onChange={(e) => setQuoteMessage(e.target.value)} />
@@ -861,10 +868,19 @@ function RequesterRequestCard({
     onChanged();
   }
 
+  async function changeStage(responseId: string, value: "" | "screening" | "negotiation" | "passed") {
+    setBusy(true);
+    const { error } = await setResponseStage(responseId, value || null);
+    setBusy(false);
+    if (error) return showToast(`エラー：${error.message}`);
+    onChanged();
+  }
+
   async function handleFinalizeApplicant(responseId: string, instructorId: string) {
     let slotId: string | null = null;
     if (hasRoles) {
-      slotId = slotPick[responseId] || (slotsOpen.length === 1 ? slotsOpen[0].id : null);
+      const applied = (r.instructor_responses || []).find((x) => x.response_id === responseId)?.apply_role;
+      slotId = slotPick[responseId] || slotsOpen.find((x) => x.name === applied)?.id || (slotsOpen.length === 1 ? slotsOpen[0].id : null);
       if (!slotId) return showToast("決定する職種を選んでください。");
       const slotName = roleSlots.find((x) => x.id === slotId)?.name ?? "";
       const lastOne = totalRemaining(slotStats) <= 1;
@@ -1106,10 +1122,12 @@ function RequesterRequestCard({
                       meetingButton={button}
                       busy={busy}
                       onDecide={() => handleFinalizeApplicant(a.response_id, a.instructor_id)}
+                      stage={stageOf(a, st.key === "accepted" || st.key === "completed")}
+                      onStageChange={st.key === "accepted" || st.key === "completed" || a.is_selected ? undefined : (v) => changeStage(a.response_id, v)}
                       decidedLabel={a.is_selected ? `決定${hasRoles ? `：${roleSlots.find((x) => x.id === a.role_slot_id)?.name ?? ""}` : ""}` : null}
                       decideExtra={
                         hasRoles && slotsOpen.length > 1 ? (
-                          <Select aria-label="決定する職種" value={slotPick[a.response_id] ?? ""} onChange={(e) => setSlotPick({ ...slotPick, [a.response_id]: e.target.value })} style={{ minWidth: 150 }}>
+                          <Select aria-label="決定する職種" value={slotPick[a.response_id] ?? slotsOpen.find((x) => x.name === a.apply_role)?.id ?? ""} onChange={(e) => setSlotPick({ ...slotPick, [a.response_id]: e.target.value })} style={{ minWidth: 150 }}>
                             <option value="">職種を選ぶ</option>
                             {slotsOpen.map((sl) => (
                               <option key={sl.id} value={sl.id}>

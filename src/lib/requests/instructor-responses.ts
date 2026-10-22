@@ -156,3 +156,10 @@ export async function getResponseChanges(responseId: string): Promise<ResponseCh
     .order("created_at", { ascending: false });
   return (data as unknown as ResponseChange[] | null) ?? [];
 }
+
+/** Company: set the selection stage of an applicant (書類確認 / 条件調整 / 見送り; null = 応募). */
+export async function setResponseStage(responseId: string, stage: "screening" | "negotiation" | "passed" | null) {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("set_response_stage", { p_response_id: responseId, p_stage: stage });
+  return { error };
+}

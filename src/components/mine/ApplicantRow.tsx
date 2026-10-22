@@ -7,6 +7,8 @@ import { quoteText } from "@/lib/requests/money";
 import { getResponseChanges, type ResponseChange } from "@/lib/requests/instructor-responses";
 import { MineMeetingLine } from "@/components/mine/MineMeeting";
 import { formatMeetingTimeClient } from "@/lib/mine/meeting-format";
+import { Select } from "@/components/ui/Select";
+import { MANUAL_STAGE_OPTIONS, STAGE_LABEL, type StageKey } from "@/lib/requests/stage";
 import type { InstructorResponseRow, KenshuMineMeetingRow } from "@/types/database";
 
 const isActive = (meeting: KenshuMineMeetingRow) => meeting.status !== "cancelled" && Date.parse(meeting.ends_at) > Date.now();
@@ -42,6 +44,8 @@ export function ApplicantRow({
   onCancelRequest,
   decidedLabel,
   decideExtra,
+  stage,
+  onStageChange,
 }: {
   name: string;
   response: InstructorResponseRow;
@@ -56,6 +60,10 @@ export function ApplicantRow({
   decidedLabel?: string | null;
   /** Shown before the decide button (the role chooser when the request has role slots). */
   decideExtra?: ReactNode;
+  /** The selection stage to show (応募 is not shown as a chip). */
+  stage?: StageKey;
+  /** Set while the company can still change the stage by hand (nobody decided for this applicant). */
+  onStageChange?: (value: "" | "screening" | "negotiation" | "passed") => void;
 }) {
   const [open, setOpen] = useState(false);
   const [changes, setChanges] = useState<ResponseChange[]>([]);
@@ -145,6 +153,8 @@ export function ApplicantRow({
             </strong>
             <span style={pill("var(--color-accent-soft)", "var(--color-accent-text)")}>{offer}</span>
             {decidedLabel && <span style={pill("#17B08A", "#fff")}>{decidedLabel}</span>}
+            {!decidedLabel && (stage === "screening" || stage === "negotiation") && <span style={pill("#EEF1FF", "#3B4BB8")}>{STAGE_LABEL[stage]}</span>}
+            {!decidedLabel && stage === "passed" && <span style={pill("#EEE", "#666")}>見送り</span>}
             {!decidedLabel && interview === "requested" && <span style={pill("#FFF1DB", "#9A5B0C")}>面談依頼中</span>}
             {!decidedLabel && interview === "released" && <span style={pill("#E3F7F0", "#0E7A5F")}>情報公開済み</span>}
             {declined && <span style={pill("#EEE", "#666")}>辞退</span>}
@@ -198,6 +208,21 @@ export function ApplicantRow({
                   この講師に決定する
                 </button>
               </>
+            )}
+            {onStageChange && !decidedLabel && !declined && (
+              <Select
+                aria-label="選考段階"
+                value={response.stage ?? ""}
+                disabled={busy}
+                onChange={(e) => onStageChange(e.target.value as "" | "screening" | "negotiation" | "passed")}
+                style={{ minWidth: 130 }}
+              >
+                {MANUAL_STAGE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    選考段階：{o.label}
+                  </option>
+                ))}
+              </Select>
             )}
             {onCancelRequest && (
               <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={onCancelRequest}>
