@@ -264,7 +264,7 @@ export default function PostRequestPage() {
             const preview = { preferred_format: format, ...money_, ...days_ };
             return (
               <div>
-                <div className="notice-banner is-visible" style={{ marginBottom: 16 }}>
+                <div className="request-card__response" style={{ marginBottom: 16, fontSize: 13.5, fontWeight: 700 }}>
                   確認画面です。講師にはこのように表示されます。まだ公開されていません。
                 </div>
                 <div className="request-card">
