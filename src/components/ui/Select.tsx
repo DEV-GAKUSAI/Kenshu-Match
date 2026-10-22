@@ -22,7 +22,7 @@ import {
  */
 
 type OptionProps = { value?: string | number; disabled?: boolean; children?: ReactNode };
-type Opt = { value: string; label: ReactNode; text: string; disabled: boolean };
+type Opt = { value: string; label: ReactNode; text: string; disabled: boolean; group?: string };
 
 export type SelectChange = { target: { value: string; name?: string }; currentTarget: { value: string; name?: string } };
 
@@ -47,17 +47,22 @@ function textOf(node: ReactNode): string {
   return "";
 }
 
-function collect(children: ReactNode, out: Opt[]) {
+function collect(children: ReactNode, out: Opt[], group?: string) {
   Children.forEach(children, (child) => {
     if (!isValidElement(child)) return;
     if (child.type === Fragment) {
-      collect((child.props as { children?: ReactNode }).children, out);
+      collect((child.props as { children?: ReactNode }).children, out, group);
+      return;
+    }
+    if (child.type === "optgroup") {
+      const gp = child.props as { label?: string; children?: ReactNode };
+      collect(gp.children, out, gp.label);
       return;
     }
     if (child.type === "option") {
       const p = (child as ReactElement<OptionProps>).props;
       const text = textOf(p.children);
-      out.push({ value: p.value === undefined ? text : String(p.value), label: p.children, text, disabled: !!p.disabled });
+      out.push({ value: p.value === undefined ? text : String(p.value), label: p.children, text, disabled: !!p.disabled, group });
     }
   });
 }
@@ -169,19 +174,21 @@ export function Select({ value, onChange, children, id, name, required, disabled
       {open && (
         <div ref={list} id={listId} role="listbox" className={`ksel__panel${dropUp ? " is-up" : ""}`}>
           {options.map((o, i) => (
+            <Fragment key={`${o.value}-${i}`}>
+              {o.group && o.group !== options[i - 1]?.group && <div className="ksel__group">{o.group}</div>}
             <div
-              key={`${o.value}-${i}`}
               data-i={i}
               role="option"
               aria-selected={o.value === current}
               aria-disabled={o.disabled || undefined}
-              className={`ksel__opt${o.value === current ? " is-selected" : ""}${i === active ? " is-active" : ""}${o.disabled ? " is-disabled" : ""}`}
+              className={`ksel__opt${o.value === current ? " is-selected" : ""}${i === active ? " is-active" : ""}${o.disabled ? " is-disabled" : ""}${o.group ? " is-grouped" : ""}`}
               onMouseEnter={() => setActive(i)}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => choose(i)}
             >
               <span>{o.label}</span>
             </div>
+            </Fragment>
           ))}
         </div>
       )}

@@ -229,10 +229,14 @@ export default function PostRequestPage() {
                 {subcategories.length === 0 ? (
                   <option value="">分野データを読み込めませんでした</option>
                 ) : (
-                  subcategories.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.categoryName} ／ {s.name}
-                    </option>
+                  [...new Set(subcategories.map((s) => s.categoryName))].map((cat) => (
+                    <optgroup key={cat} label={cat}>
+                      {subcategories.filter((s) => s.categoryName === cat).map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))
                 )}
               </Select>

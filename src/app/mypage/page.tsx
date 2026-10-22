@@ -942,7 +942,7 @@ function RequesterRequestCard({
               </div>
             </>
           ) : st.key === "pending" || st.key === "quoted" ? (
-            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 0, ...(listOpen ? { border: "1.5px solid #5FD0AA", borderRadius: "var(--radius-s)", background: "#fff" } : {}) }}>
               <button
                 type="button"
                 aria-expanded={listOpen}
@@ -954,7 +954,7 @@ function RequesterRequestCard({
                   width: "100%",
                   padding: "10px 12px",
                   background: "#fff",
-                  border: listOpen ? "1.5px solid #5FD0AA" : "1px solid var(--color-border)",
+                  border: listOpen ? "0" : "1px solid var(--color-border)",
                   borderRadius: "var(--radius-s)",
                   cursor: "pointer",
                   font: "inherit",
@@ -990,8 +990,9 @@ function RequesterRequestCard({
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </button>
-              {listOpen &&
-                sortedApplicants.map((a) => {
+              {listOpen && (
+                <div style={{ padding: "0 12px 12px", display: "flex", flexDirection: "column", gap: 10, borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
+                {sortedApplicants.map((a) => {
                   const { meeting, button } = meetingParts(a);
                   return (
                     <ApplicantRow
@@ -1007,6 +1008,8 @@ function RequesterRequestCard({
                     />
                   );
                 })}
+                </div>
+              )}
             </div>
           ) : null}
         </>
