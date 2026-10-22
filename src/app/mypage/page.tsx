@@ -788,7 +788,7 @@ function RequesterRequestCard({
   instructorMap: Record<string, { name?: string | null; contact_email?: string | null; contact_phone?: string | null }>;
   meetings: Record<string, KenshuMineMeetingRow>;
   mineLinked: Set<string>;
-  onChanged: () => void;
+  onChanged: () => void | Promise<void>;
 }) {
   const { showToast } = useToast();
   const confirm = useConfirm();
@@ -851,7 +851,8 @@ function RequesterRequestCard({
   // The whole request is one slim row; its details open on a click (same as the instructor side).
   const [cardOpen, setCardOpen] = useState(false);
   const attention = (st.key === "pending" || st.key === "quoted") && (newApplicants > 0 || answerNeeded > 0);
-  const decidedNames = selectedResps.map((sr) => instructorMap[sr.instructor_id]?.name || "講師");
+  const nameOfDecided = (sr: InstructorResponseRow) => sr.released_name?.trim() || instructorMap[sr.instructor_id]?.name || "講師";
+  const decidedNames = selectedResps.map(nameOfDecided);
   const rowWho = isBroadcast
     ? hasRoles && decidedNames.length > 0
       ? `決定：${decidedNames.join("・")} 先生`
@@ -870,10 +871,13 @@ function RequesterRequestCard({
   async function finalize(responseId: string, instructorId: string, roleSlotId?: string | null) {
     setBusy(true);
     const { error } = await finalizeResponse({ requestId: r.request_id, responseId, instructorId, roleSlotId });
+    if (error) {
+      setBusy(false);
+      return showToast(`エラー：${error.message}`);
+    }
+    await onChanged();
     setBusy(false);
-    if (error) return showToast(`エラー：${error.message}`);
     showToast(hasRoles ? "講師を決定しました。連絡先が開示されます。" : "依頼を確定しました。連絡先が開示されます。");
-    onChanged();
   }
 
   async function changeStage(responseId: string, value: "" | "screening" | "negotiation" | "passed") {
@@ -921,10 +925,14 @@ function RequesterRequestCard({
     if (!ok) return;
     setBusy(true);
     const { error } = await closeRecruiting(r.request_id);
+    if (error) {
+      setBusy(false);
+      return showToast(`エラー：${error.message}`);
+    }
+    // Keep the buttons off until the fresh data is on screen, so the card never shows the old state.
+    await onChanged();
     setBusy(false);
-    if (error) return showToast(`エラー：${error.message}`);
     showToast("募集を終了しました。");
-    onChanged();
   }
 
   async function handleCancel() {
@@ -1231,7 +1239,7 @@ function RequesterRequestCard({
           title={r.title}
           participantCount={r.participant_count}
           completed={st.key === "completed"}
-          instructors={(selectedResps.length ? selectedResps.map((sr) => ({ id: sr.instructor_id, name: instructorMap[sr.instructor_id]?.name || null, role: roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? null })) : r.target_instructor_id ? [{ id: r.target_instructor_id, name: instrBase.name || null, role: null }] : [])}
+          instructors={(selectedResps.length ? selectedResps.map((sr) => ({ id: sr.instructor_id, name: nameOfDecided(sr), role: roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? null })) : r.target_instructor_id ? [{ id: r.target_instructor_id, name: instrBase.name || null, role: null }] : [])}
         />
       )}
 
@@ -1239,7 +1247,7 @@ function RequesterRequestCard({
         ? selectedResps.map((sr) => (
             <div key={sr.response_id} style={{ marginTop: 10 }}>
               <strong style={{ fontSize: 13 }}>
-                {instructorMap[sr.instructor_id]?.name || "講師"} 先生
+                {nameOfDecided(sr)} 先生
                 {sr.role_slot_id ? `（${roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? ""}）` : ""}
               </strong>
               <OrderPanel responseId={sr.response_id} role="requester" />
@@ -1261,7 +1269,7 @@ function RequesterRequestCard({
               {selectedResps.map((sr) => (
                 <div key={sr.response_id} style={{ marginTop: 6 }}>
                   <div>
-                    {instructorMap[sr.instructor_id]?.name || "講師"} 先生
+                    {nameOfDecided(sr)} 先生
                     {sr.role_slot_id ? `（${roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? ""}）` : ""}
                   </div>
                   <div>メール：{instructorMap[sr.instructor_id]?.contact_email || "未登録"}</div>
