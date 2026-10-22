@@ -382,7 +382,7 @@ function InstructorRequestCard({
           )}
         </div>
       )}
-      {myResponse?.is_selected && (r.status === "accepted" || r.status === "completed") && <OrderPanel responseId={myResponse.response_id} role="instructor" />}
+      {myResponse?.is_selected && (r.status === "accepted" || r.status === "completed" || (r.status === "pending" && normalizeSlots(r.role_slots).length > 0)) && <OrderPanel responseId={myResponse.response_id} role="instructor" />}
       {myResponse?.is_selected && (r.status === "accepted" || r.status === "completed") && <InvoicePanel responseId={myResponse.response_id} role="instructor" />}
 
       {myResponse?.interview_status === "requested" && r.status === "pending" && (
@@ -1186,7 +1186,7 @@ function RequesterRequestCard({
 
       <div className="request-card__tools">
         <InternalNote requestId={r.request_id} requesterId={userId} />
-        <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} />
+        <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} severalInstructors={hasRoles} />
       </div>
 
       {isBroadcast && st.key === "quoted" && (
@@ -1227,7 +1227,7 @@ function RequesterRequestCard({
         />
       )}
 
-      {(st.key === "accepted" || st.key === "completed") && hasRoles && selectedResps.length > 1
+      {(st.key === "accepted" || st.key === "completed" || r.status === "pending") && hasRoles && selectedResps.length >= 1
         ? selectedResps.map((sr) => (
             <div key={sr.response_id} style={{ marginTop: 10 }}>
               <strong style={{ fontSize: 13 }}>
