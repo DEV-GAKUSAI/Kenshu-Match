@@ -126,6 +126,8 @@ export type TrainingRequestRow = {
   detail_option_ids: string[];
   detail_other_tools: string | null;
   publish_state: PublishState;
+  /** 公開範囲 (migration 174). Old rows are 'public'. */
+  visibility?: "public" | "registered" | "invited";
   role_slots: unknown;
   /** Last day (Japan time) to apply, YYYY-MM-DD; null = no deadline (migration 173). */
   apply_deadline: string | null;

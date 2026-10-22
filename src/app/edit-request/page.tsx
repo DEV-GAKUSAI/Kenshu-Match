@@ -10,6 +10,9 @@ import { useToast } from "@/components/common/Toast";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { createClient } from "@/lib/supabase/client";
 import { DetailsForm, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
+import { VisibilityForm, type VisibilityValue } from "@/components/requests/VisibilityForm";
+import { getInvites, saveInvites } from "@/lib/requests/invites";
+import { inviteError, normalizeVisibility } from "@/lib/requests/visibility";
 import { RolesForm, rolesPayload, rolesToForm, type RolesFormValue } from "@/components/requests/RolesForm";
 import { normalizeSlots } from "@/lib/requests/roles";
 import { MoneyForm, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
@@ -40,6 +43,8 @@ function EditRequestInner() {
   const [roles, setRoles] = useState<RolesFormValue>([]);
   const [hadRoles, setHadRoles] = useState(false);
   const [decidedBySlot, setDecidedBySlot] = useState<Record<string, number>>({});
+  const [vis, setVis] = useState<VisibilityValue>({ visibility: "public", invited: [] });
+  const [hadVisibility, setHadVisibility] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -60,6 +65,9 @@ function EditRequestInner() {
       const taken: Record<string, number> = {};
       for (const x of r.instructor_responses || []) if (x.is_selected && x.role_slot_id) taken[x.role_slot_id] = (taken[x.role_slot_id] ?? 0) + 1;
       setDecidedBySlot(taken);
+      setVis({ visibility: normalizeVisibility(r.visibility), invited: r.visibility === "invited" ? await getInvites(id) : [] });
+      setHadVisibility(r.visibility !== undefined);
+      if (!alive) return;
       setTitle(r.title);
       setDescription(r.description);
       setFormat(r.preferred_format);
@@ -122,6 +130,8 @@ function EditRequestInner() {
     const tooLow = slotsNow.find((sl) => (decidedBySlot[sl.id] ?? 0) > sl.headcount);
     if (tooLow) return setError(`「${tooLow.name}」はすでに${decidedBySlot[tooLow.id]}名決定済みのため、それより少なくできません。`);
     if (Object.keys(decidedBySlot).some((sid) => !slotsNow.some((sl) => sl.id === sid))) return setError("決定済みの講師がいる職種は削除できません。");
+    const ve = inviteError(vis.visibility, vis.invited);
+    if (ve) return setError(ve);
     setError("");
     setSaving(true);
     const db = createClient() as unknown as SupabaseClient;
@@ -135,6 +145,8 @@ function EditRequestInner() {
         preferred_schedule: schedule.trim() || null,
         participant_count: n,
         // Only when used (or was), so editing keeps working before migration 173 is run.
+        // Only when the column exists (migration 174), so editing keeps working before it is run.
+        ...(hadVisibility ? { visibility: vis.visibility } : {}),
         ...(hadDeadline || deadline ? { apply_deadline: deadline || null } : {}),
         ...moneyPayload(money!),
         ...detailsPayload(details!, true),
@@ -143,6 +155,13 @@ function EditRequestInner() {
       })
       .eq("request_id", id)
       .eq("status", "pending");
+    if (!err && hadVisibility) {
+      const inv = await saveInvites(id!, user!.id, vis.visibility === "invited" ? vis.invited : []);
+      if (inv.error) {
+        setSaving(false);
+        return setError("依頼は更新しましたが、招待の保存に失敗しました。もう一度保存してください。");
+      }
+    }
     setSaving(false);
     if (err) return setError(`保存できませんでした：${err.message}`);
     showToast("依頼内容を更新しました。");
@@ -200,6 +219,7 @@ function EditRequestInner() {
               <input type="date" id="edDeadline" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
               <p className="form-field__hint">この日を過ぎると、新しい応募はできなくなります（応募済みの講師は変わりません）。</p>
             </div>
+            {hadVisibility && <VisibilityForm value={vis} onChange={setVis} />}
             <RolesForm value={roles} onChange={setRoles} decided={decidedBySlot} />
             <DetailsForm value={details} onChange={setDetails} idPrefix="ed" />
             <div className="form-field">

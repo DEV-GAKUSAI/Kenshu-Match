@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import type { Visibility } from "@/lib/requests/visibility";
 import type { PublishState, RequestFormat, RequesterType } from "@/types/database";
 import type { RoleSlot } from "@/lib/requests/roles";
 import type { ScheduleDay } from "@/lib/requests/schedule";
@@ -24,6 +25,8 @@ export interface NewTrainingRequestInput {
   detail_option_ids?: string[];
   detail_other_tools?: string | null;
   publish_state?: PublishState;
+  /** Only sent when not the default, so posting keeps working before migration 174 is run. */
+  visibility?: Visibility;
   role_slots?: RoleSlot[];
   participant_count: number | null;
   preferred_format: RequestFormat;
@@ -41,8 +44,8 @@ export async function setPublishState(requestId: string, state: PublishState) {
 
 export async function createTrainingRequest(input: NewTrainingRequestInput) {
   const supabase = createClient();
-  const { error } = await supabase.from("training_requests").insert(input);
-  return { error };
+  const { data, error } = await supabase.from("training_requests").insert(input).select("request_id").maybeSingle();
+  return { error, requestId: (data as { request_id: string } | null)?.request_id ?? null };
 }
 
 /** Unauthenticated / non-instructor preview list (open_requests_public_preview view). */
