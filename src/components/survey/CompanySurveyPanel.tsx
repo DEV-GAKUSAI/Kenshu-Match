@@ -7,12 +7,14 @@ import { useToast } from "@/components/common/Toast";
 import { createClient } from "@/lib/supabase/client";
 import { QuestionList } from "@/components/survey/QuestionList";
 import { SurveyImportPanel } from "@/components/survey/SurveyImportPanel";
-import { COMMENT_MAX, unansweredCount, type SurveyScores } from "@/lib/survey/answers";
+import { COMMENT_MAX, unansweredCount, type SurveyInstructor, type SurveyScores } from "@/lib/survey/answers";
 import { linkCap, surveyLinkUrl, errorMessage } from "@/lib/survey/links";
 import { qrSvg } from "@/lib/survey/qr";
 
 type SurveyRow = { survey_id: string; max_links: number; opens_at: string | null; closed_at: string | null };
 type LinkRow = { link_id: string; token: string; used_at: string | null };
+type HirerForm = { answers: Partial<SurveyScores>; comment: string; anonymous: boolean; missing: boolean };
+const EMPTY_HIRER_FORM: HirerForm = { answers: {}, comment: "", anonymous: true, missing: false };
 
 /** The company's side of 研修アンケート: make the participants' links and QR codes. */
 export function CompanySurveyPanel({
@@ -20,12 +22,15 @@ export function CompanySurveyPanel({
   title,
   participantCount,
   completed,
+  instructors,
 }: {
   requestId: string;
   title: string;
   participantCount: number | null;
   /** The request is marked 研修完了: the company can now give its own answer. */
   completed: boolean;
+  /** The chosen instructors (several when the request has role slots). The company answers once for each. */
+  instructors: SurveyInstructor[];
 }) {
   const { showToast } = useToast();
   // The survey tables are new, so they are not in the generated types yet.
@@ -38,11 +43,13 @@ export function CompanySurveyPanel({
   const [startDate, setStartDate] = useState("");
   const [busy, setBusy] = useState(false);
   // The company's own answer
-  const [hirerDone, setHirerDone] = useState(false);
-  const [hirerAnswers, setHirerAnswers] = useState<Partial<SurveyScores>>({});
-  const [hirerComment, setHirerComment] = useState("");
-  const [hirerAnonymous, setHirerAnonymous] = useState(true);
-  const [hirerMissing, setHirerMissing] = useState(false);
+  // (one form per instructor; key = instructor id, "" when the instructor list is empty)
+  const [hirerDoneIds, setHirerDoneIds] = useState<string[]>([]);
+  const [hirerForms, setHirerForms] = useState<Record<string, HirerForm>>({});
+  const several = instructors.length > 1;
+  const formOf = (id: string): HirerForm => hirerForms[id] ?? EMPTY_HIRER_FORM;
+  const patchForm = (id: string, patch: Partial<HirerForm>) =>
+    setHirerForms((prev) => ({ ...prev, [id]: { ...(prev[id] ?? EMPTY_HIRER_FORM), ...patch } }));
 
   const load = useCallback(async () => {
     const { data: s } = await supabase
@@ -60,11 +67,11 @@ export function CompanySurveyPanel({
         .order("created_at", { ascending: true });
       setLinks((l as LinkRow[] | null) ?? []);
       if (row.opens_at) setStartDate(toDateInput(row.opens_at));
-      const { data: mine } = await supabase.from("training_survey_answers").select("answer_id").eq("survey_id", row.survey_id).limit(1);
-      setHirerDone(((mine as unknown[] | null) ?? []).length > 0);
+      const { data: mine } = await supabase.from("training_survey_answers").select("instructor_id").eq("survey_id", row.survey_id);
+      setHirerDoneIds(((mine as { instructor_id: string }[] | null) ?? []).map((x) => x.instructor_id));
     } else {
       setLinks([]);
-      setHirerDone(false);
+      setHirerDoneIds([]);
     }
     setLoaded(true);
   }, [supabase, requestId]);
@@ -120,21 +127,23 @@ export function CompanySurveyPanel({
     await load();
   }
 
-  async function handleHirerSubmit() {
-    if (unansweredCount(hirerAnswers) > 0) {
-      setHirerMissing(true);
+  async function handleHirerSubmit(id: string) {
+    const f = formOf(id);
+    if (unansweredCount(f.answers) > 0) {
+      patchForm(id, { missing: true });
       return;
     }
     setBusy(true);
     const { data, error } = await supabase.rpc("submit_training_survey_hirer_answer", {
       p_request_id: requestId,
-      p_q1: hirerAnswers.q1,
-      p_q2: hirerAnswers.q2,
-      p_q3: hirerAnswers.q3,
-      p_q4: hirerAnswers.q4,
-      p_q5: hirerAnswers.q5,
-      p_comment: hirerComment.trim() || null,
-      p_is_anonymous: hirerAnonymous,
+      p_q1: f.answers.q1,
+      p_q2: f.answers.q2,
+      p_q3: f.answers.q3,
+      p_q4: f.answers.q4,
+      p_q5: f.answers.q5,
+      p_comment: f.comment.trim() || null,
+      p_is_anonymous: f.anonymous,
+      p_instructor_id: id || null,
     });
     setBusy(false);
     if (error) return showToast(errorMessage(error.message, cap));
@@ -223,53 +232,57 @@ export function CompanySurveyPanel({
 
       {open && (
         <div style={{ padding: "14px 14px 14px", borderTop: "1px solid var(--color-border)", display: "flex", flexDirection: "column", gap: 14 }}>
-          {completed && loaded && (
-            hirerDone ? (
-              <p className="request-card__desc" style={{ margin: 0 }}>
-                <strong>貴社の回答：</strong>回答済み
-              </p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <strong style={{ fontSize: 13.5, marginBottom: 8 }}>貴社の回答</strong>
-                <QuestionList answers={hirerAnswers} onChange={setHirerAnswers} showMissing={hirerMissing} />
-                <div className="form-field" style={{ margin: 0 }}>
-                  <label htmlFor={`survey-comment-${requestId}`}>コメント（任意）</label>
-                  <textarea
-                    id={`survey-comment-${requestId}`}
-                    rows={3}
-                    maxLength={COMMENT_MAX}
-                    value={hirerComment}
-                    onChange={(e) => setHirerComment(e.target.value)}
-                  />
+          {completed && loaded &&
+            (instructors.length ? instructors : [{ id: "", name: null, role: null }]).map((ins) => {
+              const done = hirerDoneIds.includes(ins.id) || (ins.id === "" && hirerDoneIds.length > 0);
+              const f = formOf(ins.id);
+              const who = several ? `（${ins.role ? `${ins.role}　` : ""}${ins.name ?? "講師"} 先生）` : "";
+              return done ? (
+                <p key={ins.id || "single"} className="request-card__desc" style={{ margin: 0 }}>
+                  <strong>貴社の回答{who}：</strong>回答済み
+                </p>
+              ) : (
+                <div key={ins.id || "single"} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <strong style={{ fontSize: 13.5, marginBottom: 8 }}>貴社の回答{who}</strong>
+                  <QuestionList answers={f.answers} onChange={(next) => patchForm(ins.id, { answers: next })} showMissing={f.missing} />
+                  <div className="form-field" style={{ margin: 0 }}>
+                    <label htmlFor={`survey-comment-${requestId}-${ins.id}`}>コメント（任意）</label>
+                    <textarea
+                      id={`survey-comment-${requestId}-${ins.id}`}
+                      rows={3}
+                      maxLength={COMMENT_MAX}
+                      value={f.comment}
+                      onChange={(e) => patchForm(ins.id, { comment: e.target.value })}
+                    />
+                  </div>
+                  <div className="survey-scale" role="radiogroup" style={{ gridTemplateColumns: "1fr 1fr", margin: "10px 0" }}>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={f.anonymous}
+                      className={`survey-scale__btn${f.anonymous ? " is-selected" : ""}`}
+                      onClick={() => patchForm(ins.id, { anonymous: true })}
+                    >
+                      匿名で送る
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={!f.anonymous}
+                      className={`survey-scale__btn${!f.anonymous ? " is-selected" : ""}`}
+                      onClick={() => patchForm(ins.id, { anonymous: false })}
+                    >
+                      会社名を表示して送る
+                    </button>
+                  </div>
+                  <div>
+                    <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => handleHirerSubmit(ins.id)}>
+                      送信する
+                    </button>
+                  </div>
                 </div>
-                <div className="survey-scale" role="radiogroup" style={{ gridTemplateColumns: "1fr 1fr", margin: "10px 0" }}>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={hirerAnonymous}
-                    className={`survey-scale__btn${hirerAnonymous ? " is-selected" : ""}`}
-                    onClick={() => setHirerAnonymous(true)}
-                  >
-                    匿名で送る
-                  </button>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={!hirerAnonymous}
-                    className={`survey-scale__btn${!hirerAnonymous ? " is-selected" : ""}`}
-                    onClick={() => setHirerAnonymous(false)}
-                  >
-                    会社名を表示して送る
-                  </button>
-                </div>
-                <div>
-                  <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={handleHirerSubmit}>
-                    送信する
-                  </button>
-                </div>
-              </div>
-            )
-          )}
+              );
+            })}
 
           {!participantCount ? (
             <p className="request-card__desc" style={{ color: "var(--color-ink-soft)", margin: 0 }}>
@@ -343,7 +356,13 @@ export function CompanySurveyPanel({
             </>
           )}
 
-          <SurveyImportPanel requestId={requestId} />
+          {several ? (
+            <p className="request-card__desc" style={{ margin: 0, color: "var(--color-ink-soft)" }}>
+              複数名の依頼では、回答ファイルの取り込みはまだ使えません。
+            </p>
+          ) : (
+            <SurveyImportPanel requestId={requestId} />
+          )}
         </div>
       )}
     </div>

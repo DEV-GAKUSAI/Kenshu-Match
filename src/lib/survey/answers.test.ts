@@ -9,9 +9,41 @@ const good = { token, answers: { q1: 4, q2: 3, q3: 2, q4: 1, q5: 4 }, comment: "
 test("a complete submission is cleaned", () => {
   const parsed = parseSubmission(good);
   assert.ok(parsed);
-  assert.equal(parsed.comment, "よかった");
+  assert.equal(parsed.entries.length, 1);
+  assert.equal(parsed.entries[0].comment, "よかった");
+  assert.equal(parsed.entries[0].instructorId, null);
   assert.equal(parsed.name, null);
-  assert.deepEqual(parsed.scores, { q1: 4, q2: 3, q3: 2, q4: 1, q5: 4 });
+  assert.deepEqual(parsed.entries[0].scores, { q1: 4, q2: 3, q3: 2, q4: 1, q5: 4 });
+});
+
+const idA = "11111111-1111-4111-8111-111111111111";
+const idB = "22222222-2222-4222-8222-222222222222";
+const scoresOf = (n: number) => ({ q1: n, q2: n, q3: n, q4: n, q5: n });
+
+test("several instructors: one entry each, kept in order", () => {
+  const parsed = parseSubmission({
+    token,
+    name: "太郎",
+    entries: [
+      { instructorId: idA, answers: scoresOf(4), comment: "a" },
+      { instructorId: idB, answers: scoresOf(2) },
+    ],
+  });
+  assert.ok(parsed);
+  assert.equal(parsed.name, "太郎");
+  assert.deepEqual(parsed.entries.map((e) => e.instructorId), [idA, idB]);
+  assert.equal(parsed.entries[1].comment, null);
+  assert.equal(parsed.entries[1].scores.q3, 2);
+});
+
+test("several instructors: bad entries are refused", () => {
+  const ok = { instructorId: idA, answers: scoresOf(4) };
+  assert.equal(parseSubmission({ token, entries: [] }), null);
+  assert.equal(parseSubmission({ token, entries: [ok, ok] }), null); // same instructor twice
+  assert.equal(parseSubmission({ token, entries: [{ ...ok, instructorId: "nope" }] }), null);
+  assert.equal(parseSubmission({ token, entries: [{ instructorId: idB, answers: { q1: 4 } }] }), null);
+  assert.equal(parseSubmission({ token, entries: [ok, { instructorId: idB, answers: scoresOf(4), comment: "あ".repeat(1001) }] }), null);
+  assert.equal(parseSubmission({ token, name: "あ".repeat(41), entries: [ok] }), null);
 });
 
 test("all five answers are required and must be 1 to 4", () => {

@@ -22,7 +22,7 @@ function anonClient() {
 
 const noStore = { "Cache-Control": "no-store" };
 
-/** GET /api/survey?t=<token>  ->  { state, title?, opens_at? } */
+/** GET /api/survey?t=<token>  ->  { state, title?, opens_at?, instructors? } */
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("t");
   if (!isSurveyToken(token)) return NextResponse.json({ state: "invalid" satisfies SurveyLinkState }, { headers: noStore });
@@ -32,7 +32,12 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(data, { headers: noStore });
 }
 
-/** POST /api/survey  { token, answers: {q1..q5}, comment?, name? }  ->  { state } */
+/**
+ * POST /api/survey
+ *   { token, name?, entries: [{ instructorId, answers: {q1..q5}, comment? }] }   (one entry per instructor)
+ *   or the old one-instructor form { token, answers, comment?, name? }
+ *   ->  { state }
+ */
 export async function POST(request: NextRequest) {
   const parsed = parseSubmission(await request.json().catch(() => null));
   if (!parsed) return NextResponse.json({ error: "invalid_request" }, { status: 400, headers: noStore });
@@ -40,17 +45,25 @@ export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "";
   const clientHash = ip ? createHash("sha256").update(`kenshu-survey:${ip}`).digest("hex").slice(0, 16) : null;
 
-  const { data, error } = await anonClient().rpc("submit_training_survey_answer", {
-    p_token: parsed.token,
-    p_q1: parsed.scores.q1,
-    p_q2: parsed.scores.q2,
-    p_q3: parsed.scores.q3,
-    p_q4: parsed.scores.q4,
-    p_q5: parsed.scores.q5,
-    p_comment: parsed.comment,
-    p_name: parsed.name,
-    p_client_hash: clientHash,
-  });
+  const legacy = parsed.entries.length === 1 && parsed.entries[0].instructorId === null ? parsed.entries[0] : null;
+  const { data, error } = legacy
+    ? await anonClient().rpc("submit_training_survey_answer", {
+        p_token: parsed.token,
+        p_q1: legacy.scores.q1,
+        p_q2: legacy.scores.q2,
+        p_q3: legacy.scores.q3,
+        p_q4: legacy.scores.q4,
+        p_q5: legacy.scores.q5,
+        p_comment: legacy.comment,
+        p_name: parsed.name,
+        p_client_hash: clientHash,
+      })
+    : await anonClient().rpc("submit_training_survey_answers", {
+        p_token: parsed.token,
+        p_entries: parsed.entries.map((e) => ({ instructor_id: e.instructorId, ...e.scores, comment: e.comment })),
+        p_name: parsed.name,
+        p_client_hash: clientHash,
+      });
   if (error || !data) return NextResponse.json({ error: "unavailable" }, { status: 503, headers: noStore });
   return NextResponse.json(data, { headers: noStore });
 }

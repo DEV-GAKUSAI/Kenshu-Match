@@ -11,17 +11,25 @@ import {
   linkStateMessage,
   unansweredCount,
   type SurveyLinkState,
+  type SurveyInstructor,
   type SurveyScores,
 } from "@/lib/survey/answers";
 
-type LinkInfo = { state: SurveyLinkState; title?: string | null; opens_at?: string | null };
+type LinkInfo = { state: SurveyLinkState; title?: string | null; opens_at?: string | null; instructors?: SurveyInstructor[] };
+
+/** 「メイン講師　山田 太郎 先生」: the heading above each instructor's questions when there are several. */
+function instructorHeading(i: SurveyInstructor): string {
+  const who = i.name ? `${i.name} 先生` : "講師";
+  return i.role ? `${i.role}　${who}` : who;
+}
 
 function SurveyForm() {
   const token = useSearchParams().get("t");
   const [info, setInfo] = useState<LinkInfo | null>(null);
   const [loadError, setLoadError] = useState(false);
-  const [answers, setAnswers] = useState<Partial<SurveyScores>>({});
-  const [comment, setComment] = useState("");
+  // Answers and comment per instructor (key = instructor id; "" for the old one-instructor form).
+  const [answersBy, setAnswersBy] = useState<Record<string, Partial<SurveyScores>>>({});
+  const [commentBy, setCommentBy] = useState<Record<string, string>>({});
   const [name, setName] = useState("");
   const [showMissing, setShowMissing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -46,7 +54,8 @@ function SurveyForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting) return;
-    if (unansweredCount(answers) > 0) {
+    const targets = info?.instructors?.length ? info.instructors.map((i) => i.id) : [""];
+    if (targets.some((id) => unansweredCount(answersBy[id] ?? {}) > 0)) {
       setShowMissing(true);
       return;
     }
@@ -56,7 +65,11 @@ function SurveyForm() {
       const res = await fetch("/api/survey", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, answers, comment, name }),
+        body: JSON.stringify(
+          targets[0] === ""
+            ? { token, answers: answersBy[""], comment: commentBy[""] ?? "", name }
+            : { token, name, entries: targets.map((id) => ({ instructorId: id, answers: answersBy[id], comment: commentBy[id] ?? "" })) },
+        ),
       });
       const data = (await res.json().catch(() => null)) as { state?: SurveyLinkState } | null;
       if (!res.ok || !data?.state) {
@@ -114,12 +127,30 @@ function SurveyForm() {
         {error && <div className="notice-banner is-visible">{error}</div>}
 
         <form noValidate onSubmit={handleSubmit}>
-          <QuestionList answers={answers} onChange={setAnswers} showMissing={showMissing} />
-
-          <div className="form-field">
-            <label htmlFor="surveyComment">コメント（任意）</label>
-            <textarea id="surveyComment" rows={4} maxLength={COMMENT_MAX} value={comment} onChange={(e) => setComment(e.target.value)} />
-          </div>
+          {(info.instructors?.length ? info.instructors : [{ id: "", name: null, role: null }]).map((ins, idx, all) => (
+            <section key={ins.id || "single"} style={all.length > 1 ? { marginBottom: 28 } : undefined}>
+              {all.length > 1 && (
+                <h2 style={{ fontSize: 16, margin: "0 0 12px", padding: "8px 12px", background: "var(--color-accent-soft)", borderRadius: "var(--radius-s)" }}>
+                  {idx + 1}. {instructorHeading(ins)}
+                </h2>
+              )}
+              <QuestionList
+                answers={answersBy[ins.id] ?? {}}
+                onChange={(next) => setAnswersBy((prev) => ({ ...prev, [ins.id]: next }))}
+                showMissing={showMissing}
+              />
+              <div className="form-field">
+                <label htmlFor={`surveyComment-${ins.id || "single"}`}>{all.length > 1 ? "この講師へのコメント（任意）" : "コメント（任意）"}</label>
+                <textarea
+                  id={`surveyComment-${ins.id || "single"}`}
+                  rows={4}
+                  maxLength={COMMENT_MAX}
+                  value={commentBy[ins.id] ?? ""}
+                  onChange={(e) => setCommentBy((prev) => ({ ...prev, [ins.id]: e.target.value }))}
+                />
+              </div>
+            </section>
+          ))}
           <div className="form-field">
             <label htmlFor="surveyName">お名前（任意）</label>
             <input id="surveyName" type="text" maxLength={NAME_MAX} value={name} onChange={(e) => setName(e.target.value)} />
