@@ -54,7 +54,7 @@ export function VisibilityForm({ value, onChange }: { value: VisibilityValue; on
               招待できる講師がいません。先に<Link href="/my-instructors">自社の講師台帳</Link>に講師を登録してください。
             </p>
           ) : (
-            <div className="multi-select__panel" style={{ position: "static", maxHeight: 220, overflowY: "auto" }}>
+            <div className="multi-select__panel" style={{ position: "static", maxHeight: 220, overflowY: "auto", display: "grid", gap: 8, padding: "10px 14px", border: "1px solid var(--color-border, #dbe7e2)", borderRadius: 12, background: "#fff" }}>
               {people.map((p) => (
                 <label key={p.id} className="multi-select__option">
                   <input type="checkbox" checked={value.invited.includes(p.id)} onChange={() => toggle(p.id)} /> {p.name}

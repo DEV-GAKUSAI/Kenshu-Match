@@ -50,6 +50,7 @@ import { MineProfileBlocks } from "@/components/mine/MineProfileBlocks";
 import { DetailTabs } from "@/components/common/DetailTabs";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import type { MinePublicProfile } from "@/lib/mine/public-profile";
+import { VISIBILITY_TEXT } from "@/lib/requests/visibility";
 import "./mypage.css";
 import { Select } from "@/components/ui/Select";
 
@@ -866,6 +867,7 @@ function RequesterRequestCard({
     budgetText(r),
     isBroadcast && r.apply_deadline ? `応募締切 ${deadlineShort(r.apply_deadline)}` : null,
     isBroadcast && applicants.length > 0 && (st.key === "pending" || st.key === "quoted") ? `応募 ${applicants.length}名` : null,
+    isBroadcast && r.visibility && r.visibility !== "public" ? VISIBILITY_TEXT[r.visibility] : null,
     fmtDate(r.created_at),
     `案件番号 ${r.request_id.slice(0, 8)}`,
   ].filter(Boolean);
