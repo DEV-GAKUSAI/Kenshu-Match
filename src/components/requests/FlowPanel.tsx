@@ -8,7 +8,18 @@ import { getFlow, getPartners, saveFlow, PARTNER_KIND_TEXT, type Partner, type R
 import { Select } from "@/components/ui/Select";
 
 /** 商流: who we order from / pay, who sits in between, and who actually teaches (#53). Private to the company. */
-export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: string; requesterId: string; decidedName?: string | null }) {
+export function FlowPanel({
+  requestId,
+  requesterId,
+  decidedName,
+  severalInstructors = false,
+}: {
+  requestId: string;
+  requesterId: string;
+  decidedName?: string | null;
+  /** The request has role slots: no single 登壇講師; every document belongs to the instructor decided for it. */
+  severalInstructors?: boolean;
+}) {
   const { showToast } = useToast();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [flow, setFlow] = useState<RequestFlow | null>(null);
@@ -38,7 +49,7 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
   const contractName = nameOf(flow?.contract_partner_id ?? null);
   const viaNames = (flow?.via_partner_ids ?? []).map((id) => nameOf(id)).filter(Boolean) as string[];
   const speaker = nameOf(flow?.speaker_partner_id ?? null) ?? (flow?.speaker_name || null);
-  const hasFlow = !!(contractName || viaNames.length || speaker);
+  const hasFlow = !!(contractName || viaNames.length || (!severalInstructors && speaker));
 
   async function save() {
     setBusy(true);
@@ -46,8 +57,8 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
       request_id: requestId,
       contract_partner_id: contract || null,
       via_partner_ids: via,
-      speaker_partner_id: speakerPartner || null,
-      speaker_name: speakerPartner ? null : speakerName.trim() || null,
+      speaker_partner_id: severalInstructors ? null : speakerPartner || null,
+      speaker_name: severalInstructors || speakerPartner ? null : speakerName.trim() || null,
     });
     setBusy(false);
     if (error) return showToast("保存できませんでした。");
@@ -67,7 +78,7 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
           <strong style={{ color: "var(--color-ink)" }}>商流</strong>（講師には見えません）
           <div>発注・請求の相手：{contractName ?? `${decidedName || "決定した講師"}（直接）`}</div>
           {viaNames.length > 0 && <div>間に入る関係先：{viaNames.join(" → ")}</div>}
-          <div>実際の登壇講師：{speaker ?? `${decidedName || "決定した講師"}`}</div>
+          {!severalInstructors && <div>実際の登壇講師：{speaker ?? `${decidedName || "決定した講師"}`}</div>}
         </div>
       )}
       {open ? (
@@ -105,6 +116,11 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
               </label>
             ))}
           </div>
+          {severalInstructors ? (
+            <p style={{ margin: "0 0 8px", color: "var(--color-ink-soft)" }}>
+              複数名の依頼では、注文書・請求書・アンケートの評価は、それぞれ決定した講師に付きます（登壇講師の指定はありません）。
+            </p>
+          ) : (
           <div className="form-field">
             <label>実際の登壇講師</label>
             <Select value={speakerPartner} onChange={(e) => setSpeakerPartner(e.target.value)}>
@@ -119,6 +135,7 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
             </Select>
             {!speakerPartner && <input type="text" maxLength={100} placeholder="登録にない講師の名前（任意）" value={speakerName} onChange={(e) => setSpeakerName(e.target.value)} style={{ marginTop: 6 }} />}
           </div>
+          )}
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={save}>
               保存する
