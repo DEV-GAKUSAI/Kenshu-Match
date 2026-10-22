@@ -33,6 +33,8 @@ function EditRequestInner() {
   const [location, setLocation] = useState("");
   const [schedule, setSchedule] = useState("");
   const [participants, setParticipants] = useState("");
+  const [deadline, setDeadline] = useState("");
+  const [hadDeadline, setHadDeadline] = useState(false);
   const [money, setMoney] = useState<MoneyFormValue | null>(null);
   const [details, setDetails] = useState<DetailsFormValue | null>(null);
   const [roles, setRoles] = useState<RolesFormValue>([]);
@@ -64,6 +66,8 @@ function EditRequestInner() {
       setLocation(r.location ?? "");
       setSchedule(r.preferred_schedule ?? "");
       setParticipants(r.participant_count ? String(r.participant_count) : "");
+      setDeadline(r.apply_deadline ?? "");
+      setHadDeadline(!!r.apply_deadline);
       setMoney({
         budget: r.budget ? String(r.budget) : "",
         unit: normalUnit(r.budget_unit),
@@ -130,6 +134,8 @@ function EditRequestInner() {
         location: format === "online" ? null : location.trim(),
         preferred_schedule: schedule.trim() || null,
         participant_count: n,
+        // Only when used (or was), so editing keeps working before migration 173 is run.
+        ...(hadDeadline || deadline ? { apply_deadline: deadline || null } : {}),
         ...moneyPayload(money!),
         ...detailsPayload(details!, true),
         // Only when roles are used (or were), so editing keeps working before migration 168 is run.
@@ -188,6 +194,11 @@ function EditRequestInner() {
             <div className="form-field">
               <label htmlFor="edSchedule">希望日程（おおまかに）</label>
               <input type="text" id="edSchedule" value={schedule} onChange={(e) => setSchedule(e.target.value)} />
+            </div>
+            <div className="form-field">
+              <label htmlFor="edDeadline">応募締切<span className="field-optional">任意</span></label>
+              <input type="date" id="edDeadline" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+              <p className="form-field__hint">この日を過ぎると、新しい応募はできなくなります（応募済みの講師は変わりません）。</p>
             </div>
             <RolesForm value={roles} onChange={setRoles} decided={decidedBySlot} />
             <DetailsForm value={details} onChange={setDetails} idPrefix="ed" />

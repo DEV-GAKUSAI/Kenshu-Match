@@ -14,6 +14,7 @@ export async function submitInstructorResponse(
     apply_role?: string | null;
     apply_experience?: string | null;
     apply_materials?: "existing" | "create" | "either" | null;
+    apply_prep?: "yes" | "no" | "discuss" | null;
   }
 ) {
   const supabase = createClient();
@@ -28,8 +29,9 @@ export async function submitInstructorResponse(
     apply_role: extra?.apply_role ?? null,
     apply_experience: extra?.apply_experience ?? null,
     apply_materials: extra?.apply_materials ?? null,
+    apply_prep: extra?.apply_prep ?? null,
   });
-  return { error };
+  return { error: error && error.message.includes("deadline_passed") ? { ...error, message: "応募の締切を過ぎています。" } : error };
 }
 
 export async function markResultsSeenByInstructor(responseIds: string[]) {
@@ -93,6 +95,7 @@ export async function declineInterview(responseId: string) {
 const REVISE_ERRORS: Record<string, string> = {
   not_editable: "すでに確定または受付終了のため、変更できません。",
   not_found: "対象の応募が見つかりません。",
+  deadline_passed: "応募の締切を過ぎています。",
   not_reapplicable: "すでに確定または受付終了のため、再度応募できません。",
   bad_apply: "応募内容の入力を確認してください。",
   bad_price: "見積り金額は1円以上の整数で入力してください。",
@@ -129,6 +132,7 @@ export async function reapplyResponse(
     apply_role: string | null;
     apply_experience: string | null;
     apply_materials: string | null;
+    apply_prep?: string | null;
   },
 ) {
   const supabase = createClient() as unknown as SupabaseClient;
@@ -141,6 +145,7 @@ export async function reapplyResponse(
     p_role: v.apply_role,
     p_experience: v.apply_experience,
     p_materials: v.apply_materials,
+    p_prep: v.apply_prep ?? null,
   });
   return { error: error ? { message: reviseMessage(error.message) } : null };
 }

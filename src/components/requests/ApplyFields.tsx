@@ -1,9 +1,9 @@
 "use client";
 import { Select } from "@/components/ui/Select";
 
-export type ApplyValue = { allDays: "" | "all" | "partial" | "none"; role: string; experience: string; materials: "" | "existing" | "create" | "either" };
+export type ApplyValue = { allDays: "" | "all" | "partial" | "none"; role: string; experience: string; materials: "" | "existing" | "create" | "either"; prep: "" | "yes" | "no" | "discuss" };
 
-export const EMPTY_APPLY: ApplyValue = { allDays: "", role: "", experience: "", materials: "" };
+export const EMPTY_APPLY: ApplyValue = { allDays: "", role: "", experience: "", materials: "", prep: "" };
 
 /** The fixed items sent with an application (#54). */
 export function applyPayload(v: ApplyValue) {
@@ -12,10 +12,12 @@ export function applyPayload(v: ApplyValue) {
     apply_role: v.role.trim() || null,
     apply_experience: v.experience.trim() || null,
     apply_materials: v.materials || null,
+    apply_prep: v.prep || null,
   };
 }
 
 export const ALL_DAYS_TEXT = { all: "全日程OK", partial: "一部の日程のみ", none: "日程は要相談" } as const;
+export const PREP_TEXT = { yes: "参加できる", no: "参加できない", discuss: "要相談" } as const;
 export const MATERIALS_TEXT = { existing: "既存の教材を使う", create: "教材を新しく作る", either: "どちらも可" } as const;
 
 /** 応募内容の定型項目: 全日程の可否・希望職種・関連実績・教材対応. All optional. */
@@ -46,6 +48,17 @@ export function ApplyFields({ value, onChange, roleOptions }: { value: ApplyValu
             <option value="either">{MATERIALS_TEXT.either}</option>
           </Select>
         </div>
+      </div>
+      <div className="form-field">
+        <label>
+          事前研修への参加<span className="field-optional">任意</span>
+        </label>
+        <Select value={value.prep} onChange={(e) => set({ prep: e.target.value as ApplyValue["prep"] })}>
+          <option value="">選ばない</option>
+          <option value="yes">{PREP_TEXT.yes}</option>
+          <option value="no">{PREP_TEXT.no}</option>
+          <option value="discuss">{PREP_TEXT.discuss}</option>
+        </Select>
       </div>
       <div className="form-field">
         <label>

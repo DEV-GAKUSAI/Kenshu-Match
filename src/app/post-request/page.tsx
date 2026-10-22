@@ -17,7 +17,14 @@ import { RolesForm, EMPTY_ROLES, rolesPayload, type RolesFormValue } from "@/com
 import { slotsSummary } from "@/lib/requests/roles";
 import { DetailsView } from "@/components/requests/DetailsView";
 import { costLines, budgetText } from "@/lib/requests/money";
-import { requestFormatLabel } from "@/lib/requests/schedule";
+import { requestFormatLabel, normalizeDays } from "@/lib/requests/schedule";
+import { todayJst, deadlineShort } from "@/lib/requests/deadline";
+import { createClient } from "@/lib/supabase/client";
+import { normalizeSlots } from "@/lib/requests/roles";
+import { normalUnit } from "@/lib/requests/money";
+import { rolesToForm } from "@/components/requests/RolesForm";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { TrainingRequestRow } from "@/types/database";
 
 interface SubcategoryOption {
   id: string;
@@ -45,6 +52,7 @@ export default function PostRequestPage() {
   const [location, setLocation] = useState("");
   const [schedule, setSchedule] = useState("");
   const [description, setDescription] = useState("");
+  const [deadline, setDeadline] = useState("");
 
   const [titleHasError, setTitleHasError] = useState(false);
   const [descriptionHasError, setDescriptionHasError] = useState(false);
@@ -66,6 +74,34 @@ export default function PostRequestPage() {
       const options = rows.map((s) => ({ id: s.id, name: s.name, categoryName: s.training_categories?.name || "" }));
       setSubcategories(options);
       if (options.length) setExpertise(options[0].id);
+      // 複製: /post-request?copy=<id> fills the form from one of the company's own requests (nothing is saved yet).
+      const copyId = new URLSearchParams(window.location.search).get("copy");
+      if (copyId) {
+        const db = createClient() as unknown as SupabaseClient;
+        const { data: src } = await db.from("training_requests").select("*").eq("request_id", copyId).maybeSingle();
+        const r = src as TrainingRequestRow | null;
+        if (r && r.requester_id === user.id) {
+          if (options.some((o) => o.id === r.expertise_field)) setExpertise(r.expertise_field);
+          setTitle(`${r.title}（コピー）`);
+          setDescription(r.description);
+          setFormat(r.preferred_format);
+          setLocation(r.location ?? "");
+          setSchedule(r.preferred_schedule ?? "");
+          setParticipants(r.participant_count ? String(r.participant_count) : "");
+          setMoney({
+            budget: r.budget ? String(r.budget) : "",
+            unit: normalUnit(r.budget_unit),
+            tax: r.tax_mode ?? "unspecified",
+            transport: r.transport_cost ?? "unspecified",
+            lodging: r.lodging_cost ?? "unspecified",
+            prep: r.prep_cost ?? "unspecified",
+            paymentTerms: r.payment_terms ?? "",
+          });
+          setDetails({ days: normalizeDays(r.schedule_days), allDaysRequired: !!r.all_days_required, skills: r.req_skills ?? "", prep: r.req_prep ?? "", optionIds: r.detail_option_ids ?? [], otherTools: r.detail_other_tools ?? "" });
+          setRoles(rolesToForm(normalizeSlots(r.role_slots)));
+          showToast("元の依頼の内容をコピーしました。まだ保存・公開されていません。");
+        }
+      }
     })();
   }, [authReady, user]);
 
@@ -142,6 +178,8 @@ export default function PostRequestPage() {
       preferred_format: format,
       location: format === "online" ? null : location.trim() || null,
       preferred_schedule: schedule.trim() || null,
+      // Only sent when set, so posting keeps working before migration 173 is run.
+      ...(deadline ? { apply_deadline: deadline } : {}),
       target_instructor_id: null,
       // Sent only for drafts, so publishing keeps working before migration 167 is run.
       ...(state === "draft" ? { publish_state: "draft" as const } : {}),
@@ -284,6 +322,7 @@ export default function PostRequestPage() {
                   {rolesPayload(roles).role_slots.length > 0 && <p className="request-card__desc">募集職種：{slotsSummary(rolesPayload(roles).role_slots)}</p>}
                   {format !== "online" && location.trim() ? <p className="request-card__desc">場所：{location.trim()}</p> : null}
                   {schedule.trim() ? <p className="request-card__desc">希望日程：{schedule.trim()}</p> : null}
+                  {deadline ? <p className="request-card__desc">応募締切：{deadlineShort(deadline)}</p> : null}
                   {costLines(preview).length > 0 && (
                     <div className="request-card__response" style={{ margin: "0 0 14px", fontSize: 13 }}>
                       <strong>費用・支払い</strong>
@@ -384,6 +423,12 @@ export default function PostRequestPage() {
             <div className="form-field">
               <label htmlFor="reqSchedule">希望日程（おおまかに）</label>
               <input type="text" id="reqSchedule" placeholder="例：8月中旬 平日午後" value={schedule} onChange={(e) => setSchedule(e.target.value)} />
+            </div>
+
+            <div className="form-field">
+              <label htmlFor="reqDeadline">応募締切<span className="field-optional">任意</span></label>
+              <input type="date" id="reqDeadline" min={todayJst()} value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+              <p className="form-field__hint">この日を過ぎると、新しい応募はできなくなります（応募済みの講師は変わりません）。</p>
             </div>
 
             <RolesForm value={roles} onChange={setRoles} />

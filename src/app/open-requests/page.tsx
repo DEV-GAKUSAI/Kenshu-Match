@@ -20,6 +20,7 @@ import { getRequesterContacts } from "@/lib/requester/profile";
 import type { OpenRequestPublicPreviewRow, TrainingRequestRow, InstructorResponseRow } from "@/types/database";
 import { Select } from "@/components/ui/Select";
 import { normalizeSlots, slotsSummary } from "@/lib/requests/roles";
+import { deadlinePassed, deadlineShort } from "@/lib/requests/deadline";
 
 const HIDDEN_KEY = "kenshulink_hidden_open_requests";
 
@@ -257,6 +258,10 @@ export default function OpenRequestsPage() {
 
   async function quickApply(r: RequestWithJoins) {
     if (!user) return;
+    if (deadlinePassed(r.apply_deadline)) {
+      showToast("応募の締切を過ぎています。");
+      return;
+    }
     // A request with roles needs a role choice, which only the detail page asks for.
     if (normalizeSlots(r.role_slots).length > 0) {
       window.location.assign(`/request-detail?id=${r.request_id}`);
@@ -584,6 +589,7 @@ export default function OpenRequestsPage() {
               {normalizeSlots(r.role_slots).length > 0 ? <span className="open-tag">募集：{slotsSummary(normalizeSlots(r.role_slots))}</span> : null}
               {r.location ? <span className="open-tag">{r.location}</span> : null}
               {r.preferred_schedule ? <span className="open-tag">{r.preferred_schedule}</span> : null}
+              {r.apply_deadline ? <span className="open-tag">{deadlinePassed(r.apply_deadline) ? "受付終了" : `応募締切：${deadlineShort(r.apply_deadline)}`}</span> : null}
             </div>
 
             {r.myResponse && (
@@ -605,7 +611,7 @@ export default function OpenRequestsPage() {
 
             {!r.myResponse && r.status === "pending" && (
               <div className="request-card__actions">
-                <button type="button" className="btn btn--primary btn--sm" disabled={applyingId === r.request_id} onClick={() => quickApply(r)}>
+                <button type="button" className="btn btn--primary btn--sm" disabled={applyingId === r.request_id || deadlinePassed(r.apply_deadline)} onClick={() => quickApply(r)}>
                   応募する
                 </button>
                 <Link
