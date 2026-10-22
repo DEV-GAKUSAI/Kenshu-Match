@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import type { RequestFormat, RequesterType } from "@/types/database";
+import type { PublishState, RequestFormat, RequesterType } from "@/types/database";
 import type { ScheduleDay } from "@/lib/requests/schedule";
 import type { BudgetUnit, CostShare, PrepCost, TaxMode } from "@/lib/requests/money";
 
@@ -22,11 +22,19 @@ export interface NewTrainingRequestInput {
   req_prep: string | null;
   detail_option_ids?: string[];
   detail_other_tools?: string | null;
+  publish_state?: PublishState;
   participant_count: number | null;
   preferred_format: RequestFormat;
   location: string | null;
   preferred_schedule: string | null;
   target_instructor_id: string | null;
+}
+
+/** Company: save as draft, publish a draft, pause or resume an open request. */
+export async function setPublishState(requestId: string, state: PublishState) {
+  const supabase = createClient();
+  const { error } = await supabase.from("training_requests").update({ publish_state: state }).eq("request_id", requestId);
+  return { error };
 }
 
 export async function createTrainingRequest(input: NewTrainingRequestInput) {

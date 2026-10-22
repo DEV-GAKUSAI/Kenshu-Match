@@ -61,3 +61,6 @@
 .request-card__tools .tool-block { flex: 1 1 100%; order: 1; font-size: 13px; }
 .request-card__tools .tool-btn { order: 2; }
 .req-badge--pending { background: #fdf1dc; color: #92650f; }
+
+.req-badge--draft { background: #eceff1; color: #546e7a; }
+.req-badge--paused { background: #eceff1; color: #546e7a; }

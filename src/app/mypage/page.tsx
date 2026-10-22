@@ -31,6 +31,7 @@ import { FlowPanel } from "@/components/requests/FlowPanel";
 import { InternalNote } from "@/components/requests/InternalNote";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { finalizeResponse } from "@/lib/requests/actions";
+import { setPublishState } from "@/lib/requests/training-requests";
 import { budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
 import type { InstructorResponseRow, TrainingRequestRow } from "@/types/database";
 import type { CurrentUser } from "@/lib/auth/auth";
@@ -739,6 +740,8 @@ function requesterDisplayStatus(r: ReqWithJoins) {
   if (r.status === "cancelled") return { key: "cancelled", label: "キャンセル済み" };
   if (r.status === "completed") return { key: "completed", label: "完了" };
   if (r.status === "accepted") return { key: "accepted", label: "承諾済み" };
+  // A draft is only saved, not shown to instructors yet.
+  if (r.publish_state === "draft") return { key: "draft", label: "下書き" };
 
   const isBroadcast = !r.target_instructor_id;
   if (!isBroadcast) {
@@ -882,6 +885,31 @@ function RequesterRequestCard({
     onChanged();
   }
 
+  async function changePublish(state: "published" | "paused") {
+    if (state === "paused") {
+      const { ok } = await confirm({
+        title: "公開を一時停止しますか？",
+        message: "講師の「案件を探す」に表示されなくなり、新しい応募も受け付けません。すでに応募した講師には引き続き表示されます。いつでも再開できます。",
+        confirmLabel: "一時停止する",
+      });
+      if (!ok) return;
+    } else if (r.publish_state === "draft") {
+      const { ok } = await confirm({
+        title: "この依頼を公開しますか？",
+        message: "公開すると、条件に合う講師に通知され、「案件を探す」に表示されます。",
+        confirmLabel: "公開する",
+      });
+      if (!ok) return;
+    }
+    setBusy(true);
+    const { error } = await setPublishState(r.request_id, state);
+    setBusy(false);
+    if (error) return showToast(`エラー：${error.message}`);
+    if (state === "published") flushMineNotices();
+    showToast(state === "paused" ? "公開を一時停止しました。" : r.publish_state === "draft" ? "公開しました。" : "公開を再開しました。");
+    onChanged();
+  }
+
   async function handleComplete() {
     setBusy(true);
     const { error } = await completeRequest(r.request_id);
@@ -902,6 +930,7 @@ function RequesterRequestCard({
           <span className="req-row__line2">{rowParts.join("　・　")}</span>
         </span>
         {newApplicants > 0 && <span className="req-badge req-badge--attn">NEW {newApplicants}</span>}
+        {r.publish_state === "paused" && <span className="req-badge req-badge--paused">公開停止中</span>}
         <span className={`req-badge req-badge--${st.key}`}>{st.label}</span>
         <svg className="req-row__chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <polyline points="6 9 12 15 18 9" />
@@ -933,13 +962,27 @@ function RequesterRequestCard({
           {applicants.length === 0 ? (
             <>
               <p className="request-card__desc" style={{ color: "var(--color-ink-soft)" }}>
-                まだ講師からの応募はありません。
+                {r.publish_state === "draft" ? "下書きです。まだ講師には表示されていません。" : r.publish_state === "paused" ? "公開を停止中です。再開すると講師に表示されます。" : "まだ講師からの応募はありません。"}
               </p>
-              <div className="request-card__actions">
-                <Link href={`/request-detail?id=${r.request_id}`} className="btn btn--primary btn--sm btn--pulse" style={{ marginBottom: 14 }}>
-                  おすすめの講師を見る
-                </Link>
-              </div>
+              {r.publish_state === "draft" ? (
+                <div className="request-card__actions">
+                  <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => changePublish("published")}>
+                    この内容で公開する
+                  </button>
+                  <Link href={`/edit-request?id=${r.request_id}`} className="btn btn--ghost btn--sm">
+                    内容を編集する
+                  </Link>
+                  <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={handleCancel}>
+                    下書きを取り消す
+                  </button>
+                </div>
+              ) : (
+                <div className="request-card__actions">
+                  <Link href={`/request-detail?id=${r.request_id}`} className="btn btn--primary btn--sm btn--pulse" style={{ marginBottom: 14 }}>
+                    おすすめの講師を見る
+                  </Link>
+                </div>
+              )}
             </>
           ) : st.key === "pending" || st.key === "quoted" ? (
             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 0, ...(listOpen ? { border: "1.5px solid #5FD0AA", borderRadius: "var(--radius-s)", background: "#fff" } : {}) }}>
@@ -1055,11 +1098,24 @@ function RequesterRequestCard({
         <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} />
       </div>
 
+      {isBroadcast && st.key === "quoted" && (
+        <div className="request-card__actions">
+          <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={() => changePublish(r.publish_state === "paused" ? "published" : "paused")}>
+            {r.publish_state === "paused" ? "公開を再開する" : "公開を一時停止する"}
+          </button>
+        </div>
+      )}
+
       {st.key === "pending" && (
         <div className="request-card__actions">
           <Link href={`/edit-request?id=${r.request_id}`} className="btn btn--ghost btn--sm">
             内容を編集する
           </Link>
+          {isBroadcast && (
+            <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={() => changePublish(r.publish_state === "paused" ? "published" : "paused")}>
+              {r.publish_state === "paused" ? "公開を再開する" : "公開を一時停止する"}
+            </button>
+          )}
           <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={handleCancel}>
             依頼をキャンセルする
           </button>
@@ -1193,15 +1249,16 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
     (all || []).flatMap((r) => (r.instructor_responses || []).map((x) => x.instructor_id)),
   );
 
-  const tabs = [
+  const tabs: [string, string][] = [
     ["all", "すべて"],
+    ...((all || []).some((r) => r.publish_state === "draft") ? ([["draft", "下書き"]] as [string, string][]) : []),
     ["pending", "対応待ち"],
     ["quoted", "見積り提示中"],
     ["accepted", "承諾済み"],
     ["completed", "完了"],
     ["rejected", "却下"],
     ["cancelled", "キャンセル"],
-  ] as const;
+  ];
 
   return (
     <>

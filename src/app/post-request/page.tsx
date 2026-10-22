@@ -13,6 +13,9 @@ import type { RequestFormat } from "@/types/database";
 import { DetailsForm, EMPTY_DETAILS, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
 import { MoneyForm, EMPTY_MONEY, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
 import { Select } from "@/components/ui/Select";
+import { DetailsView } from "@/components/requests/DetailsView";
+import { costLines, budgetText } from "@/lib/requests/money";
+import { requestFormatLabel } from "@/lib/requests/schedule";
 
 interface SubcategoryOption {
   id: string;
@@ -44,6 +47,8 @@ export default function PostRequestPage() {
   const [descriptionHasError, setDescriptionHasError] = useState(false);
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Preview before publishing: the company sees how instructors will see the request.
+  const [previewing, setPreviewing] = useState(false);
   const loadedRef = useRef(false);
 
   useEffect(() => {
@@ -93,10 +98,7 @@ export default function PostRequestPage() {
     showToast(`「${created.name}」を追加しました。`);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!user) return;
-
+  function validate(): boolean {
     const titleInvalid = !title.trim();
     const descriptionInvalid = !description.trim();
     const locationInvalid = format !== "online" && !location.trim();
@@ -115,28 +117,74 @@ export default function PostRequestPage() {
               ? "対象人数を入力してください。"
               : "入力内容をご確認ください。"
       );
-      return;
+      return false;
     }
     setFormError("");
+    return true;
+  }
 
-    setSubmitting(true);
-    const { error } = await createTrainingRequest({
+  function buildInput(state: "draft" | "published") {
+    if (!user) return null;
+    return {
       requester_id: user.id,
-      requester_type: user.role === "COMPANY" ? "company" : "individual",
+      requester_type: (user.role === "COMPANY" ? "company" : "individual") as "company" | "individual",
       title: title.trim(),
       description: description.trim(),
       expertise_field: expertise,
       ...moneyPayload(money),
       ...detailsPayload(details),
-      participant_count: Number(participants),
+      participant_count: Number(participants) >= 1 ? Number(participants) : null,
       preferred_format: format,
-      location: format === "online" ? null : location.trim(),
+      location: format === "online" ? null : location.trim() || null,
       preferred_schedule: schedule.trim() || null,
       target_instructor_id: null,
-    });
+      // Sent only for drafts, so publishing keeps working before migration 167 is run.
+      ...(state === "draft" ? { publish_state: "draft" as const } : {}),
+    };
+  }
+
+  /** Form submit = go to the preview (nothing is published yet). */
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!user || !validate()) return;
+    setPreviewing(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function handleSaveDraft() {
+    if (!user) return;
+    if (!title.trim()) {
+      setTitleHasError(true);
+      setFormError("下書きにはタイトルが必要です。");
+      return;
+    }
+    if (!expertise) {
+      setFormError("分野を選択してください。");
+      return;
+    }
+    setFormError("");
+    const input = buildInput("draft");
+    if (!input) return;
+    setSubmitting(true);
+    const { error } = await createTrainingRequest(input);
+    setSubmitting(false);
+    if (error) {
+      setFormError(`保存に失敗しました：${error.message}`);
+      return;
+    }
+    showToast("下書きとして保存しました。マイページから続きを編集して公開できます。");
+    setTimeout(() => router.push("/mypage"), 800);
+  }
+
+  async function handlePublish() {
+    const input = buildInput("published");
+    if (!input) return;
+    setSubmitting(true);
+    const { error } = await createTrainingRequest(input);
     setSubmitting(false);
 
     if (error) {
+      setPreviewing(false);
       setFormError(`送信に失敗しました：${error.message}`);
       return;
     }
@@ -209,7 +257,48 @@ export default function PostRequestPage() {
         <div className="form-card">
           {formError && <div className="notice-banner is-visible">{formError}</div>}
 
-          <form noValidate onSubmit={handleSubmit}>
+          {previewing && (() => {
+            const money_ = moneyPayload(money);
+            const days_ = detailsPayload(details);
+            const fieldName = subcategories.find((o) => o.id === expertise)?.name || "";
+            const preview = { preferred_format: format, ...money_, ...days_ };
+            return (
+              <div>
+                <div className="notice-banner is-visible" style={{ marginBottom: 16 }}>
+                  確認画面です。講師にはこのように表示されます。まだ公開されていません。
+                </div>
+                <div className="request-card">
+                  <div className="request-card__title">{title.trim()}</div>
+                  <div className="request-card__tags" style={{ marginBottom: 10 }}>
+                    {fieldName ? <span className="instructor-card__tag">{fieldName}</span> : null}
+                    <span className="instructor-card__tag">{requestFormatLabel({ preferred_format: format, schedule_days: days_.schedule_days })}</span>
+                    {budgetText(preview) ? <span className="instructor-card__tag">{budgetText(preview)}</span> : null}
+                    {Number(participants) >= 1 ? <span className="instructor-card__tag">対象{participants}名</span> : null}
+                  </div>
+                  <p className="request-card__desc" style={{ whiteSpace: "pre-wrap" }}>{description.trim()}</p>
+                  {format !== "online" && location.trim() ? <p className="request-card__desc">場所：{location.trim()}</p> : null}
+                  {schedule.trim() ? <p className="request-card__desc">希望日程：{schedule.trim()}</p> : null}
+                  {costLines(preview).length > 0 && (
+                    <div className="request-card__response" style={{ margin: "0 0 14px", fontSize: 13 }}>
+                      <strong>費用・支払い</strong>
+                      {costLines(preview).join("　／　")}
+                    </div>
+                  )}
+                  <DetailsView r={days_} />
+                </div>
+                <div className="form-actions" style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 16 }}>
+                  <button type="button" className="btn btn--primary btn--block" disabled={submitting} onClick={handlePublish}>
+                    {submitting ? "送信中…" : "この内容で公募する"}
+                  </button>
+                  <button type="button" className="btn btn--ghost btn--block" disabled={submitting} onClick={() => setPreviewing(false)}>
+                    戻って直す
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+
+          <form noValidate onSubmit={handleSubmit} style={previewing ? { display: "none" } : undefined}>
             <div className={`form-field${titleHasError ? " has-error" : ""}`}>
               <label htmlFor="reqTitle">依頼タイトル</label>
               <input
@@ -308,7 +397,10 @@ export default function PostRequestPage() {
 
             <div className="form-actions">
               <button type="submit" className="btn btn--primary btn--block" disabled={submitting}>
-                {submitting ? "送信中…" : "この内容で公募する"}
+                公開前に確認する
+              </button>
+              <button type="button" className="btn btn--ghost btn--block" style={{ marginTop: 10 }} disabled={submitting} onClick={handleSaveDraft}>
+                {submitting ? "保存中…" : "下書きとして保存"}
               </button>
             </div>
           </form>
