@@ -788,7 +788,7 @@ function RequesterRequestCard({
   instructorMap: Record<string, { name?: string | null; contact_email?: string | null; contact_phone?: string | null }>;
   meetings: Record<string, KenshuMineMeetingRow>;
   mineLinked: Set<string>;
-  onChanged: () => void;
+  onChanged: () => void | Promise<void>;
 }) {
   const { showToast } = useToast();
   const confirm = useConfirm();
@@ -871,10 +871,13 @@ function RequesterRequestCard({
   async function finalize(responseId: string, instructorId: string, roleSlotId?: string | null) {
     setBusy(true);
     const { error } = await finalizeResponse({ requestId: r.request_id, responseId, instructorId, roleSlotId });
+    if (error) {
+      setBusy(false);
+      return showToast(`エラー：${error.message}`);
+    }
+    await onChanged();
     setBusy(false);
-    if (error) return showToast(`エラー：${error.message}`);
     showToast(hasRoles ? "講師を決定しました。連絡先が開示されます。" : "依頼を確定しました。連絡先が開示されます。");
-    onChanged();
   }
 
   async function changeStage(responseId: string, value: "" | "screening" | "negotiation" | "passed") {
@@ -922,10 +925,14 @@ function RequesterRequestCard({
     if (!ok) return;
     setBusy(true);
     const { error } = await closeRecruiting(r.request_id);
+    if (error) {
+      setBusy(false);
+      return showToast(`エラー：${error.message}`);
+    }
+    // Keep the buttons off until the fresh data is on screen, so the card never shows the old state.
+    await onChanged();
     setBusy(false);
-    if (error) return showToast(`エラー：${error.message}`);
     showToast("募集を終了しました。");
-    onChanged();
   }
 
   async function handleCancel() {
