@@ -13,6 +13,8 @@ import { useConfirm } from "@/components/common/ConfirmDialog";
 import { flushMineNotices } from "@/lib/mine/flush-client";
 import { getMyMatchingProfile } from "@/lib/instructor/profile";
 import { getTrainingSubcategoryOptions } from "@/lib/instructor/expertise";
+import type { DetailOption } from "@/lib/requests/detail-options";
+import { loadDetailOptions } from "@/lib/requests/detail-options-load";
 import { getRequesterContacts } from "@/lib/requester/profile";
 import type { OpenRequestPublicPreviewRow, TrainingRequestRow, InstructorResponseRow } from "@/types/database";
 import { Select } from "@/components/ui/Select";
@@ -172,6 +174,9 @@ export default function OpenRequestsPage() {
   const [fArea, setFArea] = useState("");
   const [fFormat, setFFormat] = useState("");
   const [fRate, setFRate] = useState("");
+  const [fAudience, setFAudience] = useState("");
+  const [fTool, setFTool] = useState("");
+  const [detailOptions, setDetailOptions] = useState<DetailOption[]>([]);
   const [fieldOptions, setFieldOptions] = useState<{ id: string; name: string; categoryName: string }[]>([]);
 
   useEffect(() => {
@@ -184,6 +189,7 @@ export default function OpenRequestsPage() {
 
       const profile = await getMyMatchingProfile(user.id);
       setMyProfile(profile);
+      loadDetailOptions().then(setDetailOptions);
       const { data: subs } = await getTrainingSubcategoryOptions();
       setFieldOptions(
         ((subs as unknown as { id: string; name: string; training_categories: { name: string } | null }[] | null) ?? []).map((x) => ({
@@ -307,6 +313,8 @@ export default function OpenRequestsPage() {
       if (area && !(r.location ?? "").toLowerCase().includes(area)) return false;
       if (fFormat && r.preferred_format !== fFormat && r.preferred_format !== "both") return false;
       if (rate && !(isHourly(r) && r.budget != null && r.budget >= rate)) return false;
+      if (fAudience && !(r.detail_option_ids ?? []).includes(fAudience)) return false;
+      if (fTool && !(r.detail_option_ids ?? []).includes(fTool)) return false;
       return true;
     });
     function filteredByTab() {
@@ -326,9 +334,9 @@ export default function OpenRequestsPage() {
     }
     return allRequests.filter((r) => r.myResponse);
     }
-  }, [allRequests, currentTab, hiddenIds, myProfile, q, fField, fArea, fFormat, fRate]);
+  }, [allRequests, currentTab, hiddenIds, myProfile, q, fField, fArea, fFormat, fRate, fAudience, fTool]);
 
-  const filterActive = !!(q.trim() || fField || fArea.trim() || fFormat || fRate);
+  const filterActive = !!(q.trim() || fField || fArea.trim() || fFormat || fRate || fAudience || fTool);
 
   if (!authReady || (user && user.role === "INSTRUCTOR" && loading)) {
     return (
@@ -438,11 +446,43 @@ export default function OpenRequestsPage() {
               <input type="number" min={0} step={1000} placeholder="例：10000" value={fRate} onChange={(e) => setFRate(e.target.value)} />
             </div>
           </div>
+          {detailOptions.length > 0 && (
+            <div className="form-row">
+              <div className="form-field">
+                <label>対象者</label>
+                <Select value={fAudience} onChange={(e) => setFAudience(e.target.value)}>
+                  <option value="">すべて</option>
+                  {detailOptions
+                    .filter((o) => o.group_key === "audience")
+                    .map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))}
+                </Select>
+              </div>
+              <div className="form-field">
+                <label>技術・製品・ツール</label>
+                <Select value={fTool} onChange={(e) => setFTool(e.target.value)}>
+                  <option value="">すべて</option>
+                  {detailOptions
+                    .filter((o) => o.group_key === "tool")
+                    .map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ))}
+                </Select>
+              </div>
+            </div>
+          )}
           <button
             type="button"
             className="btn btn--ghost btn--sm"
             onClick={() => {
               setQ("");
+              setFAudience("");
+              setFTool("");
               setFField("");
               setFArea("");
               setFFormat("");
