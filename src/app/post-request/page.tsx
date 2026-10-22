@@ -19,6 +19,9 @@ import { DetailsView } from "@/components/requests/DetailsView";
 import { costLines, budgetText } from "@/lib/requests/money";
 import { requestFormatLabel, normalizeDays } from "@/lib/requests/schedule";
 import { todayJst, deadlineShort } from "@/lib/requests/deadline";
+import { VisibilityForm, type VisibilityValue } from "@/components/requests/VisibilityForm";
+import { DEFAULT_VISIBILITY, VISIBILITY_TEXT, inviteError, normalizeVisibility } from "@/lib/requests/visibility";
+import { saveInvites } from "@/lib/requests/invites";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeSlots } from "@/lib/requests/roles";
 import { normalUnit } from "@/lib/requests/money";
@@ -53,6 +56,7 @@ export default function PostRequestPage() {
   const [schedule, setSchedule] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
+  const [vis, setVis] = useState<VisibilityValue>({ visibility: DEFAULT_VISIBILITY, invited: [] });
 
   const [titleHasError, setTitleHasError] = useState(false);
   const [descriptionHasError, setDescriptionHasError] = useState(false);
@@ -83,6 +87,7 @@ export default function PostRequestPage() {
         if (r && r.requester_id === user.id) {
           if (options.some((o) => o.id === r.expertise_field)) setExpertise(r.expertise_field);
           setTitle(`${r.title}（コピー）`);
+          setVis({ visibility: normalizeVisibility(r.visibility), invited: [] });
           setDescription(r.description);
           setFormat(r.preferred_format);
           setLocation(r.location ?? "");
@@ -180,6 +185,7 @@ export default function PostRequestPage() {
       preferred_schedule: schedule.trim() || null,
       // Only sent when set, so posting keeps working before migration 173 is run.
       ...(deadline ? { apply_deadline: deadline } : {}),
+      ...(vis.visibility !== DEFAULT_VISIBILITY ? { visibility: vis.visibility } : {}),
       target_instructor_id: null,
       // Sent only for drafts, so publishing keeps working before migration 167 is run.
       ...(state === "draft" ? { publish_state: "draft" as const } : {}),
@@ -190,6 +196,11 @@ export default function PostRequestPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user || !validate()) return;
+    const ve = inviteError(vis.visibility, vis.invited);
+    if (ve) {
+      setFormError(ve);
+      return;
+    }
     setPreviewing(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -205,11 +216,20 @@ export default function PostRequestPage() {
       setFormError("分野を選択してください。");
       return;
     }
+    const ve = inviteError(vis.visibility, vis.invited);
+    if (ve) {
+      setFormError(ve);
+      return;
+    }
     setFormError("");
     const input = buildInput("draft");
     if (!input) return;
     setSubmitting(true);
-    const { error } = await createTrainingRequest(input);
+    const { error, requestId } = await createTrainingRequest(input);
+    if (!error && requestId && vis.visibility === "invited") {
+      const inv = await saveInvites(requestId, user.id, vis.invited);
+      if (inv.error) showToast("依頼は保存しましたが、招待の保存に失敗しました。依頼の編集から招待し直してください。");
+    }
     setSubmitting(false);
     if (error) {
       setFormError(`保存に失敗しました：${error.message}`);
@@ -223,7 +243,11 @@ export default function PostRequestPage() {
     const input = buildInput("published");
     if (!input) return;
     setSubmitting(true);
-    const { error } = await createTrainingRequest(input);
+    const { error, requestId } = await createTrainingRequest(input);
+    if (!error && requestId && vis.visibility === "invited" && user) {
+      const inv = await saveInvites(requestId, user.id, vis.invited);
+      if (inv.error) showToast("依頼は公募しましたが、招待の保存に失敗しました。依頼の編集から招待し直してください。");
+    }
     setSubmitting(false);
 
     if (error) {
@@ -323,6 +347,7 @@ export default function PostRequestPage() {
                   {format !== "online" && location.trim() ? <p className="request-card__desc">場所：{location.trim()}</p> : null}
                   {schedule.trim() ? <p className="request-card__desc">希望日程：{schedule.trim()}</p> : null}
                   {deadline ? <p className="request-card__desc">応募締切：{deadlineShort(deadline)}</p> : null}
+                  <p className="request-card__desc">公開範囲：{VISIBILITY_TEXT[vis.visibility]}{vis.visibility === "invited" ? `（${vis.invited.length}名を招待）` : ""}</p>
                   {costLines(preview).length > 0 && (
                     <div className="request-card__response" style={{ margin: "0 0 14px", fontSize: 13 }}>
                       <strong>費用・支払い</strong>
@@ -430,6 +455,8 @@ export default function PostRequestPage() {
               <input type="date" id="reqDeadline" min={todayJst()} value={deadline} onChange={(e) => setDeadline(e.target.value)} />
               <p className="form-field__hint">この日を過ぎると、新しい応募はできなくなります（応募済みの講師は変わりません）。</p>
             </div>
+
+            <VisibilityForm value={vis} onChange={setVis} />
 
             <RolesForm value={roles} onChange={setRoles} />
             <DetailsForm value={details} onChange={setDetails} />
