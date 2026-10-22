@@ -13,6 +13,8 @@ import type { RequestFormat } from "@/types/database";
 import { DetailsForm, EMPTY_DETAILS, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
 import { MoneyForm, EMPTY_MONEY, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
 import { Select } from "@/components/ui/Select";
+import { RolesForm, EMPTY_ROLES, rolesPayload, type RolesFormValue } from "@/components/requests/RolesForm";
+import { slotsSummary } from "@/lib/requests/roles";
 import { DetailsView } from "@/components/requests/DetailsView";
 import { costLines, budgetText } from "@/lib/requests/money";
 import { requestFormatLabel } from "@/lib/requests/schedule";
@@ -37,6 +39,7 @@ export default function PostRequestPage() {
   const [title, setTitle] = useState("");
   const [format, setFormat] = useState<RequestFormat>("online");
   const [details, setDetails] = useState<DetailsFormValue>(EMPTY_DETAILS);
+  const [roles, setRoles] = useState<RolesFormValue>(EMPTY_ROLES);
   const [money, setMoney] = useState<MoneyFormValue>(EMPTY_MONEY);
   const [participants, setParticipants] = useState("");
   const [location, setLocation] = useState("");
@@ -133,6 +136,8 @@ export default function PostRequestPage() {
       expertise_field: expertise,
       ...moneyPayload(money),
       ...detailsPayload(details),
+      // Only sent when roles are used, so posting keeps working before migration 168 is run.
+      ...(rolesPayload(roles).role_slots.length > 0 ? rolesPayload(roles) : {}),
       participant_count: Number(participants) >= 1 ? Number(participants) : null,
       preferred_format: format,
       location: format === "online" ? null : location.trim() || null,
@@ -264,7 +269,7 @@ export default function PostRequestPage() {
             const preview = { preferred_format: format, ...money_, ...days_ };
             return (
               <div>
-                <div className="notice-banner is-visible" style={{ marginBottom: 16 }}>
+                <div className="request-card__response" style={{ marginBottom: 16, fontSize: 13.5, fontWeight: 700 }}>
                   確認画面です。講師にはこのように表示されます。まだ公開されていません。
                 </div>
                 <div className="request-card">
@@ -276,6 +281,7 @@ export default function PostRequestPage() {
                     {Number(participants) >= 1 ? <span className="instructor-card__tag">対象{participants}名</span> : null}
                   </div>
                   <p className="request-card__desc" style={{ whiteSpace: "pre-wrap" }}>{description.trim()}</p>
+                  {rolesPayload(roles).role_slots.length > 0 && <p className="request-card__desc">募集職種：{slotsSummary(rolesPayload(roles).role_slots)}</p>}
                   {format !== "online" && location.trim() ? <p className="request-card__desc">場所：{location.trim()}</p> : null}
                   {schedule.trim() ? <p className="request-card__desc">希望日程：{schedule.trim()}</p> : null}
                   {costLines(preview).length > 0 && (
@@ -380,6 +386,7 @@ export default function PostRequestPage() {
               <input type="text" id="reqSchedule" placeholder="例：8月中旬 平日午後" value={schedule} onChange={(e) => setSchedule(e.target.value)} />
             </div>
 
+            <RolesForm value={roles} onChange={setRoles} />
             <DetailsForm value={details} onChange={setDetails} />
 
             <div className={`form-field${descriptionHasError ? " has-error" : ""}`}>

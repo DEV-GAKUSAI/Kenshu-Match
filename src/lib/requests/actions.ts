@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { normalizeSlots, slotCounts, totalRemaining } from "@/lib/requests/roles";
 
 /**
  * Finalizes a training request onto one instructor's response: marks the
@@ -26,8 +27,10 @@ export async function finalizeResponse(params: {
   requestId: string;
   responseId: string;
   instructorId: string;
+  /** Which role slot this instructor fills (required when the request has role slots). */
+  roleSlotId?: string | null;
 }) {
-  const { requestId, responseId, instructorId } = params;
+  const { requestId, responseId, instructorId, roleSlotId } = params;
   const supabase = await createClient();
 
   const {
@@ -58,7 +61,7 @@ export async function finalizeResponse(params: {
 
   const { data: request, error: requestError } = await supabase
     .from("training_requests")
-    .select("request_id, requester_id, status, target_instructor_id")
+    .select("request_id, requester_id, status, target_instructor_id, role_slots")
     .eq("request_id", requestId)
     .maybeSingle();
 
@@ -77,17 +80,36 @@ export async function finalizeResponse(params: {
     return { error: { message: "先に面談を依頼し、講師が情報を公開してから決定してください。" } };
   }
 
+  // Role slots (#42): the instructor fills one slot; the request stays open (pending) until every slot is full.
+  const slots = normalizeSlots((request as { role_slots?: unknown }).role_slots);
+  let closesRecruiting = true;
+  if (slots.length > 0) {
+    const slot = slots.find((x) => x.id === roleSlotId);
+    if (!slot) return { error: { message: "職種を選んでください。" } };
+    const { data: others } = await supabase
+      .from("instructor_responses")
+      .select("is_selected, role_slot_id")
+      .eq("request_id", requestId)
+      .eq("is_selected", true);
+    const counts = slotCounts(slots, (others ?? []) as { is_selected: boolean; role_slot_id: string | null }[]);
+    const target = counts.find((c) => c.slot.id === slot.id);
+    if (!target || target.remaining < 1) return { error: { message: "この職種の募集人数はすでに決定済みです。" } };
+    closesRecruiting = totalRemaining(counts) - 1 <= 0;
+  }
+
   const { error: e1 } = await supabase
     .from("instructor_responses")
-    .update({ is_selected: true })
+    .update(slots.length > 0 ? { is_selected: true, role_slot_id: roleSlotId } : { is_selected: true })
     .eq("response_id", responseId);
   if (e1) return { error: e1 };
 
-  const { error: e2 } = await supabase
-    .from("training_requests")
-    .update({ status: "accepted" })
-    .eq("request_id", requestId);
-  if (e2) return { error: e2 };
+  if (closesRecruiting) {
+    const { error: e2 } = await supabase
+      .from("training_requests")
+      .update({ status: "accepted" })
+      .eq("request_id", requestId);
+    if (e2) return { error: e2 };
+  }
 
   const { error: e3 } = await supabase
     .from("contact_unlocks")
@@ -95,4 +117,36 @@ export async function finalizeResponse(params: {
   if (e3) return { error: e3 };
 
   return { error: null };
+}
+
+/**
+ * Company: stop recruiting for a request with role slots even though some slots are still open.
+ * Needs at least one decided instructor. The request becomes 承諾済み; the other applicants are
+ * told they were not chosen (database trigger).
+ */
+export async function closeRecruiting(requestId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: { message: "ログインが必要です。" } };
+
+  const { data: request } = await supabase
+    .from("training_requests")
+    .select("request_id, requester_id, status")
+    .eq("request_id", requestId)
+    .maybeSingle();
+  if (!request || request.requester_id !== user.id) return { error: { message: "この依頼を変更する権限がありません。" } };
+  if (request.status !== "pending") return { error: { message: "この依頼はすでに募集を終了しています。" } };
+
+  const { data: chosen } = await supabase
+    .from("instructor_responses")
+    .select("response_id")
+    .eq("request_id", requestId)
+    .eq("is_selected", true)
+    .limit(1);
+  if (!chosen || chosen.length === 0) return { error: { message: "決定した講師がいないため、募集を終了できません。" } };
+
+  const { error } = await supabase.from("training_requests").update({ status: "accepted" }).eq("request_id", requestId);
+  return { error: error ?? null };
 }

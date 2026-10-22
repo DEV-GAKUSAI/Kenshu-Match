@@ -40,6 +40,8 @@ export function ApplicantRow({
   busy,
   onDecide,
   onCancelRequest,
+  decidedLabel,
+  decideExtra,
 }: {
   name: string;
   response: InstructorResponseRow;
@@ -50,6 +52,10 @@ export function ApplicantRow({
   onDecide: () => void;
   /** Cancelling the whole request (only while no instructor is chosen yet). */
   onCancelRequest?: () => void;
+  /** Set when this instructor is already decided into a role slot (e.g. 「決定：サブ講師」). */
+  decidedLabel?: string | null;
+  /** Shown before the decide button (the role chooser when the request has role slots). */
+  decideExtra?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [changes, setChanges] = useState<ResponseChange[]>([]);
@@ -138,8 +144,9 @@ export function ApplicantRow({
               </a>
             </strong>
             <span style={pill("var(--color-accent-soft)", "var(--color-accent-text)")}>{offer}</span>
-            {interview === "requested" && <span style={pill("#FFF1DB", "#9A5B0C")}>面談依頼中</span>}
-            {interview === "released" && <span style={pill("#E3F7F0", "#0E7A5F")}>情報公開済み</span>}
+            {decidedLabel && <span style={pill("#17B08A", "#fff")}>{decidedLabel}</span>}
+            {!decidedLabel && interview === "requested" && <span style={pill("#FFF1DB", "#9A5B0C")}>面談依頼中</span>}
+            {!decidedLabel && interview === "released" && <span style={pill("#E3F7F0", "#0E7A5F")}>情報公開済み</span>}
             {declined && <span style={pill("#EEE", "#666")}>辞退</span>}
             {isNew && (
               <span className="status-badge status-badge--rejected" style={{ fontSize: 10 }}>
@@ -181,13 +188,16 @@ export function ApplicantRow({
           {meeting && <MineMeetingLine meeting={meeting} viewer="requester" compact />}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: message || meeting ? 12 : 0 }}>
             {!declined && meetingButton}
-            {interview === "requested" && (
+            {!decidedLabel && interview === "requested" && (
               <span style={{ alignSelf: "center", color: "var(--color-ink-soft)" }}>講師の返事待ちです。公開されると決定できます。</span>
             )}
-            {interview === "released" && (
-              <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={onDecide}>
-                この講師に決定する
-              </button>
+            {!decidedLabel && interview === "released" && (
+              <>
+                {decideExtra}
+                <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={onDecide}>
+                  この講師に決定する
+                </button>
+              </>
             )}
             {onCancelRequest && (
               <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={onCancelRequest}>

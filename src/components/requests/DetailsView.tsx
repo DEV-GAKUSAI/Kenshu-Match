@@ -2,14 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { dayLine, normalizeDays } from "@/lib/requests/schedule";
+import { normalizeSlots, slotsSummary } from "@/lib/requests/roles";
 import { groupChosen, type DetailOption } from "@/lib/requests/detail-options";
 import { loadDetailOptions } from "@/lib/requests/detail-options-load";
 
 /** Shows the day-by-day schedule and the required conditions of a request (only what was filled in). */
 export function DetailsView({
   r,
+  showRoles = true,
 }: {
-  r: { schedule_days?: unknown; all_days_required?: boolean | null; req_skills?: string | null; req_prep?: string | null; detail_option_ids?: string[] | null; detail_other_tools?: string | null };
+  /** 募集職種 is shown here unless the page shows it itself (the company card has its own progress block). */
+  showRoles?: boolean;
+  r: { role_slots?: unknown; schedule_days?: unknown; all_days_required?: boolean | null; req_skills?: string | null; req_prep?: string | null; detail_option_ids?: string[] | null; detail_other_tools?: string | null };
 }) {
   const [options, setOptions] = useState<DetailOption[]>([]);
   const hasIds = (r.detail_option_ids ?? []).length > 0;
@@ -24,11 +28,18 @@ export function DetailsView({
   const chosen = groupChosen(r.detail_option_ids, options);
   const otherTools = (r.detail_other_tools ?? "").trim();
   const days = normalizeDays(r.schedule_days);
+  const slots = showRoles ? normalizeSlots(r.role_slots) : [];
   const skills = (r.req_skills ?? "").trim();
   const prep = (r.req_prep ?? "").trim();
-  if (!days.length && !skills && !prep && !chosen.length && !otherTools) return null;
+  if (!days.length && !skills && !prep && !chosen.length && !otherTools && !slots.length) return null;
   return (
     <div className="request-card__response" style={{ margin: "0 0 14px", fontSize: 13 }}>
+      {slots.length > 0 && (
+        <div style={{ marginBottom: chosen.length || otherTools || days.length || skills || prep ? 10 : 0 }}>
+          <strong>募集職種・人数</strong>
+          {slotsSummary(slots)}
+        </div>
+      )}
       {(chosen.length > 0 || otherTools) && (
         <div style={{ marginBottom: days.length || skills || prep ? 10 : 0 }}>
           <strong>詳細条件</strong>
