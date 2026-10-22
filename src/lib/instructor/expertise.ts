@@ -17,12 +17,20 @@ export async function getTrainingCategoriesWithSubcategories() {
 }
 
 /** Lightweight taxonomy for <select> options (id + category name / subcategory name). */
+/** Fields in the sheet's order: categories by sort_order, then fields by sort_order. */
 export async function getTrainingSubcategoryOptions() {
   const supabase = createClient();
-  return supabase
+  const res = await supabase
     .from("training_subcategories")
-    .select("id, name, category_id, training_categories(name)")
-    .order("name");
+    .select("id, name, category_id, sort_order, training_categories(name, sort_order)")
+    .order("sort_order");
+  if (res.error || !res.data) return res;
+  type Row = { sort_order: number; training_categories: { sort_order: number } | null };
+  const rows = [...(res.data as unknown as Row[])].sort(
+    (a, b) =>
+      (a.training_categories?.sort_order ?? 999) - (b.training_categories?.sort_order ?? 999) || a.sort_order - b.sort_order,
+  );
+  return { ...res, data: rows as unknown as typeof res.data };
 }
 
 export async function getOtherCategory() {
