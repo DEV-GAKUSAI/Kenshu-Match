@@ -19,6 +19,7 @@ import { loadDetailOptions } from "@/lib/requests/detail-options-load";
 import { getRequesterContacts } from "@/lib/requester/profile";
 import type { OpenRequestPublicPreviewRow, TrainingRequestRow, InstructorResponseRow } from "@/types/database";
 import { Select } from "@/components/ui/Select";
+import { normalizeSlots, slotsSummary } from "@/lib/requests/roles";
 
 const HIDDEN_KEY = "kenshulink_hidden_open_requests";
 
@@ -575,6 +576,7 @@ export default function OpenRequestsPage() {
               {budgetText(r) ? <span className="open-tag open-tag--budget">{budgetText(r)}</span> : null}
               <span className="open-tag">{requestFormatLabel(r)}</span>
               {r.participant_count ? <span className="open-tag">対象{r.participant_count}名</span> : null}
+              {normalizeSlots(r.role_slots).length > 0 ? <span className="open-tag">募集：{slotsSummary(normalizeSlots(r.role_slots))}</span> : null}
               {r.location ? <span className="open-tag">{r.location}</span> : null}
               {r.preferred_schedule ? <span className="open-tag">{r.preferred_schedule}</span> : null}
             </div>
