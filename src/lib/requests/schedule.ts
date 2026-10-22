@@ -50,3 +50,12 @@ export function dayLine(d: ScheduleDay): string {
   const where = d.format === "offline" && d.place.trim() ? `対面・${d.place.trim()}` : d.format === "online" && d.place.trim() ? `オンライン（${d.place.trim()}）` : FORMAT_TEXT[d.format];
   return [`${date} ${time}`, where, d.content.trim()].filter(Boolean).join(" ／ ");
 }
+
+const FORMAT_TAG: Record<string, string> = { online: "オンライン", offline: "対面", both: "オンライン・対面" };
+
+/** The format tag text. If the days mix online and on-site, say so even when the request's own setting is one of them. */
+export function requestFormatLabel(r: { preferred_format: string; schedule_days?: unknown }): string {
+  const formats = new Set(normalizeDays(r.schedule_days).map((d) => d.format));
+  if (formats.has("online") && formats.has("offline")) return "オンライン・対面 両方";
+  return FORMAT_TAG[r.preferred_format] || r.preferred_format;
+}

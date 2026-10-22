@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { budgetText, isHourly, quoteText } from "@/lib/requests/money";
+import { requestFormatLabel } from "@/lib/requests/schedule";
 import { getOpenRequestsPublicPreview, getOpenRequestsForInstructor } from "@/lib/requests/training-requests";
 import { markResultsSeenByInstructor, submitInstructorResponse } from "@/lib/requests/instructor-responses";
 import { useToast } from "@/components/common/Toast";
@@ -19,7 +20,6 @@ import { getRequesterContacts } from "@/lib/requester/profile";
 import type { OpenRequestPublicPreviewRow, TrainingRequestRow, InstructorResponseRow } from "@/types/database";
 import { Select } from "@/components/ui/Select";
 
-const FORMAT_LABEL: Record<string, string> = { online: "オンライン", offline: "対面", both: "オンライン・対面" };
 const HIDDEN_KEY = "kenshulink_hidden_open_requests";
 
 type RequestWithJoins = TrainingRequestRow & {
@@ -133,7 +133,7 @@ function PublicPreviewList() {
           </div>
           <p className="request-card__desc">{r.description}</p>
           <div className="request-card__tags">
-            <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
+            <span className="instructor-card__tag">{requestFormatLabel(r)}</span>
             {budgetText(r) ? <span className="instructor-card__tag">{budgetText(r)}</span> : null}
             {r.location ? <span className="instructor-card__tag">{r.location}</span> : null}
           </div>
@@ -299,26 +299,9 @@ export default function OpenRequestsPage() {
     return { open: open.length, mine: mine.length, recommended: recommended.length };
   }, [allRequests, hiddenIds, myProfile]);
 
-  const filtered = useMemo(() => {
-    const list = filteredByTab();
-    const kw = q.trim().toLowerCase();
-    const area = fArea.trim().toLowerCase();
-    const rate = Number(fRate) || 0;
-    return list.filter((r) => {
-      if (kw) {
-        const hay = `${r.title} ${r.description} ${r.preferred_schedule ?? ""} ${r.request_id}`.toLowerCase();
-        if (!hay.includes(kw)) return false;
-      }
-      if (fField && r.expertise_field !== fField) return false;
-      if (area && !(r.location ?? "").toLowerCase().includes(area)) return false;
-      if (fFormat && r.preferred_format !== fFormat && r.preferred_format !== "both") return false;
-      if (rate && !(isHourly(r) && r.budget != null && r.budget >= rate)) return false;
-      if (fAudience && !(r.detail_option_ids ?? []).includes(fAudience)) return false;
-      if (fTool && !(r.detail_option_ids ?? []).includes(fTool)) return false;
-      return true;
-    });
-    function filteredByTab() {
-    if (currentTab === "recommended") {
+  type Tab = "recommended" | "open" | "mine";
+  function listForTab(tab: Tab) {
+    if (tab === "recommended") {
       return allRequests
         .filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id) && matchReasons(r, myProfile).length > 0)
         .sort((a, b) => {
@@ -329,11 +312,43 @@ export default function OpenRequestsPage() {
           return rb.length - ra.length;
         });
     }
-    if (currentTab === "open") {
+    if (tab === "open") {
       return allRequests.filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id));
     }
     return allRequests.filter((r) => r.myResponse);
+  }
+
+  function passesFilters(r: RequestWithJoins) {
+    const kw = q.trim().toLowerCase();
+    const area = fArea.trim().toLowerCase();
+    const rate = Number(fRate) || 0;
+    if (kw) {
+      const hay = `${r.title} ${r.description} ${r.preferred_schedule ?? ""} ${r.request_id}`.toLowerCase();
+      if (!hay.includes(kw)) return false;
     }
+    if (fField && r.expertise_field !== fField) return false;
+    if (area && !(r.location ?? "").toLowerCase().includes(area)) return false;
+    if (fFormat && r.preferred_format !== fFormat && r.preferred_format !== "both") return false;
+    if (rate && !(isHourly(r) && r.budget != null && r.budget >= rate)) return false;
+    if (fAudience && !(r.detail_option_ids ?? []).includes(fAudience)) return false;
+    if (fTool && !(r.detail_option_ids ?? []).includes(fTool)) return false;
+    return true;
+  }
+
+  const filtered = useMemo(
+    () => listForTab(currentTab).filter(passesFilters),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allRequests, currentTab, hiddenIds, myProfile, q, fField, fArea, fFormat, fRate, fAudience, fTool],
+  );
+
+  // When the current tab shows nothing: how many matches the other tabs have (applied requests only show under 応募済み).
+  const otherTabHits = useMemo(() => {
+    const names: Record<Tab, string> = { recommended: "あなたに合う案件", open: "応募可能", mine: "応募済み" };
+    return (["recommended", "open", "mine"] as Tab[])
+      .filter((t) => t !== currentTab)
+      .map((t) => ({ tab: t, name: names[t], n: listForTab(t).filter(passesFilters).length }))
+      .filter((x) => x.n > 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allRequests, currentTab, hiddenIds, myProfile, q, fField, fArea, fFormat, fRate, fAudience, fTool]);
 
   const filterActive = !!(q.trim() || fField || fArea.trim() || fFormat || fRate || fAudience || fTool);
@@ -507,6 +522,18 @@ export default function OpenRequestsPage() {
                 ? "現在、応募可能な公募依頼はありません"
                 : "まだ応募した公募依頼はありません"}
           </p>
+          {otherTabHits.length > 0 && (
+            <p className="empty-state__desc">
+              {otherTabHits.map((h, i) => (
+                <span key={h.tab}>
+                  {i > 0 ? "　" : ""}
+                  <button type="button" onClick={() => setCurrentTab(h.tab)} style={{ background: "none", border: 0, padding: 0, font: "inherit", color: "var(--color-primary)", textDecoration: "underline", cursor: "pointer" }}>
+                    「{h.name}」に{h.n}件あります
+                  </button>
+                </span>
+              ))}
+            </p>
+          )}
         </div>
       )}
 
@@ -546,7 +573,7 @@ export default function OpenRequestsPage() {
             <p className="request-card__desc request-card__desc--clamp">{r.description}</p>
             <div className="request-card__tags">
               {budgetText(r) ? <span className="open-tag open-tag--budget">{budgetText(r)}</span> : null}
-              <span className="open-tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
+              <span className="open-tag">{requestFormatLabel(r)}</span>
               {r.participant_count ? <span className="open-tag">対象{r.participant_count}名</span> : null}
               {r.location ? <span className="open-tag">{r.location}</span> : null}
               {r.preferred_schedule ? <span className="open-tag">{r.preferred_schedule}</span> : null}

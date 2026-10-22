@@ -13,6 +13,7 @@ import {
 } from "@/lib/requests/training-requests";
 import { budgetText, costLines, isHourly, normalUnit, quoteText, UNIT_OPTIONS, type MoneyFields } from "@/lib/requests/money";
 import { DetailsView } from "@/components/requests/DetailsView";
+import { requestFormatLabel } from "@/lib/requests/schedule";
 import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { declineInterview, releaseInstructorName, submitInstructorResponse } from "@/lib/requests/instructor-responses";
@@ -32,7 +33,6 @@ import type {
 } from "@/types/database";
 import { Select } from "@/components/ui/Select";
 
-const FORMAT_LABEL: Record<string, string> = { online: "オンライン", offline: "対面", both: "オンライン・対面" };
 const HIDDEN_KEY = "kenshulink_hidden_open_requests";
 
 function fmtDate(iso: string | null) {
@@ -41,13 +41,15 @@ function fmtDate(iso: string | null) {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
 }
 
+const BIG_TAG = { fontSize: 15, padding: "8px 16px", fontWeight: 700 } as const;
+
 function Tags({ r }: { r: { preferred_format: string; location: string | null; preferred_schedule: string | null; schedule_days?: unknown; all_days_required?: boolean | null; req_skills?: string | null; req_prep?: string | null } & MoneyFields }) {
   const lines = costLines(r);
   return (
     <>
       <div className="request-card__tags" style={{ margin: "18px 0" }}>
-        <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
-        {budgetText(r) ? <span className="instructor-card__tag">{budgetText(r)}</span> : null}
+        <span className="instructor-card__tag" style={BIG_TAG}>{requestFormatLabel(r)}</span>
+        {budgetText(r) ? <span className="instructor-card__tag" style={BIG_TAG}>{budgetText(r)}</span> : null}
         {r.location ? <span className="instructor-card__tag">{r.location}</span> : null}
         {r.preferred_schedule ? <span className="instructor-card__tag">{r.preferred_schedule}</span> : null}
       </div>
