@@ -208,7 +208,7 @@ export function ApplicantRow({
               <>
                 {decideExtra}
                 <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={onDecide}>
-                  この講師に決定する
+                  {busy ? "処理中…" : "この講師に決定する"}
                 </button>
               </>
             )}

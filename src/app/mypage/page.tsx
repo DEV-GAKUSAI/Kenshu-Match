@@ -1042,7 +1042,7 @@ function RequesterRequestCard({
           {r.status === "pending" && selectedResps.length > 0 && totalRemaining(slotStats) > 0 && (
             <div style={{ marginTop: 8 }}>
               <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={handleCloseRecruiting}>
-                募集を終了する
+                {busy ? "処理中…" : "募集を終了する"}
               </button>
             </div>
           )}
