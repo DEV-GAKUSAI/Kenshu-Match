@@ -31,6 +31,7 @@ import { OrderPanel } from "@/components/requests/OrderPanel";
 import { FlowPanel } from "@/components/requests/FlowPanel";
 import { InternalNote } from "@/components/requests/InternalNote";
 import { ResponseManage } from "@/components/requests/ResponseManage";
+import { deadlineShort } from "@/lib/requests/deadline";
 import { finalizeResponse, closeRecruiting } from "@/lib/requests/actions";
 import { stageOf, STAGE_LABEL } from "@/lib/requests/stage";
 import { normalizeSlots, openSlots, progressSummary, slotCounts, slotsSummary, totalNeeded, totalRemaining } from "@/lib/requests/roles";
@@ -863,6 +864,7 @@ function RequesterRequestCard({
   const rowParts = [
     rowWho,
     budgetText(r),
+    isBroadcast && r.apply_deadline ? `応募締切 ${deadlineShort(r.apply_deadline)}` : null,
     isBroadcast && applicants.length > 0 && (st.key === "pending" || st.key === "quoted") ? `応募 ${applicants.length}名` : null,
     fmtDate(r.created_at),
     `案件番号 ${r.request_id.slice(0, 8)}`,
@@ -1042,7 +1044,7 @@ function RequesterRequestCard({
           {r.status === "pending" && selectedResps.length > 0 && totalRemaining(slotStats) > 0 && (
             <div style={{ marginTop: 8 }}>
               <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={handleCloseRecruiting}>
-                募集を終了する
+                {busy ? "処理中…" : "募集を終了する"}
               </button>
             </div>
           )}
@@ -1204,6 +1206,14 @@ function RequesterRequestCard({
         <InternalNote requestId={r.request_id} requesterId={userId} />
         <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} severalInstructors={hasRoles} />
       </div>
+
+      {isBroadcast && r.publish_state !== "draft" && (
+        <div className="request-card__actions">
+          <Link href={`/post-request?copy=${r.request_id}`} className="btn btn--ghost btn--sm">
+            複製して新しい依頼を作る
+          </Link>
+        </div>
+      )}
 
       {isBroadcast && st.key === "quoted" && (
         <div className="request-card__actions">

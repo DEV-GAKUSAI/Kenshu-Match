@@ -127,6 +127,8 @@ export type TrainingRequestRow = {
   detail_other_tools: string | null;
   publish_state: PublishState;
   role_slots: unknown;
+  /** Last day (Japan time) to apply, YYYY-MM-DD; null = no deadline (migration 173). */
+  apply_deadline: string | null;
   preferred_format: RequestFormat;
   location: string | null;
   preferred_schedule: string | null;
@@ -153,6 +155,8 @@ export type InstructorResponseRow = {
   stage: "screening" | "negotiation" | "passed" | null;
   apply_experience: string | null;
   apply_materials: "existing" | "create" | "either" | null;
+  /** Can the instructor join a prep session (migration 173). */
+  apply_prep: "yes" | "no" | "discuss" | null;
   message: string | null;
   reveal_contact: boolean;
   is_selected: boolean;
@@ -228,6 +232,8 @@ export type OpenRequestPublicPreviewRow = {
   detail_other_tools: string | null;
   publish_state: PublishState;
   role_slots: unknown;
+  /** Last day (Japan time) to apply, YYYY-MM-DD; null = no deadline (migration 173). */
+  apply_deadline: string | null;
 };
 
 /** A meeting booked on the instructor's Mine page (sent by Mine; see 124_kenshu_mine_meetings.sql). */

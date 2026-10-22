@@ -15,6 +15,7 @@ import { budgetText, costLines, isHourly, normalUnit, quoteText, UNIT_OPTIONS, t
 import { DetailsView } from "@/components/requests/DetailsView";
 import { normalizeSlots } from "@/lib/requests/roles";
 import { STAGE_LABEL, stageOf } from "@/lib/requests/stage";
+import { deadlinePassed, deadlineShort } from "@/lib/requests/deadline";
 import { requestFormatLabel } from "@/lib/requests/schedule";
 import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
 import { ResponseManage } from "@/components/requests/ResponseManage";
@@ -46,7 +47,7 @@ function fmtDate(iso: string | null) {
 
 const BIG_TAG = { fontSize: 15, padding: "8px 16px", fontWeight: 700 } as const;
 
-function Tags({ r }: { r: { preferred_format: string; location: string | null; preferred_schedule: string | null; schedule_days?: unknown; all_days_required?: boolean | null; req_skills?: string | null; req_prep?: string | null } & MoneyFields }) {
+function Tags({ r }: { r: { preferred_format: string; location: string | null; preferred_schedule: string | null; schedule_days?: unknown; apply_deadline?: string | null; all_days_required?: boolean | null; req_skills?: string | null; req_prep?: string | null } & MoneyFields }) {
   const lines = costLines(r);
   return (
     <>
@@ -55,6 +56,7 @@ function Tags({ r }: { r: { preferred_format: string; location: string | null; p
         {budgetText(r) ? <span className="instructor-card__tag" style={BIG_TAG}>{budgetText(r)}</span> : null}
         {r.location ? <span className="instructor-card__tag">{r.location}</span> : null}
         {r.preferred_schedule ? <span className="instructor-card__tag">{r.preferred_schedule}</span> : null}
+        {r.apply_deadline ? <span className="instructor-card__tag">応募締切：{deadlineShort(r.apply_deadline)}</span> : null}
       </div>
       {lines.length > 0 && (
         <div className="request-card__response" style={{ margin: "0 0 14px", fontSize: 13 }}>
@@ -394,7 +396,13 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
           </p>
         )}
 
-        {(!myResponse || reapplying) && r.status === "pending" && (
+        {(!myResponse || reapplying) && r.status === "pending" && deadlinePassed(r.apply_deadline) && (
+          <p className="request-card__desc" style={{ marginTop: 20, color: "var(--color-ink-soft)" }}>
+            応募の受付は終了しました（締切：{r.apply_deadline ? deadlineShort(r.apply_deadline) : ""}）。
+          </p>
+        )}
+
+        {(!myResponse || reapplying) && r.status === "pending" && !deadlinePassed(r.apply_deadline) && (
           <>
             <div className="inline-quote-form is-open" ref={actionsRef} style={{ marginTop: 24 }}>
               <div className="form-field">

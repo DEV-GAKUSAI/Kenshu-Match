@@ -1,6 +1,6 @@
 "use client";
 
-import { ALL_DAYS_TEXT, MATERIALS_TEXT } from "@/components/requests/ApplyFields";
+import { ALL_DAYS_TEXT, MATERIALS_TEXT, PREP_TEXT } from "@/components/requests/ApplyFields";
 import { useEffect, useState } from "react";
 import { formatMoney } from "@/lib/requests/money";
 import { getResponseChanges, type ResponseChange } from "@/lib/requests/instructor-responses";
@@ -17,6 +17,7 @@ export function ApplyItemsBox({ response }: { response: InstructorResponseRow })
   if (response.apply_all_days) items.push(["全日程への対応", ALL_DAYS_TEXT[response.apply_all_days]]);
   if (response.apply_role) items.push(["希望する役割", response.apply_role]);
   if (response.apply_materials) items.push(["教材の対応", MATERIALS_TEXT[response.apply_materials]]);
+  if (response.apply_prep) items.push(["事前研修への参加", PREP_TEXT[response.apply_prep]]);
   if (response.apply_experience) items.push(["関連する実績", response.apply_experience]);
   if (items.length === 0) return null;
   return (
