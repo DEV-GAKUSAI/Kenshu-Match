@@ -21,3 +21,12 @@ test("dayLine", () => {
   assert.ok(line.endsWith("基礎"));
   assert.equal(dayLine(EMPTY_DAY), "日付未定 時間未定 ／ 形態未定");
 });
+
+import { requestFormatLabel } from "./schedule.ts";
+
+test("format tag says both when the days mix online and on-site", () => {
+  const days = [{ format: "online" }, { format: "offline" }];
+  assert.equal(requestFormatLabel({ preferred_format: "online", schedule_days: days }), "オンライン・対面 両方");
+  assert.equal(requestFormatLabel({ preferred_format: "online", schedule_days: [{ format: "online" }] }), "オンライン");
+  assert.equal(requestFormatLabel({ preferred_format: "offline", schedule_days: [] }), "対面");
+});

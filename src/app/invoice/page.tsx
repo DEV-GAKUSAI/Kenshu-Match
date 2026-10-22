@@ -123,6 +123,12 @@ function InvoiceInner() {
               </dd>
             </div>
           )}
+          {perUnit && qty === 0 && (
+            <div className="no-print">
+              <dt>ご案内</dt>
+              <dd style={{ color: "var(--color-ink-soft)" }}>{inv.amount_unit === "hour" ? "時間数" : "日数"}が未入力のため、合計は表示されません。</dd>
+            </div>
+          )}
           {inv.note && (
             <div>
               <dt>備考</dt>

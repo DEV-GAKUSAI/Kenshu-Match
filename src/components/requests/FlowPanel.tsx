@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { useToast } from "@/components/common/Toast";
-import { getFlow, getPartners, saveFlow, type Partner, type RequestFlow } from "@/lib/requester/partners";
+import { getFlow, getPartners, saveFlow, PARTNER_KIND_TEXT, type Partner, type RequestFlow } from "@/lib/requester/partners";
 import { Select } from "@/components/ui/Select";
 
 /** 商流: who we order from / pay, who sits in between, and who actually teaches (#53). Private to the company. */
@@ -73,6 +73,12 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
       {open ? (
         <div className="inline-quote-form is-open tool-block">
           <p style={{ margin: "0 0 8px", color: "var(--color-ink-soft)" }}>
+            <strong style={{ color: "var(--color-ink)" }}>商流＝発注・支払いの流れ。</strong>間に別の会社が入るときに設定します。
+          </p>
+          <p style={{ margin: "0 0 8px", color: "var(--color-ink)", background: "#fff", border: "1px solid var(--color-border)", borderRadius: "var(--radius-s)", padding: "8px 10px" }}>
+            注文書を発行する前に設定してください。発行後に変更しても、発行済みの注文書には反映されません。
+          </p>
+          <p style={{ margin: "0 0 8px", color: "var(--color-ink-soft)" }}>
             空のままなら「決定した講師と直接取引」になります。Kenshu Linkの講師と紐づけた講師を登壇講師にすると、研修アンケートの評価がその講師につきます（アンケートのリンクを作る前に設定してください）。関係先は
             <Link href="/my-partners"> 関係先の管理</Link>
             で登録できます。
@@ -83,7 +89,7 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
               <option value="">決定した講師と直接</option>
               {partners.map((p) => (
                 <option key={p.partner_id} value={p.partner_id}>
-                  {p.name}
+                  {p.name}（{PARTNER_KIND_TEXT[p.kind]}）
                 </option>
               ))}
             </Select>
@@ -94,7 +100,7 @@ export function FlowPanel({ requestId, requesterId, decidedName }: { requestId: 
             {partners.map((p) => (
               <label key={p.partner_id} style={{ display: "flex", gap: 6, alignItems: "center", fontWeight: 400 }}>
                 <input type="checkbox" checked={via.includes(p.partner_id)} onChange={() => toggleVia(p.partner_id)} />
-                {p.name}
+                {p.name}（{PARTNER_KIND_TEXT[p.kind]}）
                 {via.includes(p.partner_id) ? `（${via.indexOf(p.partner_id) + 1}番目）` : ""}
               </label>
             ))}
