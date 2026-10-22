@@ -3,24 +3,32 @@
 import { useState } from "react";
 import { cleanDays, EMPTY_DAY, MAX_DAYS, type DayFormat, type ScheduleDay } from "@/lib/requests/schedule";
 import { Select } from "@/components/ui/Select";
+import { DetailConditionsForm } from "@/components/requests/DetailConditionsForm";
 
 export type DetailsFormValue = {
   days: ScheduleDay[];
   allDaysRequired: boolean;
   skills: string;
   prep: string;
+  /** 詳細条件 (ids from training_detail_options) and the typed-in other tools. */
+  optionIds: string[];
+  otherTools: string;
 };
 
-export const EMPTY_DETAILS: DetailsFormValue = { days: [], allDaysRequired: false, skills: "", prep: "" };
+export const EMPTY_DETAILS: DetailsFormValue = { days: [], allDaysRequired: false, skills: "", prep: "", optionIds: [], otherTools: "" };
 
 /** The fields to send with a new request. */
-export function detailsPayload(v: DetailsFormValue) {
+export function detailsPayload(v: DetailsFormValue, alwaysSendDetails = false) {
   const days = cleanDays(v.days);
   return {
     schedule_days: days,
     all_days_required: days.length > 1 && v.allDaysRequired,
     req_skills: v.skills.trim() || null,
     req_prep: v.prep.trim() || null,
+    // Only sent when used (or when editing, so choices can be cleared) — keeps new requests working before migration 164 is run.
+    ...(alwaysSendDetails || v.optionIds.length > 0 || v.otherTools.trim()
+      ? { detail_option_ids: v.optionIds, detail_other_tools: v.otherTools.trim() || null }
+      : {}),
   };
 }
 
@@ -56,6 +64,7 @@ export function DetailsForm({ value, onChange, idPrefix = "req" }: { value: Deta
   const setDay = (i: number, patch: Partial<ScheduleDay>) => set({ days: value.days.map((d, k) => (k === i ? { ...d, ...patch } : d)) });
   return (
     <>
+      <DetailConditionsForm value={{ optionIds: value.optionIds, otherTools: value.otherTools }} onChange={(c) => set(c)} />
       <div className="form-field">
         <label>日ごとの日程・場所（任意）</label>
         <p style={{ margin: "0 0 8px", fontSize: 12.5, color: "var(--color-ink-soft)" }}>

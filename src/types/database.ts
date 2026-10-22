@@ -77,6 +77,14 @@ export type InstructorExpertiseRow = {
   created_at: string;
 };
 
+export type TrainingDetailOptionRow = {
+  id: string;
+  group_key: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+};
+
 export type TrainingCategoryRow = {
   id: string;
   name: string;
@@ -113,6 +121,8 @@ export type TrainingRequestRow = {
   all_days_required: boolean;
   req_skills: string | null;
   req_prep: string | null;
+  detail_option_ids: string[];
+  detail_other_tools: string | null;
   preferred_format: RequestFormat;
   location: string | null;
   preferred_schedule: string | null;
@@ -207,6 +217,8 @@ export type OpenRequestPublicPreviewRow = {
   all_days_required: boolean;
   req_skills: string | null;
   req_prep: string | null;
+  detail_option_ids: string[];
+  detail_other_tools: string | null;
 };
 
 /** A meeting booked on the instructor's Mine page (sent by Mine; see 124_kenshu_mine_meetings.sql). */
@@ -256,6 +268,7 @@ export type Database = {
       instructor_profiles: TableDef<InstructorProfileRow>;
       instructor_expertise: TableDef<InstructorExpertiseRow>;
       training_categories: TableDef<TrainingCategoryRow>;
+      training_detail_options: TableDef<TrainingDetailOptionRow>;
       training_subcategories: TableDef<TrainingSubcategoryRow>;
       training_requests: TableDef<TrainingRequestRow>;
       instructor_responses: TableDef<InstructorResponseRow>;

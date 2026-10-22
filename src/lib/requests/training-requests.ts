@@ -20,6 +20,8 @@ export interface NewTrainingRequestInput {
   all_days_required: boolean;
   req_skills: string | null;
   req_prep: string | null;
+  detail_option_ids?: string[];
+  detail_other_tools?: string | null;
   participant_count: number | null;
   preferred_format: RequestFormat;
   location: string | null;

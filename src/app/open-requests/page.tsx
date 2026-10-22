@@ -172,7 +172,7 @@ export default function OpenRequestsPage() {
   const [fArea, setFArea] = useState("");
   const [fFormat, setFFormat] = useState("");
   const [fRate, setFRate] = useState("");
-  const [fieldOptions, setFieldOptions] = useState<{ id: string; name: string }[]>([]);
+  const [fieldOptions, setFieldOptions] = useState<{ id: string; name: string; categoryName: string }[]>([]);
 
   useEffect(() => {
     if (!authReady) return;
@@ -185,7 +185,13 @@ export default function OpenRequestsPage() {
       const profile = await getMyMatchingProfile(user.id);
       setMyProfile(profile);
       const { data: subs } = await getTrainingSubcategoryOptions();
-      setFieldOptions(((subs as unknown as { id: string; name: string }[] | null) ?? []).map((x) => ({ id: x.id, name: x.name })));
+      setFieldOptions(
+        ((subs as unknown as { id: string; name: string; training_categories: { name: string } | null }[] | null) ?? []).map((x) => ({
+          id: x.id,
+          name: x.name,
+          categoryName: x.training_categories?.name || "",
+        })),
+      );
 
       const { data, error } = await getOpenRequestsForInstructor();
       if (error) {
@@ -400,10 +406,16 @@ export default function OpenRequestsPage() {
               <label>分野</label>
               <Select value={fField} onChange={(e) => setFField(e.target.value)}>
                 <option value="">すべて</option>
-                {fieldOptions.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name}
-                  </option>
+                {[...new Set(fieldOptions.map((o) => o.categoryName))].map((cat) => (
+                  <optgroup key={cat} label={cat}>
+                    {fieldOptions
+                      .filter((o) => o.categoryName === cat)
+                      .map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.name}
+                        </option>
+                      ))}
+                  </optgroup>
                 ))}
               </Select>
             </div>
