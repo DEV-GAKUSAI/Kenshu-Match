@@ -12,7 +12,7 @@ import { addPartner, deletePartner, getPartners, PARTNER_KIND_TEXT, updatePartne
 import "../mypage/mypage.css";
 import { Select } from "@/components/ui/Select";
 
-const EMPTY = { name: "", kind: "company" as PartnerKind, contact: "", note: "", instructorId: "" };
+const EMPTY = { name: "", kind: "" as PartnerKind | "", contact: "", note: "", instructorId: "" };
 
 /** 関係先の管理 (#53): partner companies and instructors that can sit in a request's flow. */
 export default function MyPartnersPage() {
@@ -52,8 +52,9 @@ export default function MyPartnersPage() {
 
   async function submit() {
     if (!form.name.trim()) return showToast("名前を入力してください。");
+    if (!form.kind) return showToast("区分を選んでください。");
     setBusy(true);
-    const payload = { name: form.name, kind: form.kind, contact: form.contact.trim() || null, note: form.note.trim() || null, instructor_id: form.kind === "instructor" && form.instructorId ? form.instructorId : null };
+    const payload = { name: form.name, kind: form.kind as PartnerKind, contact: form.contact.trim() || null, note: form.note.trim() || null, instructor_id: form.kind === "instructor" && form.instructorId ? form.instructorId : null };
     const { error } = editId ? await updatePartner(editId, payload) : await addPartner(me.id, payload);
     setBusy(false);
     if (error) return showToast("保存できませんでした。");
@@ -108,6 +109,7 @@ export default function MyPartnersPage() {
           <div className="form-field">
             <label>区分</label>
             <Select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as PartnerKind })}>
+              <option value="">選んでください</option>
               <option value="company">協力会社</option>
               <option value="instructor">講師</option>
             </Select>
