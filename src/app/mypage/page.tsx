@@ -851,7 +851,8 @@ function RequesterRequestCard({
   // The whole request is one slim row; its details open on a click (same as the instructor side).
   const [cardOpen, setCardOpen] = useState(false);
   const attention = (st.key === "pending" || st.key === "quoted") && (newApplicants > 0 || answerNeeded > 0);
-  const decidedNames = selectedResps.map((sr) => instructorMap[sr.instructor_id]?.name || "講師");
+  const nameOfDecided = (sr: InstructorResponseRow) => sr.released_name?.trim() || instructorMap[sr.instructor_id]?.name || "講師";
+  const decidedNames = selectedResps.map(nameOfDecided);
   const rowWho = isBroadcast
     ? hasRoles && decidedNames.length > 0
       ? `決定：${decidedNames.join("・")} 先生`
@@ -1231,7 +1232,7 @@ function RequesterRequestCard({
           title={r.title}
           participantCount={r.participant_count}
           completed={st.key === "completed"}
-          instructors={(selectedResps.length ? selectedResps.map((sr) => ({ id: sr.instructor_id, name: instructorMap[sr.instructor_id]?.name || null, role: roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? null })) : r.target_instructor_id ? [{ id: r.target_instructor_id, name: instrBase.name || null, role: null }] : [])}
+          instructors={(selectedResps.length ? selectedResps.map((sr) => ({ id: sr.instructor_id, name: nameOfDecided(sr), role: roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? null })) : r.target_instructor_id ? [{ id: r.target_instructor_id, name: instrBase.name || null, role: null }] : [])}
         />
       )}
 
@@ -1239,7 +1240,7 @@ function RequesterRequestCard({
         ? selectedResps.map((sr) => (
             <div key={sr.response_id} style={{ marginTop: 10 }}>
               <strong style={{ fontSize: 13 }}>
-                {instructorMap[sr.instructor_id]?.name || "講師"} 先生
+                {nameOfDecided(sr)} 先生
                 {sr.role_slot_id ? `（${roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? ""}）` : ""}
               </strong>
               <OrderPanel responseId={sr.response_id} role="requester" />
@@ -1261,7 +1262,7 @@ function RequesterRequestCard({
               {selectedResps.map((sr) => (
                 <div key={sr.response_id} style={{ marginTop: 6 }}>
                   <div>
-                    {instructorMap[sr.instructor_id]?.name || "講師"} 先生
+                    {nameOfDecided(sr)} 先生
                     {sr.role_slot_id ? `（${roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? ""}）` : ""}
                   </div>
                   <div>メール：{instructorMap[sr.instructor_id]?.contact_email || "未登録"}</div>
