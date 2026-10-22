@@ -201,7 +201,10 @@ export function ApplicantRow({
             {!decidedLabel && interview === "requested" && (
               <span style={{ alignSelf: "center", color: "var(--color-ink-soft)" }}>講師の返事待ちです。公開されると決定できます。</span>
             )}
-            {!decidedLabel && interview === "released" && (
+            {!decidedLabel && interview === "released" && stage === "passed" && (
+              <span style={{ alignSelf: "center", color: "var(--color-ink-soft)" }}>見送りにしているため決定できません。決定するには、選考段階を変えてください。</span>
+            )}
+            {!decidedLabel && interview === "released" && stage !== "passed" && (
               <>
                 {decideExtra}
                 <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={onDecide}>
