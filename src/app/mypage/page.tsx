@@ -978,7 +978,12 @@ function RequesterRequestCard({
     } else if (r.publish_state === "draft") {
       const { ok } = await confirm({
         title: "この依頼を公開しますか？",
-        message: "公開すると、条件に合う講師に通知され、「案件を探す」に表示されます。",
+        message:
+          r.visibility === "invited"
+            ? "公開すると、招待した講師に通知され、その講師の「案件を探す」にだけ表示されます。"
+            : r.visibility === "registered"
+            ? "公開すると、条件に合う講師に通知され、ログインした講師の「案件を探す」に表示されます。"
+            : "公開すると、条件に合う講師に通知され、「案件を探す」に表示されます。",
         confirmLabel: "公開する",
       });
       if (!ok) return;

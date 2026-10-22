@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { DetailsForm, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
 import { VisibilityForm, type VisibilityValue } from "@/components/requests/VisibilityForm";
 import { getInvites, saveInvites } from "@/lib/requests/invites";
+import { flushMineNotices } from "@/lib/mine/flush-client";
 import { inviteError, normalizeVisibility } from "@/lib/requests/visibility";
 import { RolesForm, rolesPayload, rolesToForm, type RolesFormValue } from "@/components/requests/RolesForm";
 import { normalizeSlots } from "@/lib/requests/roles";
@@ -161,6 +162,8 @@ function EditRequestInner() {
         setSaving(false);
         return setError("依頼は更新しましたが、招待の保存に失敗しました。もう一度保存してください。");
       }
+      // Newly invited instructors are told right away (otherwise their notice waits for the next flush).
+      if (vis.visibility === "invited") flushMineNotices();
     }
     setSaving(false);
     if (err) return setError(`保存できませんでした：${err.message}`);
