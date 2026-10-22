@@ -149,6 +149,8 @@ export type InstructorResponseRow = {
   apply_all_days: "all" | "partial" | "none" | null;
   apply_role: string | null;
   role_slot_id: string | null;
+  /** Manual selection stage set by the company (migration 169); null = 応募 (or derived). */
+  stage: "screening" | "negotiation" | "passed" | null;
   apply_experience: string | null;
   apply_materials: "existing" | "create" | "either" | null;
   message: string | null;
@@ -288,6 +290,7 @@ export type Database = {
     };
     Functions: {
       request_interview: { Args: { p_response_id: string }; Returns: void };
+      set_response_stage: { Args: { p_response_id: string; p_stage: string | null }; Returns: void };
       release_instructor_name: { Args: { p_response_id: string }; Returns: void };
       decline_interview: { Args: { p_response_id: string }; Returns: void };
       complete_oauth_profile: {

@@ -13,6 +13,7 @@ import {
 } from "@/lib/requests/training-requests";
 import { budgetText, costLines, isHourly, normalUnit, quoteText, UNIT_OPTIONS, type MoneyFields } from "@/lib/requests/money";
 import { DetailsView } from "@/components/requests/DetailsView";
+import { normalizeSlots } from "@/lib/requests/roles";
 import { requestFormatLabel } from "@/lib/requests/schedule";
 import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
 import { ResponseManage } from "@/components/requests/ResponseManage";
@@ -399,7 +400,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
                   </Select>
                 </div>
               </div>
-              <ApplyFields value={apply} onChange={setApply} />
+              <ApplyFields value={apply} onChange={setApply} roleOptions={normalizeSlots(r.role_slots).map((x) => x.name)} />
               <div className="form-field">
                 <label>
                   メッセージ<span className="field-optional">任意</span>
