@@ -66,3 +66,19 @@ test("an unknown work style from Mine is ignored", () => {
   const map = { a: toDisplay("A.H.", { training_conditions: { work_style: "MOON" } }) };
   assert.equal(applyMineDisplay([row], map)[0].work_style, null);
 });
+
+test("稼働条件 from Mine reach the row; missing ones are null", () => {
+  const map = {
+    a: toDisplay("A.H.", {
+      training_conditions: { available_from: "2026-10-26", available_until: "2026-12-20", training_languages: ["英語"], roles: ["MAIN", "SUB"] },
+    }),
+  };
+  const out = applyMineDisplay([row], map)[0] as unknown as Record<string, unknown>;
+  assert.equal(out.available_from, "2026-10-26");
+  assert.equal(out.available_until, "2026-12-20");
+  assert.deepEqual(out.training_languages, ["英語"]);
+  assert.deepEqual(out.roles, ["MAIN", "SUB"]);
+  const none = applyMineDisplay([row], {})[0] as unknown as Record<string, unknown>;
+  assert.equal(none.available_from, null);
+  assert.equal(none.training_languages, null);
+});

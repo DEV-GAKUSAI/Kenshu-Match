@@ -22,6 +22,7 @@ import { flushMineNotices } from "@/lib/mine/flush-client";
 import { MOCK_INSTRUCTORS, INSTRUCTOR_DETAILS } from "@/lib/mockInstructors";
 import type { InstructorPublicDirectoryRow, RequestFormat, WorkStyle } from "@/types/database";
 import { Select } from "@/components/ui/Select";
+import { periodLabel, rolesLabel } from "@/lib/mine/availability";
 
 const FORMAT_LABEL: Record<string, string> = { online: "オンライン対応", offline: "対面のみ", both: "オンライン・対面 両方" };
 const WORK_STYLE_LABEL: Record<WorkStyle, string> = { ONLINE: "オンラインのみ", ONSITE: "対面のみ", HYBRID: "オンライン・対面 両方" };
@@ -36,6 +37,8 @@ interface DisplayInstructor {
   workFormatLabel: string;
   workArea: string;
   hourlyRateLabel: string;
+  /** 稼働条件 from Mine (#56), shown in the sidebar. */
+  availability?: { period: string; languages: string; roles: string };
   yearsExperience: number | string;
   introduction: string;
   avatarUrl?: string | null;
@@ -193,6 +196,11 @@ function InstructorDetailInner() {
                     workFormatLabel: tc?.work_style && tc.work_style in WORK_STYLE_LABEL ? WORK_STYLE_LABEL[tc.work_style as WorkStyle] : "応相談",
                     workArea: tc?.prefectures?.length ? tc.prefectures.join("、") : "エリア未設定",
                     hourlyRateLabel: typeof tc?.hourly_rate_min === "number" ? `¥${tc.hourly_rate_min.toLocaleString()}` : "応相談",
+                    availability: {
+                      period: periodLabel(tc ?? {}),
+                      languages: tc?.training_languages?.length ? tc.training_languages.join("、") : "未設定",
+                      roles: tc?.roles?.length ? rolesLabel(tc.roles) : "未設定",
+                    },
                   }
                 : prev,
             );
@@ -448,6 +456,22 @@ function InstructorDetailInner() {
             <dt>対応エリア</dt>
             <dd>{instructor.workArea}</dd>
           </div>
+          {instructor.availability && (
+            <>
+              <div className="detail-sidebar__row">
+                <dt>稼働できる期間</dt>
+                <dd>{instructor.availability.period}</dd>
+              </div>
+              <div className="detail-sidebar__row">
+                <dt>対応できる言語</dt>
+                <dd>{instructor.availability.languages}</dd>
+              </div>
+              <div className="detail-sidebar__row">
+                <dt>講師の経験</dt>
+                <dd>{instructor.availability.roles}</dd>
+              </div>
+            </>
+          )}
           {surveyScore && (
             <div className="detail-sidebar__row">
               <dt>評価</dt>

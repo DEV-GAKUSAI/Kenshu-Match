@@ -61,6 +61,10 @@ export function applyMineDisplay<T extends { id: string }>(rows: T[], map: MineD
       prefectures: tc?.prefectures?.length ? tc.prefectures : null,
       desired_rate_min: rate,
       desired_rate_max: rate,
+      available_from: tc?.available_from ?? null,
+      available_until: tc?.available_until ?? null,
+      training_languages: tc?.training_languages?.length ? tc.training_languages : null,
+      roles: tc?.roles?.length ? tc.roles : null,
     };
   });
 }
