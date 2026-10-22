@@ -65,7 +65,7 @@ export function OrderPanel({ responseId, role }: { responseId: string; role: "re
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
         {order && (
           <Link href={`/order?id=${order.order_id}`} target="_blank" className="btn btn--ghost btn--sm">
-            注文書を開く（PDFで保存）
+            注文書を開く
           </Link>
         )}
         {role === "requester" && (!order || order.status !== "confirmed") && (

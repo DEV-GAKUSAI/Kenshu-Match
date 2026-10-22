@@ -56,11 +56,11 @@ export function ApplicantRow({
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    void getResponseChanges(response.response_id).then((rows) => alive && setChanges(rows.filter((c) => c.kind === "revised")));
+    void getResponseChanges(response.response_id).then((rows) => alive && setChanges(rows));
     return () => {
       alive = false;
     };
-  }, [open, response.response_id, response.quote_price]);
+  }, [open, response.response_id, response.quote_price, response.action]);
   // The meeting while it is still upcoming (not cancelled, not finished).
   const live = meeting && isActive(meeting) ? meeting : undefined;
   const needsAnswer = live?.status === "change_requested" && live.proposed_by === "host";
