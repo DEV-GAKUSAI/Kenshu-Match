@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/common/Toast";
+import { mineLoginUrl } from "@/lib/mine/login-url";
 
 export default function LoginPage() {
   const { signIn, signInWithGoogle } = useAuth();
@@ -130,6 +131,13 @@ export default function LoginPage() {
         <button type="button" className="btn btn--google" onClick={handleGoogleLogin} disabled={googleSubmitting}>
           {googleSubmitting ? "リダイレクト中…" : "Googleでログイン"}
         </button>
+
+        <a className="btn btn--ghost btn--block" href={mineLoginUrl(process.env.NEXT_PUBLIC_MINE_APP_URL)} style={{ marginTop: 10 }}>
+          Mineでログイン（講師の方）
+        </a>
+        <p style={{ fontSize: 12.5, color: "var(--color-ink-soft)", margin: "8px 0 0", textAlign: "center" }}>
+          Mineに登録している講師の方は、Mineのアカウントでログインできます。
+        </p>
 
         <p className="auth-switch">
           アカウントをお持ちでない方は <Link href="/register">新規登録</Link>

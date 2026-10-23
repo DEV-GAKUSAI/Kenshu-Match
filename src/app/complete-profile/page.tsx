@@ -7,6 +7,7 @@ import { useToast } from "@/components/common/Toast";
 import { createClient } from "@/lib/supabase/client";
 import { completeOAuthProfile } from "@/lib/auth/auth";
 import { RoleCard } from "@/components/auth/RoleCard";
+import { mineLoginUrl } from "@/lib/mine/login-url";
 import type { UserRole } from "@/types/database";
 
 export default function CompleteProfilePage() {
@@ -20,6 +21,8 @@ export default function CompleteProfilePage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [hasSession, setHasSession] = useState<boolean | null>(null);
+  // Mineのアカウントでこのページに来た場合は、新しいアカウントを作らせずMineから開いてもらう
+  const [isMineAccount, setIsMineAccount] = useState(false);
 
   useEffect(() => {
     if (!authReady) return;
@@ -44,9 +47,28 @@ export default function CompleteProfilePage() {
     }
 
     // Googleアカウントの表示名を初期値として入れておく
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       const meta = data?.user?.user_metadata || {};
       setDisplayName(meta.full_name || meta.name || "");
+      const uid = data?.user?.id;
+      if (!uid) return;
+      try {
+        // Mine と同じデータベース。自分の行だけ読めるので、Mine の会員かどうかが分かる
+        const { data: mineRow } = await (
+          supabase as unknown as {
+            from: (t: string) => {
+              select: (c: string) => { eq: (c: string, v: string) => { maybeSingle: () => Promise<{ data: unknown }> } };
+            };
+          }
+        )
+          .from("mine_profiles")
+          .select("user_id")
+          .eq("user_id", uid)
+          .maybeSingle();
+        if (mineRow) setIsMineAccount(true);
+      } catch {
+        // 判定できないときは、これまでどおり役割の選択を表示する
+      }
     });
   }, [authReady, needsProfileCompletion, user, router]);
 
@@ -82,6 +104,24 @@ export default function CompleteProfilePage() {
       <main className="auth-page">
         <div className="auth-card">
           <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (isMineAccount) {
+    return (
+      <main className="auth-page">
+        <div className="auth-card">
+          <p className="auth-card__eyebrow">Mine</p>
+          <h1 className="auth-card__title">Mineのアカウントでログインしています</h1>
+          <p className="auth-card__desc">講師の方は、Mineから開くと、これまでの情報がそのまま使えます。</p>
+          <a className="btn btn--primary btn--block" href={mineLoginUrl(process.env.NEXT_PUBLIC_MINE_APP_URL)}>
+            Mineでログインする
+          </a>
+          <p style={{ fontSize: 12.5, color: "var(--color-ink-soft)", margin: "14px 0 0" }}>
+            企業・生徒として新しく登録する場合は、別のメールアドレスで登録してください。
+          </p>
         </div>
       </main>
     );
