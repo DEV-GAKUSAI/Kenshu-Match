@@ -77,5 +77,6 @@ test("messages for each closed state", () => {
   assert.match(linkStateMessage("used"), /回答済み/);
   assert.match(linkStateMessage("closed"), /終了/);
   assert.match(linkStateMessage("invalid"), /無効/);
-  assert.match(linkStateMessage("not_open", "2026-10-20T00:00:00+09:00"), /10月20日から/);
+  assert.match(linkStateMessage("not_open", "2026-10-20T10:00:00+09:00"), /10月20日 10:00以降/);
+  assert.match(linkStateMessage("not_open", null), /研修の終了後/);
 });

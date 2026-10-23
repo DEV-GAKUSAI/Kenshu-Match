@@ -7,11 +7,12 @@ import { useToast } from "@/components/common/Toast";
 import { createClient } from "@/lib/supabase/client";
 import { QuestionList } from "@/components/survey/QuestionList";
 import { SurveyImportPanel } from "@/components/survey/SurveyImportPanel";
-import { COMMENT_MAX, unansweredCount, type SurveyInstructor, type SurveyScores } from "@/lib/survey/answers";
+import { COMMENT_MAX, formatOpenDateTime, unansweredCount, type SurveyInstructor, type SurveyScores } from "@/lib/survey/answers";
 import { linkCap, surveyLinkUrl, errorMessage } from "@/lib/survey/links";
 import { qrSvg } from "@/lib/survey/qr";
 
 type SurveyRow = { survey_id: string; max_links: number; opens_at: string | null; closed_at: string | null };
+type Gate = { open: boolean; opens_at: string | null };
 type LinkRow = { link_id: string; token: string; used_at: string | null };
 type HirerForm = { answers: Partial<SurveyScores>; comment: string; anonymous: boolean; missing: boolean };
 const EMPTY_HIRER_FORM: HirerForm = { answers: {}, comment: "", anonymous: true, missing: false };
@@ -22,6 +23,7 @@ export function CompanySurveyPanel({
   title,
   participantCount,
   completed,
+  individual = false,
   instructors,
 }: {
   requestId: string;
@@ -29,6 +31,8 @@ export function CompanySurveyPanel({
   participantCount: number | null;
   /** The request is marked 研修完了: the company can now give its own answer. */
   completed: boolean;
+  /** The request was made by a 生徒 (not a company): wording says 「あなた」, not 「貴社」. */
+  individual?: boolean;
   /** The chosen instructors (several when the request has role slots). The company answers once for each. */
   instructors: SurveyInstructor[];
 }) {
@@ -40,7 +44,7 @@ export function CompanySurveyPanel({
   const [survey, setSurvey] = useState<SurveyRow | null>(null);
   const [links, setLinks] = useState<LinkRow[]>([]);
   const [count, setCount] = useState("");
-  const [startDate, setStartDate] = useState("");
+  const [gate, setGate] = useState<Gate | null>(null);
   const [busy, setBusy] = useState(false);
   // The company's own answer
   // (one form per instructor; key = instructor id, "" when the instructor list is empty)
@@ -66,7 +70,8 @@ export function CompanySurveyPanel({
         .eq("survey_id", row.survey_id)
         .order("created_at", { ascending: true });
       setLinks((l as LinkRow[] | null) ?? []);
-      if (row.opens_at) setStartDate(toDateInput(row.opens_at));
+      const { data: g } = await supabase.rpc("get_training_survey_gate", { p_request_id: requestId });
+      setGate((g as Gate | null) ?? null);
       const { data: mine } = await supabase.from("training_survey_answers").select("instructor_id").eq("survey_id", row.survey_id);
       setHirerDoneIds(((mine as { instructor_id: string }[] | null) ?? []).map((x) => x.instructor_id));
     } else {
@@ -107,16 +112,11 @@ export function CompanySurveyPanel({
       showToast(`作成できるのは1〜${remaining}件です。`);
       return;
     }
-    const ok = await prepare(n, startDate ? dateInputToIso(startDate) : survey?.opens_at ?? null);
+    const ok = await prepare(n, null);
     if (ok) {
       setCount("");
       showToast(`${n}件のリンクを作成しました。`);
     }
-  }
-
-  async function handleSaveDate() {
-    if (!startDate) return;
-    if (await prepare(0, dateInputToIso(startDate))) showToast("開始日を保存しました。");
   }
 
   async function handleToggleClosed() {
@@ -239,11 +239,11 @@ export function CompanySurveyPanel({
               const who = several ? `（${ins.role ? `${ins.role}　` : ""}${ins.name ?? "講師"} 先生）` : "";
               return done ? (
                 <p key={ins.id || "single"} className="request-card__desc" style={{ margin: 0 }}>
-                  <strong>貴社の回答{who}：</strong>回答済み
+                  <strong>{individual ? "あなたの回答" : "貴社の回答"}{who}：</strong>回答済み
                 </p>
               ) : (
                 <div key={ins.id || "single"} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  <strong style={{ fontSize: 13.5, marginBottom: 8 }}>貴社の回答{who}</strong>
+                  <strong style={{ fontSize: 13.5, marginBottom: 8 }}>{individual ? "あなたの回答" : "貴社の回答"}{who}</strong>
                   <QuestionList answers={f.answers} onChange={(next) => patchForm(ins.id, { answers: next })} showMissing={f.missing} />
                   <div className="form-field" style={{ margin: 0 }}>
                     <label htmlFor={`survey-comment-${requestId}-${ins.id}`}>コメント（任意）</label>
@@ -272,7 +272,7 @@ export function CompanySurveyPanel({
                       className={`survey-scale__btn${!f.anonymous ? " is-selected" : ""}`}
                       onClick={() => patchForm(ins.id, { anonymous: false })}
                     >
-                      会社名を表示して送る
+                      {individual ? "お名前を表示して送る" : "会社名を表示して送る"}
                     </button>
                   </div>
                   <div>
@@ -290,23 +290,15 @@ export function CompanySurveyPanel({
             </p>
           ) : (
             <>
-              <div className="form-field" style={{ margin: 0 }}>
-                <label htmlFor={`survey-start-${requestId}`}>開始日（この日から回答できます）</label>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <input
-                    type="date"
-                    id={`survey-start-${requestId}`}
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    style={{ maxWidth: 200 }}
-                  />
-                  {survey && (
-                    <button type="button" className="btn btn--primary btn--sm" disabled={busy || !startDate} onClick={handleSaveDate}>
-                      保存する
-                    </button>
-                  )}
-                </div>
-              </div>
+              <p className="request-card__desc" style={{ margin: 0, color: "var(--color-ink-soft)" }}>
+                {!survey
+                  ? "講師が決まると、参加者用のリンクとQRコードが自動で作られます。"
+                  : gate?.open
+                    ? "参加者は、いまからこのリンクで回答できます。"
+                    : gate?.opens_at
+                      ? `研修の最終日の終了後（${formatOpenDateTime(gate.opens_at)}以降）に回答できます。それまでは回答を受け付けません。`
+                      : "研修日程が未入力のため、「研修完了」にすると回答できるようになります。"}
+              </p>
 
               {remaining > 0 && (
                 <div className="form-field" style={{ margin: 0 }}>
@@ -367,14 +359,6 @@ export function CompanySurveyPanel({
       )}
     </div>
   );
-}
-
-function toDateInput(iso: string): string {
-  return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Tokyo" }).format(new Date(iso));
-}
-
-function dateInputToIso(date: string): string {
-  return `${date}T00:00:00+09:00`;
 }
 
 function escapeHtml(text: string): string {

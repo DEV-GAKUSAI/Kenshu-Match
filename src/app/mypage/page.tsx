@@ -418,7 +418,7 @@ function InstructorRequestCard({
           <strong>連絡先：</strong>
           {requester ? (
             <>
-              <div>{(requester as { company_name?: string }).company_name ? `会社名：${(requester as { company_name?: string }).company_name}` : `担当者：${requester.name}`}</div>
+              <div>{(requester as { company_name?: string }).company_name ? `会社名：${(requester as { company_name?: string }).company_name}` : r.requester_type === "individual" ? `お名前：${requester.name}` : `担当者：${requester.name}`}</div>
               <div>メール：{requester.email}</div>
               <div>電話番号：{requester.phone || "未登録"}</div>
             </>
@@ -1256,6 +1256,7 @@ function RequesterRequestCard({
           title={r.title}
           participantCount={r.participant_count}
           completed={st.key === "completed"}
+          individual={r.requester_type === "individual"}
           instructors={(selectedResps.length ? selectedResps.map((sr) => ({ id: sr.instructor_id, name: nameOfDecided(sr), role: roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? null })) : r.target_instructor_id ? [{ id: r.target_instructor_id, name: instrBase.name || null, role: null }] : [])}
         />
       )}
