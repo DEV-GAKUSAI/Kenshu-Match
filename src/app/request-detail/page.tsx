@@ -545,14 +545,19 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
   if (r === null || notOwner) {
     return (
       <div className="empty-state" style={{ paddingTop: 80 }}>
-        <p className="empty-state__title">講師アカウントのみご利用いただけます</p>
-        <p className="empty-state__desc">公募中の依頼への応募は、講師アカウントでログインした場合のみ利用できます。</p>
+        <p className="empty-state__title">{notOwner ? "この依頼は表示できません" : "依頼が見つかりませんでした"}</p>
+        <p className="empty-state__desc">
+          {notOwner
+            ? "この依頼は、依頼を作成した企業・個人のアカウントでのみ詳細を確認できます。"
+            : "削除されたか、リンクが正しくない可能性があります。"}
+        </p>
         <Link href="/mypage" className="btn btn--primary" style={{ marginTop: 16 }}>
           マイページに戻る
         </Link>
       </div>
     );
   }
+
   if (!r) return null;
 
   return (
@@ -568,6 +573,8 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
             </div>
             <div className="request-card__meta">
               <span>{fmtDate(r.created_at)}</span>
+              {r.publish_state === "paused" && <span style={{ display: "inline-block", padding: "2px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700, background: "#eceff1", color: "#546e7a" }}>公開停止中</span>}
+              {r.publish_state === "draft" && <span style={{ display: "inline-block", padding: "2px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700, background: "#eceff1", color: "#546e7a" }}>下書き</span>}
             </div>
           </div>
         </div>

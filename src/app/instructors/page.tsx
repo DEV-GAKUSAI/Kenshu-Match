@@ -304,11 +304,12 @@ function InstructorsPageInner() {
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", margin: "0 0 12px" }}>
         <input
           type="search"
-          placeholder="名前・スキル・実績・言語・分野・資格・自己PRで探す"
+          placeholder="名前・スキル・実績・言語などで探す"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           style={{ flex: "1 1 280px", minWidth: 0 }}
         />
+        <div style={{ display: "flex", gap: "8px 20px", flexWrap: "wrap" }}>
         <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
           <input type="checkbox" checked={includeNoArea} onChange={(e) => setIncludeNoArea(e.target.checked)} />
           <span>
@@ -323,6 +324,7 @@ function InstructorsPageInner() {
             <small style={{ display: "block", color: "var(--color-ink-soft)", fontSize: 11.5, marginTop: 2 }}>単価で絞り込むときに使います</small>
           </span>
         </label>
+        </div>
       </div>
 
       <div className="filter-bar" style={{ gridTemplateColumns: "repeat(3, 1fr) 1.7fr auto" }}>
@@ -366,7 +368,7 @@ function InstructorsPageInner() {
           </details>
         </div>
 
-        <div className="filter-field">
+        <div className="filter-field filter-field--rate">
           <label>単価（円／時間）</label>
           <span style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
             <RateSelect value={rateMin} onChange={setRateMin} noneLabel="下限なし" open={openPanel === "rateMin"} onOpenChange={setRateMinOpen} />

@@ -213,7 +213,12 @@ function InstructorDetailInner() {
         setMineLoaded(true);
       } else {
         // --- モックデータ（デモ用の旧データ、id が UUID でない場合） ---
-        const mock = MOCK_INSTRUCTORS.find((i) => i.id === rawId) || MOCK_INSTRUCTORS[0];
+        const mock = MOCK_INSTRUCTORS.find((i) => i.id === rawId);
+        if (!mock) {
+          // 知らないIDのときに、別の講師（サンプル）を表示しない
+          setNotFound(true);
+          return;
+        }
         setInstructor({
           id: mock.id,
           name: mock.name,
