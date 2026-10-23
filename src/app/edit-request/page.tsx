@@ -189,7 +189,7 @@ function EditRequestInner() {
           {error && <div className="notice-banner is-visible">{error}</div>}
           <form noValidate onSubmit={save}>
             <div className="form-field">
-              <label htmlFor="edTitle">依頼タイトル</label>
+              <label htmlFor="edTitle">依頼タイトル（必須）</label>
               <input type="text" id="edTitle" maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
             <div className="form-row">
@@ -202,7 +202,7 @@ function EditRequestInner() {
                 </Select>
               </div>
               <div className="form-field">
-                <label htmlFor="edParticipants">対象人数</label>
+                <label htmlFor="edParticipants">対象人数（必須）</label>
                 <input type="number" id="edParticipants" min={1} step={1} value={participants} onChange={(e) => setParticipants(e.target.value)} />
               </div>
             </div>
@@ -226,7 +226,7 @@ function EditRequestInner() {
             <RolesForm value={roles} onChange={setRoles} decided={decidedBySlot} />
             <DetailsForm value={details} onChange={setDetails} idPrefix="ed" />
             <div className="form-field">
-              <label htmlFor="edDescription">依頼内容の詳細</label>
+              <label htmlFor="edDescription">依頼内容の詳細（必須）</label>
               <textarea id="edDescription" rows={6} value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

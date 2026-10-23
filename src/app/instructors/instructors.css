@@ -74,3 +74,15 @@
 .rate-option--input { padding: 2px 0; cursor: default; }
 .rate-option--input:hover { background: transparent; }
 .rate-option--input input { width: 100%; padding: 6px 8px; font-size: 12.5px; }
+
+/* 狭い画面で「下限なし」などが2行に折り返さないようにする */
+.multi-select summary {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 900px) {
+  .filter-field--rate {
+    grid-column: 1 / -1;
+  }
+}

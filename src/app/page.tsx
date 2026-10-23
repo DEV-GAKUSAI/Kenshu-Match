@@ -71,6 +71,8 @@ export default function Home() {
   }, []);
 
   const isInstructor = authReady && user?.role === "INSTRUCTOR";
+  // ログイン済みの企業・個人には「講師として登録する」を出さず、マイページへ案内する
+  const isRequester = authReady && (user?.role === "COMPANY" || user?.role === "INDIVIDUAL");
 
   return (
     <>
@@ -124,9 +126,15 @@ export default function Home() {
                   <Link href="/instructors" className="btn btn--primary">
                     講師を探す
                   </Link>
-                  <Link href="/register" className="btn btn--ghost">
-                    講師として登録する
-                  </Link>
+                  {isRequester ? (
+                    <Link href="/mypage" className="btn btn--ghost">
+                      マイページ
+                    </Link>
+                  ) : (
+                    <Link href="/register" className="btn btn--ghost">
+                      講師として登録する
+                    </Link>
+                  )}
                 </div>
               </>
             )}
@@ -308,9 +316,15 @@ export default function Home() {
                   <Link href="/instructors" className="btn btn--primary">
                     講師を探す
                   </Link>
-                  <Link href="/register" className="btn btn--ghost">
-                    講師として登録する
-                  </Link>
+                  {isRequester ? (
+                    <Link href="/mypage" className="btn btn--ghost">
+                      マイページ
+                    </Link>
+                  ) : (
+                    <Link href="/register" className="btn btn--ghost">
+                      講師として登録する
+                    </Link>
+                  )}
                 </>
               )}
             </div>

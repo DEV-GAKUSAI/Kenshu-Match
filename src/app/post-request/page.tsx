@@ -370,7 +370,7 @@ export default function PostRequestPage() {
 
           <form noValidate onSubmit={handleSubmit} style={previewing ? { display: "none" } : undefined}>
             <div className={`form-field${titleHasError ? " has-error" : ""}`}>
-              <label htmlFor="reqTitle">依頼タイトル</label>
+              <label htmlFor="reqTitle">依頼タイトル（必須）</label>
               <input
                 type="text"
                 id="reqTitle"
@@ -431,7 +431,7 @@ export default function PostRequestPage() {
                 </Select>
               </div>
               <div className="form-field">
-                <label htmlFor="reqParticipants">対象人数</label>
+                <label htmlFor="reqParticipants">対象人数（必須）</label>
                 <input type="number" id="reqParticipants" required placeholder="例：10" min={1} step={1} value={participants} onChange={(e) => setParticipants(e.target.value)} />
               </div>
             </div>
@@ -462,7 +462,7 @@ export default function PostRequestPage() {
             <DetailsForm value={details} onChange={setDetails} />
 
             <div className={`form-field${descriptionHasError ? " has-error" : ""}`}>
-              <label htmlFor="reqDescription">依頼内容の詳細</label>
+              <label htmlFor="reqDescription">依頼内容の詳細（必須）</label>
               <textarea
                 id="reqDescription"
                 rows={5}
