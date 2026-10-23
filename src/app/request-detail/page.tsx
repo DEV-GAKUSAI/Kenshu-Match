@@ -475,7 +475,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
               )}
             </div>
             <p className="request-card__desc" style={{ color: "var(--color-ink-soft)", marginTop: 12 }}>
-              この依頼はあなたに決定しました。マイページの「受け取った依頼」からは表示されないため、進捗はこのページで確認してください。
+              この依頼はあなたに決定しました。注文書・請求書などの進捗は、マイページの「受け取った依頼」から確認できます。
             </p>
           </>
         )}
