@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/hooks/useAuth";
+import { mineRegisterUrl } from "@/lib/mine/login-url";
 import { createClient } from "@/lib/supabase/client";
 import { getFeaturedInstructors } from "@/lib/instructor/profile";
 import { withMineDisplay } from "@/lib/mine/display";
@@ -131,9 +132,9 @@ export default function Home() {
                       マイページ
                     </Link>
                   ) : (
-                    <Link href="/register" className="btn btn--ghost">
-                      講師として登録する
-                    </Link>
+                    <a href={mineRegisterUrl(process.env.NEXT_PUBLIC_MINE_APP_URL)} className="btn btn--ghost">
+                      講師として登録する（Mine）
+                    </a>
                   )}
                 </div>
               </>
@@ -321,9 +322,9 @@ export default function Home() {
                       マイページ
                     </Link>
                   ) : (
-                    <Link href="/register" className="btn btn--ghost">
-                      講師として登録する
-                    </Link>
+                    <a href={mineRegisterUrl(process.env.NEXT_PUBLIC_MINE_APP_URL)} className="btn btn--ghost">
+                      講師として登録する（Mine）
+                    </a>
                   )}
                 </>
               )}

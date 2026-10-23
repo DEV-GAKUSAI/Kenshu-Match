@@ -7,7 +7,7 @@ import { useToast } from "@/components/common/Toast";
 import { createClient } from "@/lib/supabase/client";
 import { completeOAuthProfile } from "@/lib/auth/auth";
 import { RoleCard } from "@/components/auth/RoleCard";
-import { mineLoginUrl } from "@/lib/mine/login-url";
+import { mineLoginUrl, mineRegisterUrl } from "@/lib/mine/login-url";
 import type { UserRole } from "@/types/database";
 
 export default function CompleteProfilePage() {
@@ -139,13 +139,6 @@ export default function CompleteProfilePage() {
         <section>
           <div className="role-grid">
             <RoleCard
-              hanko="講"
-              name="研修講師"
-              description="研修サービスを提供する。プロフィールを公開して依頼を受ける。"
-              selected={selectedRole === "INSTRUCTOR"}
-              onSelect={() => setSelectedRole("INSTRUCTOR")}
-            />
-            <RoleCard
               hanko="企"
               name="企業"
               description="自社の研修ニーズに合う講師を探し、依頼を送る。"
@@ -161,6 +154,13 @@ export default function CompleteProfilePage() {
             />
           </div>
         </section>
+
+        <p style={{ fontSize: 13, color: "var(--color-ink-soft)", margin: "14px 0 0" }}>
+          研修講師の方は、Mineで登録してください。{" "}
+          <a href={mineRegisterUrl(process.env.NEXT_PUBLIC_MINE_APP_URL)} style={{ color: "var(--color-primary)", fontWeight: 700 }}>
+            Mineで講師として登録する
+          </a>
+        </p>
 
         <form noValidate style={{ marginTop: 20 }} onSubmit={handleSubmit}>
           <div className={`form-field${nameHasError ? " has-error" : ""}`}>
