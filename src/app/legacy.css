@@ -465,7 +465,7 @@ button { font-family: inherit; cursor: pointer; }
 
 .role-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr); /* 企業・生徒の2つ（講師はMineで登録） */
   gap: 12px;
   margin-bottom: 28px;
 }
