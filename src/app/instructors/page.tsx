@@ -309,6 +309,7 @@ function InstructorsPageInner() {
           onChange={(e) => setKeyword(e.target.value)}
           style={{ flex: "1 1 280px", minWidth: 0 }}
         />
+        <div style={{ display: "flex", gap: "8px 20px", flexWrap: "wrap" }}>
         <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
           <input type="checkbox" checked={includeNoArea} onChange={(e) => setIncludeNoArea(e.target.checked)} />
           <span>
@@ -323,6 +324,7 @@ function InstructorsPageInner() {
             <small style={{ display: "block", color: "var(--color-ink-soft)", fontSize: 11.5, marginTop: 2 }}>単価で絞り込むときに使います</small>
           </span>
         </label>
+        </div>
       </div>
 
       <div className="filter-bar" style={{ gridTemplateColumns: "repeat(3, 1fr) 1.7fr auto" }}>
