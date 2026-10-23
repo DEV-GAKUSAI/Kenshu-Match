@@ -9,7 +9,7 @@ import { withSurveySummary } from "@/lib/survey/summary-client";
 import { sortBySurveyAvg } from "@/lib/survey/summary";
 import { InstructorCard } from "@/components/instructors/InstructorCard";
 import type { InstructorPublicDirectoryRow } from "@/types/database";
-import { EMPTY_AVAILABILITY_FILTER, ROLE_LABEL, isAvailabilityFilterActive, matchesAvailability, type AvailabilityFilter } from "@/lib/mine/availability";
+import { EMPTY_AVAILABILITY_FILTER, ROLE_LABEL, isAvailabilityFilterActive, matchesAvailability, periodLabel, rolesLabel, type AvailabilityFilter } from "@/lib/mine/availability";
 import "./instructors.css";
 
 const ONLINE_AREA = "オンライン対応（全国）";
@@ -151,6 +151,7 @@ function InstructorsPageInner() {
   const [rateMax, setRateMax] = useState("");
   const [keyword, setKeyword] = useState("");
   const [includeNoRate, setIncludeNoRate] = useState(false);
+  const [includeNoArea, setIncludeNoArea] = useState(false);
   const [avail, setAvail] = useState<AvailabilityFilter>(EMPTY_AVAILABILITY_FILTER);
 
   // Only one filter panel open at a time (mirrors the legacy <details> group behavior).
@@ -240,6 +241,7 @@ function InstructorsPageInner() {
     setRateMax("");
     setKeyword("");
     setIncludeNoRate(false);
+    setIncludeNoArea(false);
     setAvail(EMPTY_AVAILABILITY_FILTER);
   }
 
@@ -250,7 +252,7 @@ function InstructorsPageInner() {
 
     return allInstructors.filter((ins) => {
       if (kw) {
-        const hay = [ins.name, ins.self_pr, ...(ins.expertise_fields || []), ...(ins.occupation_names || []), ...(ins.certifications || []), ...(ins.prefectures || [])]
+        const hay = [ins.name, ins.self_pr, ...(ins.expertise_fields || []), ...(ins.occupation_names || []), ...(ins.certifications || []), ...(ins.prefectures || []), ...(ins.skill_names || []), ...(ins.experience_names || []), ...(ins.training_languages || []), rolesLabel(ins.roles), ins.available_from || ins.available_until ? periodLabel(ins) : ""]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
@@ -260,7 +262,8 @@ function InstructorsPageInner() {
       if (selectedAreas.length) {
         const online = ins.work_style === "ONLINE" || ins.work_style === "HYBRID";
         const areaOk = selectedAreas.some((a) => (a === ONLINE_AREA ? online : (ins.prefectures || []).includes(a)));
-        if (!areaOk) return false;
+        const noArea = !(ins.prefectures || []).length && !ins.work_style;
+        if (!areaOk && !(includeNoArea && noArea)) return false;
       }
       if (selectedFormats.length) {
         const matches = (ins.work_style && selectedFormats.includes(ins.work_style)) || (ins.work_style === "HYBRID" && selectedFormats.length);
@@ -275,7 +278,7 @@ function InstructorsPageInner() {
       if (categorySubcategoryNames && !(ins.expertise_fields || []).some((f) => categorySubcategoryNames.includes(f))) return false;
       return true;
     });
-  }, [allInstructors, selectedAreas, selectedFormats, selectedFields, rateMin, rateMax, categorySubcategoryNames, keyword, includeNoRate, avail]);
+  }, [allInstructors, selectedAreas, selectedFormats, selectedFields, rateMin, rateMax, categorySubcategoryNames, keyword, includeNoRate, includeNoArea, avail]);
 
   return (
     <main className="list-page" style={{ maxWidth: 1240 }}>
@@ -301,11 +304,18 @@ function InstructorsPageInner() {
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", margin: "0 0 12px" }}>
         <input
           type="search"
-          placeholder="名前・スキル・分野・資格・自己PRで探す"
+          placeholder="名前・スキル・実績・言語・分野・資格・自己PRで探す"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           style={{ flex: "1 1 280px", minWidth: 0 }}
         />
+        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
+          <input type="checkbox" checked={includeNoArea} onChange={(e) => setIncludeNoArea(e.target.checked)} />
+          <span>
+            エリアが未登録の講師も含める
+            <small style={{ display: "block", color: "var(--color-ink-soft)", fontSize: 11.5, marginTop: 2 }}>エリアで絞り込むときに使います</small>
+          </span>
+        </label>
         <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
           <input type="checkbox" checked={includeNoRate} onChange={(e) => setIncludeNoRate(e.target.checked)} />
           <span>
