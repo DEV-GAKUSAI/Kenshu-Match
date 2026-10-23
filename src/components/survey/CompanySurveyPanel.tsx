@@ -300,7 +300,7 @@ export function CompanySurveyPanel({
                       : "研修日程が未入力のため、「研修完了」にすると回答できるようになります。"}
               </p>
 
-              {remaining > 0 && (
+              {!individual && remaining > 0 && (
                 <div className="form-field" style={{ margin: 0 }}>
                   <label htmlFor={`survey-count-${requestId}`}>作成するリンク数（あと{remaining}件まで）</label>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
