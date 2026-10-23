@@ -11,7 +11,7 @@ import { mineLoginUrl, mineRegisterUrl } from "@/lib/mine/login-url";
 import type { UserRole } from "@/types/database";
 
 export default function CompleteProfilePage() {
-  const { authReady, needsProfileCompletion, user, refreshProfile } = useAuth();
+  const { authReady, needsProfileCompletion, user, refreshProfile, signOut } = useAuth();
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -128,6 +128,17 @@ export default function CompleteProfilePage() {
           <p style={{ fontSize: 12.5, color: "var(--color-ink-soft)", margin: "14px 0 0" }}>
             企業・生徒として新しく登録する場合は、別のメールアドレスで登録してください。
           </p>
+          <button
+            type="button"
+            className="btn btn--ghost btn--block"
+            style={{ marginTop: 14 }}
+            onClick={async () => {
+              await signOut();
+              router.replace("/");
+            }}
+          >
+            ログアウト
+          </button>
         </div>
       </main>
     );

@@ -4,6 +4,7 @@ import { createContext, useCallback, useEffect, useState, type ReactNode } from 
 import { usePathname, useRouter } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { isPublicPath } from "@/lib/auth/roles";
 import { loadUserProfile, signIn, signInWithGoogle, signOut, type CurrentUser } from "@/lib/auth/auth";
 
 export interface AuthContextValue {
@@ -24,6 +25,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
+  // ログインはしているが Kenshu Link の役割ではない（Mine / Engineer Match の会員）
+  const [foreignRole, setForeignRole] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -40,9 +43,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession);
-      const { user: profile, needsProfileCompletion: incomplete } = await loadUserProfile(newSession);
+      const { user: profile, needsProfileCompletion: incomplete, foreignRole: foreign } = await loadUserProfile(newSession);
       setUser(profile);
       setNeedsProfileCompletion(incomplete);
+      setForeignRole(foreign === true);
       setAuthReady(true);
     });
 
@@ -53,19 +57,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     const { data } = await supabase.auth.getSession();
     setSession(data.session);
-    const { user: profile, needsProfileCompletion: incomplete } = await loadUserProfile(data.session);
+    const { user: profile, needsProfileCompletion: incomplete, foreignRole: foreign } = await loadUserProfile(data.session);
     setUser(profile);
     setNeedsProfileCompletion(incomplete);
+    setForeignRole(foreign === true);
   }, []);
 
   useEffect(() => {
     // OAuth first-time sign-up (role not chosen yet): send to /complete-profile,
     // same as auth.js's kenshulink:authchange handler. Guarded against the
     // complete-profile page itself to avoid a redirect loop.
-    if (needsProfileCompletion && pathname !== "/complete-profile") {
+    // Mine の会員は、誰でも開けるページ（トップ・講師検索など）は普通に見られる。
+    if (needsProfileCompletion && pathname !== "/complete-profile" && !(foreignRole && isPublicPath(pathname))) {
       router.replace("/complete-profile");
     }
-  }, [needsProfileCompletion, pathname, router]);
+  }, [needsProfileCompletion, foreignRole, pathname, router]);
 
   const value: AuthContextValue = {
     session,

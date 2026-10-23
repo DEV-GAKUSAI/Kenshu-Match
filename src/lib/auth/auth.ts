@@ -64,7 +64,7 @@ export type CurrentUser = Pick<UserRow, "id" | "role" | "name" | "status">;
 
 export async function loadUserProfile(
   session: Session | null
-): Promise<{ user: CurrentUser | null; needsProfileCompletion: boolean }> {
+): Promise<{ user: CurrentUser | null; needsProfileCompletion: boolean; foreignRole?: boolean }> {
   if (!session) {
     return { user: null, needsProfileCompletion: false };
   }
@@ -79,7 +79,7 @@ export async function loadUserProfile(
   if (!error && data) {
     // 共有の users テーブルには Engineer Match / Mine の会員（ENGINEER など）もいる。
     // Kenshu Link の役割ではない場合は、生徒として扱わず「Mineから開く」案内へ回す。
-    if (!isKenshuRole(data.role)) return { user: null, needsProfileCompletion: true };
+    if (!isKenshuRole(data.role)) return { user: null, needsProfileCompletion: true, foreignRole: true };
     return { user: data, needsProfileCompletion: false };
   }
   return { user: null, needsProfileCompletion: true };
