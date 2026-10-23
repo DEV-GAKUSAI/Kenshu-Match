@@ -194,13 +194,26 @@ export async function fileHash(bytes: Uint8Array): Promise<string> {
 }
 
 /** Turns a database error from the import functions into a message for the person importing. */
-export function importErrorMessage(raw: string): string {
+const FIELD_LABELS: Record<string, string> = { role: "回答者区分", q1: "設問1", q2: "設問2", q3: "設問3", q4: "設問4", q5: "設問5", comment: "コメント", name: "名前", row: "行の形式" };
+
+/** 「row=3 field=q2」 (from the database) as 「3行目の設問2」; empty when the detail is not in that form. */
+export function importErrorWhere(detail: string | null | undefined): string {
+  const m = /row=(\d+)\s+field=(\w+)/.exec(detail ?? "");
+  if (!m) return "";
+  // the header is line 1 of the file, so the first answer row is line 2
+  return `${Number(m[1]) + 1}行目の${FIELD_LABELS[m[2]] ?? m[2]}`;
+}
+
+export function importErrorMessage(raw: string, detail?: string | null): string {
   if (raw.includes("duplicate_file")) return "このファイルは取り込み済みです。";
   if (raw.includes("not_open")) return "研修の初日以降に取り込めます。";
   if (raw.includes("request_not_accepted")) return "依頼が承諾されてから取り込めます。";
   if (raw.includes("instructor_not_found")) return "講師が決まってから取り込めます。";
   if (raw.includes("too_many_rows")) return `一度に取り込めるのは${IMPORT_MAX_ROWS}行までです。`;
-  if (raw.includes("bad_row")) return "ファイルの内容に問題があります。もう一度確認してください。";
+  if (raw.includes("bad_row")) {
+    const where = importErrorWhere(detail);
+    return where ? `${where}に問題があります。直してからもう一度取り込んでください。` : "ファイルの内容に問題があります。もう一度確認してください。";
+  }
   if (raw.includes("past_training_not_found")) return "過去の研修が見つかりません。";
   if (raw.includes("admin_only")) return "管理者のみ操作できます。";
   if (raw.includes("batch_not_found")) return "取り込みが見つかりません。";

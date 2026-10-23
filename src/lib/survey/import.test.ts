@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { checkImport, decodeCsvBytes, fileHash, IMPORT_HEADERS, importErrorMessage, parseCsv, templateCsv } from "./import.ts";
+import { importErrorWhere, checkImport, decodeCsvBytes, fileHash, IMPORT_HEADERS, importErrorMessage, parseCsv, templateCsv } from "./import.ts";
 
 const head = IMPORT_HEADERS.join(",");
 
@@ -104,4 +104,10 @@ test("database errors become short messages", () => {
   assert.equal(importErrorMessage("duplicate_file"), "このファイルは取り込み済みです。");
   assert.equal(importErrorMessage("not_open"), "研修の初日以降に取り込めます。");
   assert.match(importErrorMessage("something else"), /取り込めませんでした/);
+});
+
+test("a database row error says which line and which column", () => {
+  assert.equal(importErrorWhere("row=2 field=q3"), "3行目の設問3");
+  assert.match(importErrorMessage("bad_row", "row=1 field=role"), /^2行目の回答者区分に問題があります/);
+  assert.match(importErrorMessage("bad_row"), /ファイルの内容に問題/);
 });

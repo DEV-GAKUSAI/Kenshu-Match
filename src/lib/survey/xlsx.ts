@@ -78,11 +78,44 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/g, "&");
 }
 
-/** All text inside <t>…</t> tags of a fragment, joined (rich text keeps its pieces in several <t>). */
+/**
+ * Takes the namespace prefix off every tag: <x:row> becomes <row>, </x:v> becomes </v>.
+ * Some programs write the spreadsheet tags with a prefix (x:, ss:, main:) instead of the
+ * default namespace; the readers below only know the plain names. Attributes (r:id) are untouched.
+ */
+function stripPrefixes(xml: string): string {
+  return xml.replace(/<(\/?)[A-Za-z_][\w.-]*:(?=[A-Za-z_])/g, "<$1");
+}
+
+/** All text inside <t>…</t> tags of a fragment, joined (rich text keeps its pieces in several <t>). Furigana (<rPh>) is left out. */
 function textOf(fragment: string): string {
   let out = "";
-  for (const m of fragment.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>|<t\s*\/>/g)) out += decodeEntities(m[1] ?? "");
+  const plain = fragment.replace(/<rPh\b[\s\S]*?<\/rPh>/g, "");
+  for (const m of plain.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>|<t\s*\/>/g)) out += decodeEntities(m[1] ?? "");
   return out;
+}
+
+/** Value of an attribute, with or without a namespace prefix (id and r:id are the same for us). */
+function attr(attrs: string, name: string): string | undefined {
+  return new RegExp(`(?:^|\\s)(?:[\\w.-]+:)?${name}="([^"]*)"`).exec(attrs)?.[1];
+}
+
+/** Folder of a part name: "xl/workbook.xml" -> "xl". */
+function dirOf(path: string): string {
+  const i = path.lastIndexOf("/");
+  return i < 0 ? "" : path.slice(0, i);
+}
+
+/** Resolves a relationship target against the folder of the part that owns it. */
+function resolveTarget(baseDir: string, target: string): string {
+  if (target.startsWith("/")) return target.slice(1);
+  const parts = (baseDir ? baseDir.split("/") : []).concat(target.split("/"));
+  const out: string[] = [];
+  for (const part of parts) {
+    if (part === "..") out.pop();
+    else if (part !== "." && part !== "") out.push(part);
+  }
+  return out.join("/");
 }
 
 function columnIndex(ref: string): number {
@@ -107,28 +140,40 @@ export async function readXlsx(bytes: Uint8Array): Promise<string[][]> {
     return e ? new TextDecoder("utf-8").decode(await readEntry(bytes, e)) : null;
   };
 
-  const workbook = await text("xl/workbook.xml");
+  const xml = async (name: string) => {
+    const raw = await text(name);
+    return raw === null ? null : stripPrefixes(raw);
+  };
+
+  // where the workbook is: named in _rels/.rels, usually xl/workbook.xml
+  let workbookPath = "xl/workbook.xml";
+  const rootRels = (await xml("_rels/.rels")) ?? "";
+  for (const m of rootRels.matchAll(/<Relationship\b([^>]*?)\/?>/g)) {
+    if (/officeDocument$/.test(attr(m[1], "Type") ?? "")) workbookPath = resolveTarget("", attr(m[1], "Target") ?? workbookPath);
+  }
+  const workbook = await xml(workbookPath);
   if (!workbook) throw new Error("not_xlsx");
-  const rels = (await text("xl/_rels/workbook.xml.rels")) ?? "";
-  const sheets = [...workbook.matchAll(/<sheet\b([^>]*?)\/?>/g)].map((m) => {
-    const attrs = m[1];
-    return {
-      name: decodeEntities(/\bname="([^"]*)"/.exec(attrs)?.[1] ?? ""),
-      rid: /\br:id="([^"]*)"/.exec(attrs)?.[1] ?? "",
-    };
-  });
+  const baseDir = dirOf(workbookPath);
+  const relsName = `${baseDir ? baseDir + "/" : ""}_rels/${workbookPath.slice(baseDir ? baseDir.length + 1 : 0)}.rels`;
+  const rels = (await xml(relsName)) ?? "";
+  const sheets = [...workbook.matchAll(/<sheet\b([^>]*?)\/?>/g)].map((m) => ({
+    name: decodeEntities(attr(m[1], "name") ?? ""),
+    rid: attr(m[1], "id") ?? "",
+  }));
   if (!sheets.length) throw new Error("not_xlsx");
   const chosen = sheets.find((s) => s.name === "回答") ?? sheets[0];
   let target = "";
+  let sharedPath = `${baseDir ? baseDir + "/" : ""}sharedStrings.xml`;
   for (const m of rels.matchAll(/<Relationship\b([^>]*?)\/?>/g)) {
-    if (/\bId="([^"]*)"/.exec(m[1])?.[1] === chosen.rid) target = /\bTarget="([^"]*)"/.exec(m[1])?.[1] ?? "";
+    const t = attr(m[1], "Target") ?? "";
+    if (attr(m[1], "Id") === chosen.rid) target = t;
+    if (/sharedStrings$/.test(attr(m[1], "Type") ?? "")) sharedPath = resolveTarget(baseDir, t);
   }
-  if (!target) target = "worksheets/sheet1.xml";
-  const path = target.startsWith("/") ? target.slice(1) : `xl/${target}`;
-  const sheetXml = await text(path);
+  const path = target ? resolveTarget(baseDir, target) : `${baseDir ? baseDir + "/" : ""}worksheets/sheet1.xml`;
+  const sheetXml = await xml(path);
   if (!sheetXml) throw new Error("not_xlsx");
 
-  const sharedXml = await text("xl/sharedStrings.xml");
+  const sharedXml = await xml(sharedPath);
   const shared: string[] = [];
   if (sharedXml) for (const m of sharedXml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>|<si\s*\/>/g)) shared.push(textOf(m[1] ?? ""));
 
@@ -313,7 +358,7 @@ export function templateXlsx(): Uint8Array {
         ["1. 「回答」シートの2行目から、回答した人1人につき1行で入力します。1行目の見出しは変えないでください。"],
         ["2. 回答者区分は「参加者」か「依頼企業」を入力します。"],
         ["3. 設問1〜5は1〜4の数字で入力します（4＝良い、3＝やや良い、2＝やや悪い、1＝悪い）。"],
-        ["4. コメントと名前は空欄でも構いません。名前を入れた場合のみ、回答者名として表示されます。"],
+        ["4. コメントと名前は空欄でも構いません。名前を入れると、参加者・依頼企業のどちらの行でも、その名前が回答者名として表示されます（空欄のときは「参加者」「依頼企業（匿名）」と表示）。"],
         [`5. 一度に取り込めるのは${IMPORT_MAX_ROWS}行までです。`],
         ["6. 保存したら、Kenshu Link の「アンケート結果を取り込む」からファイルを選びます。"],
         [""],
