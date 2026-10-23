@@ -116,12 +116,21 @@ export function linkStateMessage(state: Exclude<SurveyLinkState, "ok">, opensAt?
     case "closed":
       return "このアンケートは受付を終了しました。";
     case "not_open": {
-      const when = opensAt ? formatOpenDate(opensAt) : "";
-      return when ? `このアンケートは${when}から回答できます。` : "このアンケートはまだ回答できません。";
+      const when = opensAt ? formatOpenDateTime(opensAt) : "";
+      return when ? `このアンケートは、研修の終了後（${when}以降）に回答できます。` : "このアンケートは、研修の終了後に回答できます。しばらくしてからもう一度お試しください。";
     }
     default:
       return "このリンクは無効です。配布されたQRコードまたはリンクをご確認ください。";
   }
+}
+
+/** 「10月24日 10:00」 in Japan time. */
+export function formatOpenDateTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${Number(get("month"))}月${Number(get("day"))}日 ${get("hour")}:${get("minute")}`;
 }
 
 export function formatOpenDate(iso: string): string {

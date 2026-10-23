@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/client";
-import { formatOpenDate } from "@/lib/survey/answers";
+import { formatOpenDateTime } from "@/lib/survey/answers";
 import { surveyLinkUrl } from "@/lib/survey/links";
 import { qrSvg } from "@/lib/survey/qr";
 
@@ -22,6 +22,7 @@ export function InstructorSurveyPanel({ requestId }: { requestId: string }) {
   const [survey, setSurvey] = useState<SurveyRow | null>(null);
   const [links, setLinks] = useState<LinkRow[]>([]);
   const [index, setIndex] = useState(0);
+  const [gate, setGate] = useState<{ open: boolean; opens_at: string | null } | null>(null);
 
   const load = useCallback(async () => {
     const { data: s } = await supabase
@@ -42,6 +43,8 @@ export function InstructorSurveyPanel({ requestId }: { requestId: string }) {
       const firstOpen = list.findIndex((x) => !x.used_at);
       setIndex(firstOpen >= 0 ? firstOpen : 0);
     }
+    const { data: g } = await supabase.rpc("get_training_survey_gate", { p_request_id: requestId });
+    setGate((g as { open: boolean; opens_at: string | null } | null) ?? null);
     setLoaded(true);
   }, [supabase, requestId]);
 
@@ -100,9 +103,9 @@ export function InstructorSurveyPanel({ requestId }: { requestId: string }) {
 
       {open && (
         <div style={{ padding: "14px 14px 14px", borderTop: "1px solid var(--color-border)", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-          {survey.opens_at && (
+          {gate && !gate.open && (
             <p className="request-card__desc" style={{ margin: 0, color: "var(--color-ink-soft)" }}>
-              開始日：{formatOpenDate(survey.opens_at)}
+              {gate.opens_at ? `回答の受付：研修の終了後（${formatOpenDateTime(gate.opens_at)}以降）` : "回答の受付：研修が「完了」になってから"}
             </p>
           )}
           <div className="survey-qr" dangerouslySetInnerHTML={{ __html: svg }} />
