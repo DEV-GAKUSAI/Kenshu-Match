@@ -1209,10 +1209,12 @@ function RequesterRequestCard({
         </>
       )}
 
-      <div className="request-card__tools">
-        <InternalNote requestId={r.request_id} requesterId={userId} />
-        <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} severalInstructors={hasRoles} />
-      </div>
+      {r.requester_type !== "individual" && (
+        <div className="request-card__tools">
+          <InternalNote requestId={r.request_id} requesterId={userId} />
+          <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} severalInstructors={hasRoles} />
+        </div>
+      )}
 
       {isBroadcast && r.publish_state !== "draft" && (
         <div className="request-card__actions">
@@ -1447,12 +1449,16 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
           {unseenCount > 0 && <span className="status-badge status-badge--rejected" style={{ marginLeft: 6 }}>{unseenCount}</span>}
         </h2>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Link href="/my-instructors" className="btn btn--ghost btn--sm">
-            自社の講師台帳
-          </Link>
-          <Link href="/my-partners" className="btn btn--ghost btn--sm">
-            関係先の管理
-          </Link>
+          {user.role === "COMPANY" && (
+            <>
+              <Link href="/my-instructors" className="btn btn--ghost btn--sm">
+                自社の講師台帳
+              </Link>
+              <Link href="/my-partners" className="btn btn--ghost btn--sm">
+                関係先の管理
+              </Link>
+            </>
+          )}
           <Link href="/post-request" className="btn btn--primary btn--sm">
             研修を依頼する（公募）
           </Link>
