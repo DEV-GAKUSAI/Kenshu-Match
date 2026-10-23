@@ -15,6 +15,9 @@ export type MineDisplay = {
   qualifications?: string[];
   /** 職種 names the instructor allowed. */
   occupations?: string[];
+  /** スキル names and 実績 (work history positions / companies) the instructor allowed; used for keyword search. */
+  skills?: string[];
+  experience?: string[];
   /** A link to the Mine photo (valid for an hour), only if 写真 is switched on. */
   photo_url?: string;
 };
@@ -27,10 +30,14 @@ const WORK_STYLES = new Set(["ONLINE", "ONSITE", "HYBRID"]);
 export function toDisplay(initials: string, profile: MinePublicProfile | null | undefined, photoUrl?: string): MineDisplay {
   const qualifications = (profile?.qualifications ?? []).map((q) => q.name).filter(Boolean);
   const occupations = (profile?.occupations ?? []).map((o) => o.name).filter(Boolean);
+  const skills = (profile?.skills ?? []).map((k) => k.name).filter(Boolean);
+  const experience = (profile?.work_history ?? []).flatMap((w) => [w.position, w.company_name]).filter((x): x is string => !!x);
   return {
     initials,
     ...(occupations.length ? { occupations } : {}),
     ...(qualifications.length ? { qualifications } : {}),
+    ...(skills.length ? { skills } : {}),
+    ...(experience.length ? { experience } : {}),
     ...(photoUrl ? { photo_url: photoUrl } : {}),
     ...(profile?.self_introduction ? { self_introduction: profile.self_introduction } : {}),
     ...(profile?.training_conditions ? { training_conditions: profile.training_conditions } : {}),
@@ -61,6 +68,8 @@ export function applyMineDisplay<T extends { id: string }>(rows: T[], map: MineD
       prefectures: tc?.prefectures?.length ? tc.prefectures : null,
       desired_rate_min: rate,
       desired_rate_max: rate,
+      skill_names: item?.skills?.length ? item.skills : null,
+      experience_names: item?.experience?.length ? item.experience : null,
       available_from: tc?.available_from ?? null,
       available_until: tc?.available_until ?? null,
       training_languages: tc?.training_languages?.length ? tc.training_languages : null,

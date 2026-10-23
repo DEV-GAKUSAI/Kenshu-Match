@@ -9,7 +9,7 @@ import { withSurveySummary } from "@/lib/survey/summary-client";
 import { sortBySurveyAvg } from "@/lib/survey/summary";
 import { InstructorCard } from "@/components/instructors/InstructorCard";
 import type { InstructorPublicDirectoryRow } from "@/types/database";
-import { EMPTY_AVAILABILITY_FILTER, ROLE_LABEL, isAvailabilityFilterActive, matchesAvailability, type AvailabilityFilter } from "@/lib/mine/availability";
+import { EMPTY_AVAILABILITY_FILTER, ROLE_LABEL, isAvailabilityFilterActive, matchesAvailability, periodLabel, rolesLabel, type AvailabilityFilter } from "@/lib/mine/availability";
 import "./instructors.css";
 
 const ONLINE_AREA = "オンライン対応（全国）";
@@ -252,7 +252,7 @@ function InstructorsPageInner() {
 
     return allInstructors.filter((ins) => {
       if (kw) {
-        const hay = [ins.name, ins.self_pr, ...(ins.expertise_fields || []), ...(ins.occupation_names || []), ...(ins.certifications || []), ...(ins.prefectures || [])]
+        const hay = [ins.name, ins.self_pr, ...(ins.expertise_fields || []), ...(ins.occupation_names || []), ...(ins.certifications || []), ...(ins.prefectures || []), ...(ins.skill_names || []), ...(ins.experience_names || []), ...(ins.training_languages || []), rolesLabel(ins.roles), ins.available_from || ins.available_until ? periodLabel(ins) : ""]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
@@ -304,7 +304,7 @@ function InstructorsPageInner() {
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center", margin: "0 0 12px" }}>
         <input
           type="search"
-          placeholder="名前・スキル・分野・資格・自己PRで探す"
+          placeholder="名前・スキル・実績・言語・分野・資格・自己PRで探す"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           style={{ flex: "1 1 280px", minWidth: 0 }}

@@ -204,6 +204,8 @@ export type InstructorPublicDirectoryRow = {
   /** 職種 from Mine (not a column of the view). */
   occupation_names?: string[] | null;
   /** 稼働条件 from Mine (not columns of the view). */
+  skill_names?: string[] | null;
+  experience_names?: string[] | null;
   available_from?: string | null;
   available_until?: string | null;
   training_languages?: string[] | null;

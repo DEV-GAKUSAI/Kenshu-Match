@@ -82,3 +82,18 @@ test("稼働条件 from Mine reach the row; missing ones are null", () => {
   assert.equal(none.available_from, null);
   assert.equal(none.training_languages, null);
 });
+
+test("スキル and 実績 from Mine are kept for keyword search; none means null", () => {
+  const map = {
+    a: toDisplay("A.H.", {
+      skills: [{ name: "Java" }, { name: "SQL" }],
+      work_history: [{ company_name: "株式会社テスト", position: "講師" }],
+    }),
+  };
+  const out = applyMineDisplay([row], map)[0] as unknown as Record<string, unknown>;
+  assert.deepEqual(out.skill_names, ["Java", "SQL"]);
+  assert.deepEqual(out.experience_names, ["講師", "株式会社テスト"]);
+  const none = applyMineDisplay([row], {})[0] as unknown as Record<string, unknown>;
+  assert.equal(none.skill_names, null);
+  assert.equal(none.experience_names, null);
+});
