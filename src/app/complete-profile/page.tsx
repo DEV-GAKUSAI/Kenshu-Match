@@ -137,7 +137,7 @@ export default function CompleteProfilePage() {
               router.replace("/");
             }}
           >
-            ログアウト
+            別のアカウントでログインする
           </button>
         </div>
       </main>
