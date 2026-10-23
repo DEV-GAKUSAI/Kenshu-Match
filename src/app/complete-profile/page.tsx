@@ -65,7 +65,13 @@ export default function CompleteProfilePage() {
           .select("user_id")
           .eq("user_id", uid)
           .maybeSingle();
-        if (mineRow) setIsMineAccount(true);
+        if (mineRow) {
+          setIsMineAccount(true);
+          return;
+        }
+        // Mine / Engineer Match の会員は共有の users テーブルに別の役割（ENGINEER など）で入っている
+        const { data: userRow } = await supabase.from("users").select("id").eq("id", uid).maybeSingle();
+        if (userRow) setIsMineAccount(true);
       } catch {
         // 判定できないときは、これまでどおり役割の選択を表示する
       }

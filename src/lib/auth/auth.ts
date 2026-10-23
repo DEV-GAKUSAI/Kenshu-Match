@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
+import { isKenshuRole } from "@/lib/auth/roles";
 import type { UserRole, UserRow } from "@/types/database";
 
 export async function signIn(email: string, password: string) {
@@ -76,6 +77,9 @@ export async function loadUserProfile(
     .maybeSingle();
 
   if (!error && data) {
+    // 共有の users テーブルには Engineer Match / Mine の会員（ENGINEER など）もいる。
+    // Kenshu Link の役割ではない場合は、生徒として扱わず「Mineから開く」案内へ回す。
+    if (!isKenshuRole(data.role)) return { user: null, needsProfileCompletion: true };
     return { user: data, needsProfileCompletion: false };
   }
   return { user: null, needsProfileCompletion: true };
