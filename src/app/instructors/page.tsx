@@ -151,6 +151,7 @@ function InstructorsPageInner() {
   const [rateMax, setRateMax] = useState("");
   const [keyword, setKeyword] = useState("");
   const [includeNoRate, setIncludeNoRate] = useState(false);
+  const [includeNoArea, setIncludeNoArea] = useState(false);
   const [avail, setAvail] = useState<AvailabilityFilter>(EMPTY_AVAILABILITY_FILTER);
 
   // Only one filter panel open at a time (mirrors the legacy <details> group behavior).
@@ -240,6 +241,7 @@ function InstructorsPageInner() {
     setRateMax("");
     setKeyword("");
     setIncludeNoRate(false);
+    setIncludeNoArea(false);
     setAvail(EMPTY_AVAILABILITY_FILTER);
   }
 
@@ -260,7 +262,8 @@ function InstructorsPageInner() {
       if (selectedAreas.length) {
         const online = ins.work_style === "ONLINE" || ins.work_style === "HYBRID";
         const areaOk = selectedAreas.some((a) => (a === ONLINE_AREA ? online : (ins.prefectures || []).includes(a)));
-        if (!areaOk) return false;
+        const noArea = !(ins.prefectures || []).length && !ins.work_style;
+        if (!areaOk && !(includeNoArea && noArea)) return false;
       }
       if (selectedFormats.length) {
         const matches = (ins.work_style && selectedFormats.includes(ins.work_style)) || (ins.work_style === "HYBRID" && selectedFormats.length);
@@ -275,7 +278,7 @@ function InstructorsPageInner() {
       if (categorySubcategoryNames && !(ins.expertise_fields || []).some((f) => categorySubcategoryNames.includes(f))) return false;
       return true;
     });
-  }, [allInstructors, selectedAreas, selectedFormats, selectedFields, rateMin, rateMax, categorySubcategoryNames, keyword, includeNoRate, avail]);
+  }, [allInstructors, selectedAreas, selectedFormats, selectedFields, rateMin, rateMax, categorySubcategoryNames, keyword, includeNoRate, includeNoArea, avail]);
 
   return (
     <main className="list-page" style={{ maxWidth: 1240 }}>
@@ -306,6 +309,13 @@ function InstructorsPageInner() {
           onChange={(e) => setKeyword(e.target.value)}
           style={{ flex: "1 1 280px", minWidth: 0 }}
         />
+        <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
+          <input type="checkbox" checked={includeNoArea} onChange={(e) => setIncludeNoArea(e.target.checked)} />
+          <span>
+            エリアが未登録の講師も含める
+            <small style={{ display: "block", color: "var(--color-ink-soft)", fontSize: 11.5, marginTop: 2 }}>エリアで絞り込むときに使います</small>
+          </span>
+        </label>
         <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13 }}>
           <input type="checkbox" checked={includeNoRate} onChange={(e) => setIncludeNoRate(e.target.checked)} />
           <span>
