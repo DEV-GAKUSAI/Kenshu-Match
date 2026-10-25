@@ -9,6 +9,7 @@ import { MineMeetingLine } from "@/components/mine/MineMeeting";
 import { formatMeetingTimeClient } from "@/lib/mine/meeting-format";
 import { Select } from "@/components/ui/Select";
 import { MANUAL_STAGE_OPTIONS, STAGE_LABEL, type StageKey } from "@/lib/requests/stage";
+import { INTERVIEW_STEPS, interviewGuide } from "@/lib/requests/interview-guide";
 import type { InstructorResponseRow, KenshuMineMeetingRow } from "@/types/database";
 
 const isActive = (meeting: KenshuMineMeetingRow) => meeting.status !== "cancelled" && Date.parse(meeting.ends_at) > Date.now();
@@ -46,6 +47,7 @@ export function ApplicantRow({
   decideExtra,
   stage,
   onStageChange,
+  onRequestInterview,
 }: {
   name: string;
   response: InstructorResponseRow;
@@ -64,6 +66,8 @@ export function ApplicantRow({
   stage?: StageKey;
   /** Set while the company can still change the stage by hand (nobody decided for this applicant). */
   onStageChange?: (value: "" | "screening" | "negotiation" | "passed") => void;
+  /** Ask for an interview without booking a meeting (only while the request is open). */
+  onRequestInterview?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [changes, setChanges] = useState<ResponseChange[]>([]);
@@ -86,6 +90,7 @@ export function ApplicantRow({
   const declined = interview === "declined";
   // Until the instructor agrees to the interview only the initials are known.
   const shownName = response.released_name?.trim() || name;
+  const guide = interviewGuide({ interview, decided: !!decidedLabel, passed: stage === "passed", canBook: !!meetingButton });
 
   let summary: ReactNode = <span style={{ color: "var(--color-ink-soft)" }}>面談：未予約</span>;
   if (meeting && meeting.status === "cancelled") {
@@ -196,8 +201,31 @@ export function ApplicantRow({
           <ApplyItemsBox response={response} />
           <QuoteHistoryBox changes={changes} response={response} />
           {meeting && <MineMeetingLine meeting={meeting} viewer="requester" compact />}
+          {!declined && stage !== "passed" && (
+            <ol aria-label="決定までの流れ" style={{ display: "flex", flexWrap: "wrap", gap: 6, listStyle: "none", margin: "0 0 10px", padding: 0, fontSize: 11.5 }}>
+              {INTERVIEW_STEPS.map((label, i) => (
+                <li
+                  key={label}
+                  aria-current={i === guide.done ? "step" : undefined}
+                  style={{
+                    ...pill(i < guide.done ? "#E3F7F0" : i === guide.done ? "#FFF1DB" : "var(--color-bg-soft, #f3f4f6)", i < guide.done ? "#0E7A5F" : i === guide.done ? "#9A5B0C" : "var(--color-ink-soft)"),
+                    fontWeight: i === guide.done ? 800 : 600,
+                  }}
+                >
+                  {i < guide.done ? "✓ " : `${i + 1}. `}
+                  {label}
+                </li>
+              ))}
+            </ol>
+          )}
+          {guide.hint && <p style={{ margin: "0 0 10px", color: "var(--color-ink-soft)" }}>{guide.hint}</p>}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: message || meeting ? 12 : 0 }}>
             {!declined && meetingButton}
+            {guide.canRequest && onRequestInterview && (
+              <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={onRequestInterview}>
+                {busy ? "処理中…" : "面談を依頼する"}
+              </button>
+            )}
             {!decidedLabel && interview === "requested" && (
               <span style={{ alignSelf: "center", color: "var(--color-ink-soft)" }}>講師の返事待ちです。公開されると決定できます。</span>
             )}

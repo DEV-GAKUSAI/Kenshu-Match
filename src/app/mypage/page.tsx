@@ -23,6 +23,7 @@ import {
   releaseInstructorName,
   submitInstructorResponse,
   setResponseStage,
+  requestInterview,
 } from "@/lib/requests/instructor-responses";
 import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
 import { DetailsView } from "@/components/requests/DetailsView";
@@ -892,6 +893,15 @@ function RequesterRequestCard({
     onChanged();
   }
 
+  async function askInterview(responseId: string) {
+    setBusy(true);
+    const { error } = await requestInterview(responseId);
+    setBusy(false);
+    if (error) return showToast("面談を依頼できませんでした。もう一度お試しください。");
+    showToast("面談を依頼しました。講師が情報を公開すると、決定できます。");
+    onChanged();
+  }
+
   async function handleFinalizeApplicant(responseId: string, instructorId: string) {
     let slotId: string | null = null;
     if (hasRoles) {
@@ -1148,6 +1158,7 @@ function RequesterRequestCard({
                       busy={busy}
                       onDecide={() => handleFinalizeApplicant(a.response_id, a.instructor_id)}
                       stage={stageOf(a, st.key === "accepted" || st.key === "completed")}
+                      onRequestInterview={st.key === "pending" || st.key === "quoted" ? () => askInterview(a.response_id) : undefined}
                       onStageChange={st.key === "accepted" || st.key === "completed" || a.is_selected ? undefined : (v) => changeStage(a.response_id, v)}
                       decidedLabel={a.is_selected ? `決定${hasRoles ? `：${roleSlots.find((x) => x.id === a.role_slot_id)?.name ?? ""}` : ""}` : null}
                       decideExtra={
