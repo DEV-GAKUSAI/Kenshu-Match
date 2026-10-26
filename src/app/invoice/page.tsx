@@ -62,7 +62,7 @@ function InvoiceInner() {
 
   return (
     <main className="detail-page">
-      <style>{`@media print { header, footer, nav, .no-print { display: none !important; } body { background: #fff !important; } }`}</style>
+      <style>{`@media print { header, footer, nav, .site-header, .site-footer, .toast, .no-print { display: none !important; } body { background: #fff !important; } .form-card { box-shadow: none !important; border: none !important; padding: 0 !important; max-width: none !important; } @page { margin: 14mm; } }`}</style>
       <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <button type="button" className="btn btn--primary btn--sm" onClick={() => window.print()}>
           印刷 / PDFに保存
