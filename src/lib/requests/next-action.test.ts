@@ -28,3 +28,9 @@ test("role slots: decided applicants are ignored; passed or declined only means 
   assert.equal(nextAction({ ...base, applicants: [app({ decided: true, interview: "released" })] }), "応募待ち");
   assert.equal(nextAction({ ...base, applicants: [app({ passed: true }), app({ interview: "declined" })] }), "応募者の検討");
 });
+
+test("paused with nobody to act on: resume is needed; a passed deadline wins; applicants still get their step", () => {
+  assert.equal(nextAction({ ...base, statusKey: "pending", isPaused: true }), "公開再開が必要");
+  assert.equal(nextAction({ ...base, statusKey: "pending", isPaused: true, deadlinePassed: true }), "締切を延ばすか取消");
+  assert.equal(nextAction({ ...base, isPaused: true, applicants: [app()] }), "面談を依頼する");
+});
