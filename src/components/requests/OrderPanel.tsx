@@ -3,16 +3,20 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+import { useConfirm } from "@/components/common/ConfirmDialog";
 import { useToast } from "@/components/common/Toast";
 import { getOrderChanges, getOrderDefaults, getOrderForResponse, issueOrder, ORDER_STATUS_TEXT, respondOrder, type OrderRow } from "@/lib/requests/orders";
 import { diffOrders, MAX_ITEMS, normalizeItems } from "@/lib/requests/order-calc";
 import { MAX_AMOUNT, normalUnit } from "@/lib/requests/money";
+
+const ORDER_DECLINE_REASONS = ["日程が合わない", "金額・条件が合わない", "支払条件を確認したい", "内容に誤りがある", "他の予定と重なった"];
 
 type ItemInput = { name: string; qty: string; price: string };
 
 /** 注文書: the company issues it for the decided instructor, the instructor confirms (#51). */
 export function OrderPanel({ responseId, role }: { responseId: string; role: "requester" | "instructor" }) {
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const [order, setOrder] = useState<OrderRow | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState(false);
@@ -22,6 +26,7 @@ export function OrderPanel({ responseId, role }: { responseId: string; role: "re
   const [items, setItems] = useState<ItemInput[]>([]);
   const [unit, setUnit] = useState<string | null>(null);
   const [changed, setChanged] = useState<string[]>([]);
+  const [prevDeclined, setPrevDeclined] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function load() {
@@ -38,7 +43,11 @@ export function OrderPanel({ responseId, role }: { responseId: string; role: "re
       const olds = await getOrderChanges(o.order_id);
       const prev = olds.find((x) => x.revision === o.revision - 1);
       setChanged(prev ? diffOrders(prev, o).map((d) => d.label) : []);
-    } else setChanged([]);
+      setPrevDeclined(prev?.status === "declined" ? prev.decline_reason || "（理由なし）" : null);
+    } else {
+      setChanged([]);
+      setPrevDeclined(null);
+    }
     setLoaded(true);
   }
 
@@ -75,8 +84,15 @@ export function OrderPanel({ responseId, role }: { responseId: string; role: "re
 
   async function respond(accept: boolean) {
     if (!order) return;
+    const res = await confirm(
+      accept
+        ? { title: "この注文書の内容を確認しましたか？", confirmLabel: "確認した", cancelLabel: "戻る" }
+        : { title: "この注文書を辞退しますか？", message: "辞退すると、企業に理由が伝わります。企業が内容を直して再発行できます。", confirmLabel: "辞退する", cancelLabel: "戻る", tone: "danger", reasonLabel: "辞退の理由（必須）", reasonPresets: ORDER_DECLINE_REASONS },
+    );
+    if (!res.ok) return;
+    if (!accept && !res.reason) return showToast("辞退の理由を入力してください。");
     setBusy(true);
-    const { error } = await respondOrder(order.order_id, accept);
+    const { error } = await respondOrder(order.order_id, accept, accept ? null : res.reason);
     setBusy(false);
     if (error) return showToast(error.message);
     showToast(accept ? "注文書を確認しました。" : "注文書を辞退しました。");
@@ -89,6 +105,8 @@ export function OrderPanel({ responseId, role }: { responseId: string; role: "re
       {order ? (
         <div style={{ fontSize: 13 }}>
           {order.order_no}（第{order.revision}版）　{ORDER_STATUS_TEXT[order.status]}
+          {order.status === "declined" && order.decline_reason && <div style={{ color: "var(--color-danger, #c0392b)" }}>辞退の理由：{order.decline_reason}</div>}
+          {prevDeclined && <div style={{ color: "var(--color-ink-soft)" }}>前の版は辞退されました（理由：{prevDeclined}）</div>}
           {order.revision > 1 && <div style={{ color: "var(--color-ink-soft)" }}>前の版からの変更：{changed.length ? changed.join("・") : "なし"}（詳細は注文書の「変更履歴」）</div>}
         </div>
       ) : (

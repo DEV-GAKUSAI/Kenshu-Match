@@ -25,6 +25,8 @@ export type OrderRow = {
   payment_terms: string | null;
   note: string | null;
   /** 数量 of the 登壇料 line (hours / days); null for a 総額 price or before migration 182 */
+  /** why the lecturer declined (migration 183) */
+  decline_reason?: string | null;
   main_qty?: number | null;
   /** extra 明細 lines (migration 182) */
   items?: unknown;
@@ -44,6 +46,7 @@ const ERRORS: Record<string, string> = {
   not_editable: "すでに回答済みです。",
   not_found: "対象が見つかりません。",
   too_long: "文字数が多すぎます。",
+  reason_required: "辞退の理由を入力してください。",
   bad_items: "明細の内容を確認してください（品目は50文字まで、数量は1以上、単価は0〜10,000,000円）。",
 };
 
@@ -90,7 +93,8 @@ export async function getOrderDefaults(responseId: string): Promise<{ paymentTer
   return { paymentTerms: req?.payment_terms ?? null, unit: row?.quote_unit ?? req?.budget_unit ?? null, amount: row?.quote_price ?? req?.budget ?? null };
 }
 
-export async function respondOrder(orderId: string, accept: boolean) {
-  const { error } = await db().rpc("respond_order", { p_order_id: orderId, p_accept: accept });
+export async function respondOrder(orderId: string, accept: boolean, reason: string | null = null) {
+  // Needs migration 183 (the 3-argument respond_order, a decline needs a reason).
+  const { error } = await db().rpc("respond_order", { p_order_id: orderId, p_accept: accept, p_reason: reason });
   return { error: error ? { message: message(error.message) } : null };
 }

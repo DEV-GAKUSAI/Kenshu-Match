@@ -65,7 +65,7 @@ function OrderInner() {
   const cell = { border: "1px solid var(--color-border, #ccd5d1)", padding: "6px 8px", fontSize: 13 } as const;
   // Each version with what changed from the one before it (#51).
   const versions = [...history, order];
-  const changes = versions.slice(1).map((v, i) => ({ revision: v.revision, at: v.issued_at, diffs: diffOrders(versions[i], v) }));
+  const changes = versions.slice(1).map((v, i) => ({ revision: v.revision, at: v.issued_at, diffs: diffOrders(versions[i], v), prevDeclined: versions[i].status === "declined" ? versions[i].decline_reason || "（理由なし）" : null }));
 
   return (
     <main className="detail-page">
@@ -184,7 +184,7 @@ function OrderInner() {
           )}
         </dl>
         <p className="no-print" style={{ fontSize: 12.5, color: "var(--color-ink-soft)", marginTop: 18 }}>
-          状況：{ORDER_STATUS_TEXT[order.status]}　{user.id === order.instructor_id ? "内容に問題がなければ、マイページで「内容を確認した」を押してください。" : ""}
+          状況：{ORDER_STATUS_TEXT[order.status]}{order.status === "declined" && order.decline_reason ? `（理由：${order.decline_reason}）` : ""}　{user.id === order.instructor_id ? "内容に問題がなければ、マイページで「内容を確認した」を押してください。" : ""}
         </p>
       </div>
       {changes.length > 0 && (
@@ -193,6 +193,7 @@ function OrderInner() {
           {[...changes].reverse().map((c) => (
             <div key={c.revision} style={{ marginBottom: 12, fontSize: 13 }}>
               <strong>第{c.revision}版</strong>（{fmtDate(c.at)}）：{c.diffs.length === 0 ? "内容の変更なし（再発行のみ）" : ""}
+              {c.prevDeclined && <div style={{ marginLeft: 12, marginTop: 2 }}>第{c.revision - 1}版は講師が辞退しました（理由：{c.prevDeclined}）</div>}
               {c.diffs.map((d) => (
                 <div key={d.label} style={{ marginLeft: 12, marginTop: 2 }}>
                   {d.label}：{d.before} → <strong>{d.after}</strong>
