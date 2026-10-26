@@ -1,6 +1,6 @@
 "use client";
 
-import { UNIT_OPTIONS, type BudgetUnit, type CostShare, type PrepCost, type TaxMode } from "@/lib/requests/money";
+import { MAX_AMOUNT, UNIT_OPTIONS, type BudgetUnit, type CostShare, type PrepCost, type TaxMode } from "@/lib/requests/money";
 import { Select } from "@/components/ui/Select";
 
 export type MoneyFormValue = {
@@ -49,6 +49,7 @@ export function MoneyForm({ value, onChange, idPrefix = "req" }: { value: MoneyF
             id={`${idPrefix}Budget`}
             placeholder={value.unit === "total" ? "例：300000" : value.unit === "day" ? "例：80000" : "例：15000"}
             min={0}
+            max={MAX_AMOUNT}
             step={1000}
             value={value.budget}
             onChange={(e) => set({ budget: e.target.value })}

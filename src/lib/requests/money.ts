@@ -1,6 +1,16 @@
 // How a price is written everywhere (#41 案件の金額 / #44 登壇料・経費・支払条件).
 // One place, so lists, detail pages, applications and results all say the same thing.
 
+/** Upper limit for any yen amount typed in a request or a quote (#50). Same number as migration 181. */
+export const MAX_AMOUNT = 10_000_000;
+
+/** Message when an amount is not a whole yen number of 1 .. MAX_AMOUNT; null when fine. */
+export function amountError(value: number, label: string): string | null {
+  if (!Number.isInteger(value) || value < 1) return `${label}は1円以上の整数で入力してください。`;
+  if (value > MAX_AMOUNT) return `${label}は${MAX_AMOUNT.toLocaleString()}円以下で入力してください。`;
+  return null;
+}
+
 export type BudgetUnit = "hour" | "day" | "total";
 export type TaxMode = "included" | "excluded" | "unspecified";
 export type CostShare = "company" | "included" | "none" | "unspecified";

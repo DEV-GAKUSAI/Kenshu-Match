@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { useConfirm } from "@/components/common/ConfirmDialog";
 import { useToast } from "@/components/common/Toast";
-import { normalUnit, UNIT_OPTIONS } from "@/lib/requests/money";
+import { amountError, MAX_AMOUNT, normalUnit, UNIT_OPTIONS } from "@/lib/requests/money";
 import { reviseQuote, withdrawResponse } from "@/lib/requests/instructor-responses";
 import type { InstructorResponseRow } from "@/types/database";
 import { Select } from "@/components/ui/Select";
@@ -35,7 +35,8 @@ export function ResponseManage({
 
   async function save() {
     const n = Number(price);
-    if (!Number.isInteger(n) || n < 1) return showToast("見積り金額は1円以上の整数で入力してください。");
+    const priceErr = amountError(n, "見積り金額");
+    if (priceErr) return showToast(priceErr);
     setBusy(true);
     const { error } = await reviseQuote(response.response_id, n, tax || null, message.trim() || null);
     setBusy(false);
@@ -76,7 +77,7 @@ export function ResponseManage({
           <div className="form-field">
             <label>見積り金額（{UNIT_OPTIONS.find((o) => o.value === normalUnit(request.budget_unit))?.label}・円）</label>
             <div style={{ display: "flex", gap: 8 }}>
-              <input type="number" min={1} step={1} value={price} onChange={(e) => setPrice(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+              <input type="number" min={1} max={MAX_AMOUNT} step={1} value={price} onChange={(e) => setPrice(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
               <Select aria-label="税" value={tax} onChange={(e) => setTax(e.target.value as "" | "included" | "excluded")} style={{ flex: "0 0 120px" }}>
                 <option value="">税の指定なし</option>
                 <option value="included">税込</option>

@@ -42,7 +42,7 @@ import { setPublishState, closeApplications } from "@/lib/requests/training-requ
 import { nextAction } from "@/lib/requests/next-action";
 import { matchesSearch } from "@/lib/requests/search";
 import { recruitState, RECRUIT_STATE_LABEL, monthsOfDays, monthLabel, type RecruitState } from "@/lib/requests/list-filters";
-import { budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
+import { amountError, MAX_AMOUNT, budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
 import type { InstructorResponseRow, TrainingRequestRow } from "@/types/database";
 import type { CurrentUser } from "@/lib/auth/auth";
 import { ApplicantRow, applicantPriority } from "@/components/mine/ApplicantRow";
@@ -337,6 +337,8 @@ function InstructorRequestCard({
   async function submitQuote() {
     const price = Number(quotePrice) || null;
     if (!price) return showToast("見積り金額を入力してください");
+    const priceErr = amountError(price, "見積り金額");
+    if (priceErr) return showToast(priceErr);
     if (normalizeSlots(r.role_slots).length > 0 && !apply.role.trim()) return showToast("希望する役割・職種を選んでください");
     setBusy(true);
     const { error } = await submitInstructorResponse(r.request_id, userId, "quote", { quote_price: price, quote_tax_mode: quoteTax || null, message: quoteMessage.trim() || null, ...applyPayload(apply) });
@@ -455,7 +457,7 @@ function InstructorRequestCard({
             <div className="form-field">
               <label>見積り金額（{UNIT_OPTIONS.find((o) => o.value === normalUnit(r.budget_unit))?.label}・円）</label>
               <div style={{ display: "flex", gap: 8 }}>
-                <input type="number" min={0} step={1000} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+                <input type="number" min={0} max={MAX_AMOUNT} step={1000} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
                 <Select aria-label="税" value={quoteTax} onChange={(e) => setQuoteTax(e.target.value as "" | "included" | "excluded")} style={{ flex: "0 0 120px" }}>
                   <option value="">税の指定なし</option>
                   <option value="included">税込</option>
