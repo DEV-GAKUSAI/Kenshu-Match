@@ -28,3 +28,13 @@ test("isHourly", () => {
   assert.equal(isHourly({}), true);
   assert.equal(isHourly({ budget_unit: "total" }), false);
 });
+
+import { amountError, MAX_AMOUNT } from "./money.ts";
+test("amount limit (#50)", () => {
+  assert.equal(amountError(14000, "見積り金額"), null);
+  assert.equal(amountError(MAX_AMOUNT, "見積り金額"), null);
+  assert.match(amountError(MAX_AMOUNT + 1, "見積り金額") ?? "", /10,000,000円以下/);
+  assert.match(amountError(1_000_000_000_000, "予算") ?? "", /予算は10,000,000円以下/);
+  assert.match(amountError(0, "予算") ?? "", /1円以上の整数/);
+  assert.match(amountError(10.5, "予算") ?? "", /1円以上の整数/);
+});

@@ -16,7 +16,7 @@ import { Select } from "@/components/ui/Select";
 import { RolesForm, EMPTY_ROLES, rolesPayload, type RolesFormValue } from "@/components/requests/RolesForm";
 import { slotsSummary } from "@/lib/requests/roles";
 import { DetailsView } from "@/components/requests/DetailsView";
-import { costLines, budgetText } from "@/lib/requests/money";
+import { costLines, budgetText, amountError } from "@/lib/requests/money";
 import { requestFormatLabel, normalizeDays, validateDays } from "@/lib/requests/schedule";
 import { todayJst, deadlineShort } from "@/lib/requests/deadline";
 import { VisibilityForm, type VisibilityValue } from "@/components/requests/VisibilityForm";
@@ -149,13 +149,16 @@ export default function PostRequestPage() {
     const expertiseInvalid = !expertise;
     const participantsInvalid = !(Number.isInteger(Number(participants)) && Number(participants) >= 1);
     const dayError = validateDays(details.days);
+    const budgetError = money.budget.trim() ? amountError(Number(money.budget), "予算") : null;
     setTitleHasError(titleInvalid);
     setDescriptionHasError(descriptionInvalid);
 
-    if (titleInvalid || descriptionInvalid || locationInvalid || expertiseInvalid || participantsInvalid || dayError) {
+    if (titleInvalid || descriptionInvalid || locationInvalid || expertiseInvalid || participantsInvalid || dayError || budgetError) {
       setFormError(
         dayError
           ? dayError
+          : budgetError
+          ? budgetError
           : locationInvalid
           ? "対面の場合は実施場所の入力が必要です。"
           : expertiseInvalid
@@ -217,6 +220,11 @@ export default function PostRequestPage() {
     }
     if (!expertise) {
       setFormError("分野を選択してください。");
+      return;
+    }
+    const draftBudgetError = money.budget.trim() ? amountError(Number(money.budget), "予算") : null;
+    if (draftBudgetError) {
+      setFormError(draftBudgetError);
       return;
     }
     const ve = inviteError(vis.visibility, vis.invited);

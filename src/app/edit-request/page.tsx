@@ -19,7 +19,7 @@ import { inviteError, normalizeVisibility } from "@/lib/requests/visibility";
 import { RolesForm, rolesPayload, rolesToForm, type RolesFormValue } from "@/components/requests/RolesForm";
 import { normalizeSlots } from "@/lib/requests/roles";
 import { MoneyForm, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
-import { normalUnit } from "@/lib/requests/money";
+import { normalUnit, amountError } from "@/lib/requests/money";
 import { normalizeDays } from "@/lib/requests/schedule";
 import type { RequestFormat, TrainingRequestRow } from "@/types/database";
 import { Select } from "@/components/ui/Select";
@@ -133,6 +133,8 @@ function EditRequestInner() {
     if (!Number.isInteger(n) || n < 1) return setError("対象人数を入力してください。");
     const dayError = validateDays(details?.days ?? []);
     if (dayError) return setError(dayError);
+    const budgetError = money?.budget.trim() ? amountError(Number(money.budget), "予算") : null;
+    if (budgetError) return setError(budgetError);
     // A new deadline cannot be in the past (an old one that is already past can stay, so other edits still save).
     if (deadline && deadline !== origDeadline && deadline < todayJst()) return setError("応募締切は今日以降の日付にしてください。");
     const slotsNow = rolesPayload(roles).role_slots;

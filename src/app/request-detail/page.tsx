@@ -11,7 +11,7 @@ import {
   getTrainingRequestDetail,
   getTrainingRequestWithResponses,
 } from "@/lib/requests/training-requests";
-import { budgetText, costLines, isHourly, normalUnit, quoteText, UNIT_OPTIONS, type MoneyFields } from "@/lib/requests/money";
+import { amountError, MAX_AMOUNT, budgetText, costLines, isHourly, normalUnit, quoteText, UNIT_OPTIONS, type MoneyFields } from "@/lib/requests/money";
 import { DetailsView } from "@/components/requests/DetailsView";
 import { normalizeSlots } from "@/lib/requests/roles";
 import { STAGE_LABEL, stageOf } from "@/lib/requests/stage";
@@ -300,8 +300,9 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
     let price: number | null = null;
     if (raw) {
       price = Number(raw);
-      if (!Number.isInteger(price) || price < 1) {
-        showToast("見積り金額は1円以上の整数で入力してください");
+      const priceErr = amountError(price, "見積り金額");
+      if (priceErr) {
+        showToast(priceErr);
         return;
       }
     }
@@ -416,7 +417,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
                   見積り金額（{UNIT_OPTIONS.find((o) => o.value === normalUnit(r.budget_unit))?.label}・円）<span className="field-optional">任意</span>
                 </label>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <input type="number" min={1} step={1} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+                  <input type="number" min={1} max={MAX_AMOUNT} step={1} placeholder="例：14000" value={quotePrice} onChange={(e) => setQuotePrice(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
                   <Select aria-label="税" value={quoteTax} onChange={(e) => setQuoteTax(e.target.value as "" | "included" | "excluded")} style={{ flex: "0 0 120px" }}>
                     <option value="">税の指定なし</option>
                     <option value="included">税込</option>
