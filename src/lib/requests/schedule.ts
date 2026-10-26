@@ -9,9 +9,14 @@ export type ScheduleDay = {
   format: DayFormat;
   place: string;
   content: string;
+  /** 休憩 (#43): optional, HH:MM. Both or none. */
+  breakStart?: string;
+  breakEnd?: string;
+  /** 調整中 (#43): this day's date/time is not fixed yet. Missing = 確定. */
+  tentative?: boolean;
 };
 
-export const EMPTY_DAY: ScheduleDay = { date: "", start: "", end: "", format: "undecided", place: "", content: "" };
+export const EMPTY_DAY: ScheduleDay = { date: "", start: "", end: "", format: "undecided", place: "", content: "", breakStart: "", breakEnd: "", tentative: false };
 
 export const MAX_DAYS = 31;
 
@@ -28,13 +33,44 @@ export function normalizeDays(value: unknown): ScheduleDay[] {
       format,
       place: str(d.place, 120),
       content: str(d.content, 300),
+      breakStart: str(d.breakStart, 5),
+      breakEnd: str(d.breakEnd, 5),
+      tentative: d.tentative === true,
     };
   });
 }
 
 /** Drop rows the company left completely empty. */
 export function cleanDays(days: ScheduleDay[]): ScheduleDay[] {
-  return normalizeDays(days).filter((d) => d.date || d.start || d.end || d.place.trim() || d.content.trim() || d.format !== "undecided");
+  return normalizeDays(days).filter(
+    (d) => d.date || d.start || d.end || d.place.trim() || d.content.trim() || d.format !== "undecided" || d.breakStart || d.breakEnd || d.tentative,
+  );
+}
+
+const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * First problem in the day list, or null (#43). The end must be after the start, and a break needs both
+ * times, inside the start–end range. Times are HH:MM, so comparing the text is enough.
+ */
+export function validateDays(days: ScheduleDay[]): string | null {
+  const list = normalizeDays(days);
+  for (let i = 0; i < list.length; i++) {
+    const d = list[i];
+    const label = `${i + 1}日目`;
+    for (const t of [d.start, d.end, d.breakStart ?? "", d.breakEnd ?? ""]) {
+      if (t && !TIME.test(t)) return `${label}：時刻の形式が正しくありません。`;
+    }
+    if (d.start && d.end && d.end <= d.start) return `${label}：終了時刻は開始時刻より後にしてください。`;
+    const bs = d.breakStart ?? "";
+    const be = d.breakEnd ?? "";
+    if ((bs && !be) || (!bs && be)) return `${label}：休憩は開始と終了の両方を入力してください。`;
+    if (bs && be) {
+      if (be <= bs) return `${label}：休憩の終了時刻は開始時刻より後にしてください。`;
+      if ((d.start && bs < d.start) || (d.end && be > d.end)) return `${label}：休憩は開始〜終了の時間内にしてください。`;
+    }
+  }
+  return null;
 }
 
 const FORMAT_TEXT: Record<DayFormat, string> = { online: "オンライン", offline: "対面", undecided: "形態未定" };
@@ -48,7 +84,9 @@ export function dayLine(d: ScheduleDay): string {
   }
   const time = d.start || d.end ? `${d.start || "?"}〜${d.end || "?"}` : "時間未定";
   const where = d.format === "offline" && d.place.trim() ? `対面・${d.place.trim()}` : d.format === "online" && d.place.trim() ? `オンライン（${d.place.trim()}）` : FORMAT_TEXT[d.format];
-  return [`${date} ${time}`, where, d.content.trim()].filter(Boolean).join(" ／ ");
+  const rest = d.breakStart && d.breakEnd ? `休憩 ${d.breakStart}〜${d.breakEnd}` : "";
+  const state = d.tentative ? "調整中" : "";
+  return [`${date} ${time}`, rest, where, d.content.trim(), state].filter(Boolean).join(" ／ ");
 }
 
 const FORMAT_TAG: Record<string, string> = { online: "オンライン", offline: "対面", both: "オンライン・対面" };
@@ -58,4 +96,17 @@ export function requestFormatLabel(r: { preferred_format: string; schedule_days?
   const formats = new Set(normalizeDays(r.schedule_days).map((d) => d.format));
   if (formats.has("online") && formats.has("offline")) return "オンライン・対面 両方";
   return FORMAT_TAG[r.preferred_format] || r.preferred_format;
+}
+
+/**
+ * Warning for a request that needs all days (#43): applicants who can only do some days, or who did not
+ * answer at all, so the company does not overlook them. Returns null when there is nothing to warn about.
+ * "none" (日程は要相談) is counted with 一部のみ because it is not a clear yes either.
+ */
+export function allDaysWarning(required: boolean, answers: (string | null | undefined)[]): string | null {
+  if (!required || answers.length === 0) return null;
+  const partial = answers.filter((a) => a === "partial" || a === "none").length;
+  const unanswered = answers.filter((a) => !a).length;
+  const parts = [partial > 0 ? `一部の日程のみ ${partial}名` : null, unanswered > 0 ? `全日程の可否が未回答 ${unanswered}名` : null].filter(Boolean);
+  return parts.length > 0 ? `全日程必須：${parts.join("・")}` : null;
 }

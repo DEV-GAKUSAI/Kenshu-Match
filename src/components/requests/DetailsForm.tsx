@@ -44,6 +44,7 @@ function daySummary(d: ScheduleDay): string {
   if (d.start || d.end) parts.push(`${d.start || "--:--"}〜${d.end || "--:--"}`);
   parts.push(FORMAT_LABEL[d.format] || "形態未定");
   if (d.place) parts.push(d.place);
+  if (d.tentative) parts.push("調整中");
   return parts.join(" ・ ");
 }
 
@@ -106,6 +107,16 @@ export function DetailsForm({ value, onChange, idPrefix = "req" }: { value: Deta
                 <option value="online">オンライン</option>
                 <option value="offline">対面</option>
               </Select>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
+              <span style={{ fontSize: 13, color: "var(--color-ink-soft)" }}>休憩（任意）</span>
+              <input type="time" aria-label="休憩の開始" value={d.breakStart ?? ""} onChange={(e) => setDay(i, { breakStart: e.target.value })} />
+              <span>〜</span>
+              <input type="time" aria-label="休憩の終了" value={d.breakEnd ?? ""} onChange={(e) => setDay(i, { breakEnd: e.target.value })} />
+              <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13.5, marginLeft: "auto" }}>
+                <input type="checkbox" checked={!!d.tentative} onChange={(e) => setDay(i, { tentative: e.target.checked })} />
+                この日の日程は調整中
+              </label>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
               <input type="text" maxLength={120} placeholder="場所（例：東京本社）" value={d.place} onChange={(e) => setDay(i, { place: e.target.value })} style={{ flex: "1 1 180px", minWidth: 0 }} />

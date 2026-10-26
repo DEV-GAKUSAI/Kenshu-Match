@@ -17,7 +17,7 @@ import { RolesForm, EMPTY_ROLES, rolesPayload, type RolesFormValue } from "@/com
 import { slotsSummary } from "@/lib/requests/roles";
 import { DetailsView } from "@/components/requests/DetailsView";
 import { costLines, budgetText } from "@/lib/requests/money";
-import { requestFormatLabel, normalizeDays } from "@/lib/requests/schedule";
+import { requestFormatLabel, normalizeDays, validateDays } from "@/lib/requests/schedule";
 import { todayJst, deadlineShort } from "@/lib/requests/deadline";
 import { VisibilityForm, type VisibilityValue } from "@/components/requests/VisibilityForm";
 import { DEFAULT_VISIBILITY, VISIBILITY_TEXT, inviteError, normalizeVisibility } from "@/lib/requests/visibility";
@@ -148,12 +148,15 @@ export default function PostRequestPage() {
     const locationInvalid = format !== "online" && !location.trim();
     const expertiseInvalid = !expertise;
     const participantsInvalid = !(Number.isInteger(Number(participants)) && Number(participants) >= 1);
+    const dayError = validateDays(details.days);
     setTitleHasError(titleInvalid);
     setDescriptionHasError(descriptionInvalid);
 
-    if (titleInvalid || descriptionInvalid || locationInvalid || expertiseInvalid || participantsInvalid) {
+    if (titleInvalid || descriptionInvalid || locationInvalid || expertiseInvalid || participantsInvalid || dayError) {
       setFormError(
-        locationInvalid
+        dayError
+          ? dayError
+          : locationInvalid
           ? "対面の場合は実施場所の入力が必要です。"
           : expertiseInvalid
             ? "分野を選択してください。"
