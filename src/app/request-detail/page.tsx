@@ -11,7 +11,8 @@ import {
   getTrainingRequestDetail,
   getTrainingRequestWithResponses,
 } from "@/lib/requests/training-requests";
-import { amountError, MAX_AMOUNT, budgetText, costLines, isHourly, normalUnit, quoteText, UNIT_OPTIONS, type MoneyFields } from "@/lib/requests/money";
+import { BudgetHint } from "@/components/requests/BudgetHint";
+import { amountError, MAX_AMOUNT, budgetText, budgetUpper, costLines, isHourly, normalUnit, quoteText, UNIT_OPTIONS, type MoneyFields } from "@/lib/requests/money";
 import { DetailsView } from "@/components/requests/DetailsView";
 import { normalizeSlots } from "@/lib/requests/roles";
 import { STAGE_LABEL, stageOf } from "@/lib/requests/stage";
@@ -424,6 +425,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
                     <option value="excluded">税別</option>
                   </Select>
                 </div>
+                <BudgetHint request={r} price={quotePrice} />
               </div>
               <ApplyFields value={apply} onChange={setApply} roleOptions={normalizeSlots(r.role_slots).map((x) => x.name)} />
               <div className="form-field">
@@ -526,7 +528,7 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
           (row.preferred_format === "online" && (ins.work_style === "ONLINE" || ins.work_style === "HYBRID")) ||
           (row.preferred_format === "offline" && (ins.work_style === "ONSITE" || ins.work_style === "HYBRID"));
         if (formatOk) reasons.push("形態");
-        if (isHourly(row) && row.budget != null && ins.desired_rate_min != null && ins.desired_rate_min <= row.budget) reasons.push("予算");
+        if (isHourly(row) && budgetUpper(row) != null && ins.desired_rate_min != null && ins.desired_rate_min <= (budgetUpper(row) as number)) reasons.push("予算");
         return reasons;
       }
       // おすすめ = 専門分野が合う講師だけ。形態・予算だけ合う講師は「参考候補」(#60).

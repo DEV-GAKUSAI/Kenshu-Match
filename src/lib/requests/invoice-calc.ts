@@ -1,6 +1,6 @@
 // 請求書 (#52): the 明細 and totals (same rules as the 注文書), the 振込先 / 登録番号 checks and the difference between two versions.
 
-import { calcOrder, type OrderTotals } from "./order-calc.ts";
+import { calcOrder, normalizeItems, type OrderItem, type OrderTotals } from "./order-calc.ts";
 import { formatMoney } from "./money.ts";
 
 export const RECEIPT_MAX_FILES = 5;
@@ -25,6 +25,8 @@ export type InvoiceLike = {
   bank_info?: unknown;
   registration_no?: string | null;
   receipts?: unknown;
+  /** Cost lines copied from the confirmed order (準備費・事前研修費 etc.), #44 */
+  items?: unknown;
 };
 
 export function normalizeBank(value: unknown): BankInfo | null {
@@ -86,7 +88,8 @@ export function sizeLabel(bytes: number): string {
 /** The lines and totals: 講師料 (数量×単価) and the 追加費用 as one more line; same tax rules as the order. */
 export function calcInvoice(inv: InvoiceLike): OrderTotals {
   const extra = inv.extra_amount && inv.extra_amount > 0 ? Math.trunc(inv.extra_amount) : 0;
-  const items = extra > 0 ? [{ name: inv.extra_note ? `追加費用：${inv.extra_note}`.slice(0, 50) : "追加費用", qty: 1, unit_price: extra }] : [];
+  const items: OrderItem[] = normalizeItems(inv.items);
+  if (extra > 0) items.push({ name: inv.extra_note ? `追加費用：${inv.extra_note}`.slice(0, 50) : "追加費用", qty: 1, unit_price: extra });
   return calcOrder({ amount: inv.base_amount, amount_unit: inv.amount_unit, tax_mode: inv.tax_mode, main_qty: inv.quantity ?? null, items });
 }
 
@@ -110,6 +113,8 @@ export function diffInvoices(a: InvoiceLike, b: InvoiceLike): InvoiceDiff[] {
   };
   add("講師料", a.base_amount ? formatMoney(a.base_amount, a.amount_unit, a.tax_mode) : "", b.base_amount ? formatMoney(b.base_amount, b.amount_unit, b.tax_mode) : "");
   add("時間数・日数", a.quantity ? String(a.quantity) : "", b.quantity ? String(b.quantity) : "");
+  const rows = (v: unknown) => normalizeItems(v).map((i) => `${i.name} ${i.qty}×¥${i.unit_price.toLocaleString("ja-JP")}`).join("、");
+  add("注文書の費用項目", rows(a.items), rows(b.items));
   add("追加費用", a.extra_amount ? `¥${Number(a.extra_amount).toLocaleString("ja-JP")}` : "", b.extra_amount ? `¥${Number(b.extra_amount).toLocaleString("ja-JP")}` : "");
   add("追加費用の内容", (a.extra_note ?? "").trim(), (b.extra_note ?? "").trim());
   add("支払期限", dayText(a.due_date), dayText(b.due_date));

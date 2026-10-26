@@ -11,12 +11,12 @@ import { createTrainingRequest } from "@/lib/requests/training-requests";
 import { flushMineNotices } from "@/lib/mine/flush-client";
 import type { RequestFormat } from "@/types/database";
 import { DetailsForm, EMPTY_DETAILS, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
-import { MoneyForm, EMPTY_MONEY, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
+import { MoneyForm, EMPTY_MONEY, moneyError, moneyFromRow, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
 import { Select } from "@/components/ui/Select";
 import { RolesForm, EMPTY_ROLES, rolesPayload, type RolesFormValue } from "@/components/requests/RolesForm";
 import { slotsSummary } from "@/lib/requests/roles";
 import { DetailsView } from "@/components/requests/DetailsView";
-import { costLines, budgetText, amountError } from "@/lib/requests/money";
+import { costLines, budgetText } from "@/lib/requests/money";
 import { requestFormatLabel, normalizeDays, validateDays } from "@/lib/requests/schedule";
 import { todayJst, deadlineShort } from "@/lib/requests/deadline";
 import { VisibilityForm, type VisibilityValue } from "@/components/requests/VisibilityForm";
@@ -24,7 +24,6 @@ import { DEFAULT_VISIBILITY, VISIBILITY_TEXT, inviteError, normalizeVisibility }
 import { saveInvites } from "@/lib/requests/invites";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeSlots } from "@/lib/requests/roles";
-import { normalUnit } from "@/lib/requests/money";
 import { rolesToForm } from "@/components/requests/RolesForm";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TrainingRequestRow } from "@/types/database";
@@ -93,15 +92,7 @@ export default function PostRequestPage() {
           setLocation(r.location ?? "");
           setSchedule(r.preferred_schedule ?? "");
           setParticipants(r.participant_count ? String(r.participant_count) : "");
-          setMoney({
-            budget: r.budget ? String(r.budget) : "",
-            unit: normalUnit(r.budget_unit),
-            tax: r.tax_mode ?? "unspecified",
-            transport: r.transport_cost ?? "unspecified",
-            lodging: r.lodging_cost ?? "unspecified",
-            prep: r.prep_cost ?? "unspecified",
-            paymentTerms: r.payment_terms ?? "",
-          });
+          setMoney(moneyFromRow(r));
           setDetails({ days: normalizeDays(r.schedule_days), allDaysRequired: !!r.all_days_required, skills: r.req_skills ?? "", prep: r.req_prep ?? "", optionIds: r.detail_option_ids ?? [], otherTools: r.detail_other_tools ?? "" });
           setRoles(rolesToForm(normalizeSlots(r.role_slots)));
           showToast("元の依頼の内容をコピーしました。まだ保存・公開されていません。");
@@ -149,7 +140,7 @@ export default function PostRequestPage() {
     const expertiseInvalid = !expertise;
     const participantsInvalid = !(Number.isInteger(Number(participants)) && Number(participants) >= 1);
     const dayError = validateDays(details.days);
-    const budgetError = money.budget.trim() ? amountError(Number(money.budget), "予算") : null;
+    const budgetError = moneyError(money);
     setTitleHasError(titleInvalid);
     setDescriptionHasError(descriptionInvalid);
 
@@ -222,7 +213,7 @@ export default function PostRequestPage() {
       setFormError("分野を選択してください。");
       return;
     }
-    const draftBudgetError = money.budget.trim() ? amountError(Number(money.budget), "予算") : null;
+    const draftBudgetError = moneyError(money);
     if (draftBudgetError) {
       setFormError(draftBudgetError);
       return;

@@ -5,9 +5,9 @@ import Link from "next/link";
 
 import { useConfirm } from "@/components/common/ConfirmDialog";
 import { useToast } from "@/components/common/Toast";
-import { getOrderChanges, getOrderDefaults, getOrderForResponse, issueOrder, ORDER_STATUS_TEXT, respondOrder, type OrderRow } from "@/lib/requests/orders";
+import { getOrderChanges, getOrderDefaults, getOrderForResponse, issueOrder, ORDER_STATUS_TEXT, respondOrder, type OrderDefaults, type OrderRow } from "@/lib/requests/orders";
 import { diffOrders, MAX_ITEMS, normalizeItems } from "@/lib/requests/order-calc";
-import { MAX_AMOUNT, normalUnit } from "@/lib/requests/money";
+import { amountError, budgetAmountText, budgetMode, formatMoney, MAX_AMOUNT, normalUnit } from "@/lib/requests/money";
 
 const ORDER_DECLINE_REASONS = ["日程が合わない", "金額・条件が合わない", "支払条件を確認したい", "内容に誤りがある", "他の予定と重なった"];
 
@@ -25,6 +25,9 @@ export function OrderPanel({ responseId, role }: { responseId: string; role: "re
   const [qty, setQty] = useState("");
   const [items, setItems] = useState<ItemInput[]>([]);
   const [unit, setUnit] = useState<string | null>(null);
+  const [def, setDef] = useState<OrderDefaults | null>(null);
+  const [amount, setAmount] = useState("");
+  const [prefilled, setPrefilled] = useState(false);
   const [changed, setChanged] = useState<string[]>([]);
   const [prevDeclined, setPrevDeclined] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -33,12 +36,21 @@ export function OrderPanel({ responseId, role }: { responseId: string; role: "re
     const o = await getOrderForResponse(responseId);
     setOrder(o);
     // The 支払条件 of the request is the starting point when the order has none yet (#51).
-    const def = role === "requester" ? await getOrderDefaults(responseId) : null;
-    setTerms(o?.payment_terms || def?.paymentTerms || "");
+    const d = role === "requester" ? await getOrderDefaults(responseId) : null;
+    setDef(d);
+    setTerms(o?.payment_terms || d?.paymentTerms || "");
     setNote(o?.note ?? "");
     setQty(o?.main_qty ? String(o.main_qty) : "");
-    setItems(normalizeItems(o?.items).map((i) => ({ name: i.name, qty: String(i.qty), price: String(i.unit_price) })));
-    setUnit(o?.amount_unit ?? def?.unit ?? null);
+    // A new order starts with the extra costs named in the request (準備・事前打合せ費, 事前研修費); they can be edited or removed (#44).
+    const fromRequest: ItemInput[] = [];
+    if (!o && d) {
+      if (d.request.prep_cost === "extra" && d.request.prep_amount) fromRequest.push({ name: "準備・事前打合せ費", qty: "1", price: String(d.request.prep_amount) });
+      if (d.request.pretraining_amount) fromRequest.push({ name: "事前研修費", qty: "1", price: String(d.request.pretraining_amount) });
+    }
+    setPrefilled(fromRequest.length > 0);
+    setItems(o ? normalizeItems(o.items).map((i) => ({ name: i.name, qty: String(i.qty), price: String(i.unit_price) })) : fromRequest);
+    setAmount(o?.amount ? String(o.amount) : "");
+    setUnit(o?.amount_unit ?? d?.unit ?? null);
     if (o && o.revision > 1) {
       const olds = await getOrderChanges(o.order_id);
       const prev = olds.find((x) => x.revision === o.revision - 1);
@@ -73,8 +85,16 @@ export function OrderPanel({ responseId, role }: { responseId: string; role: "re
       if (!Number.isInteger(pr) || pr < 0 || pr > MAX_AMOUNT) return showToast(`「${r.name.trim()}」の単価は0〜${MAX_AMOUNT.toLocaleString()}円の整数で入力してください。`);
       parsed.push({ name: r.name.trim(), qty: q, unit_price: pr });
     }
+    // With a range / 応相談 budget and no quote, the amount is typed here.
+    const needsAmount = !!def && !def.hasQuote && budgetMode(def.request) !== "fixed";
+    let typedAmount: number | null = null;
+    if (needsAmount) {
+      const e = amountError(Number(amount), "注文金額");
+      if (!amount.trim() || e) return showToast(amount.trim() ? (e as string) : "注文金額を入力してください。");
+      typedAmount = Number(amount);
+    }
     setBusy(true);
-    const { error } = await issueOrder(responseId, terms.trim() || null, note.trim() || null, mainQty, parsed);
+    const { error } = await issueOrder(responseId, terms.trim() || null, note.trim() || null, mainQty, parsed, typedAmount);
     setBusy(false);
     if (error) return showToast(error.message);
     showToast(order ? "注文書を更新して再発行しました。" : "注文書を発行しました。");
@@ -136,8 +156,32 @@ export function OrderPanel({ responseId, role }: { responseId: string; role: "re
           </>
         )}
       </div>
+      {role === "requester" && order && order.status !== "confirmed" && (
+        <div style={{ fontSize: 12, color: "var(--color-ink-soft)", marginTop: 6 }}>依頼の予算を変えても、発行済みの注文書は変わりません。変更は「内容を変更して再発行する」で行います。</div>
+      )}
       {open && role === "requester" && (
         <div className="inline-quote-form is-open" style={{ marginTop: 10 }}>
+          {def && (() => {
+            const mode = budgetMode(def.request);
+            const needsAmount = !def.hasQuote && mode !== "fixed";
+            const budgetLine = budgetAmountText(def.request);
+            if (needsAmount) {
+              return (
+                <div className="form-field">
+                  <label>注文金額（{normalUnit(unit) === "day" ? "1日あたり" : normalUnit(unit) === "total" ? "総額" : "時間あたり"}・円）</label>
+                  <input type="number" min={1} max={MAX_AMOUNT} step={1000} placeholder="例：12000" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                  <small style={{ color: "var(--color-ink-soft)" }}>
+                    講師の見積りがないため、ここで金額を入力します。{budgetLine ? `依頼の予算：${budgetLine}` : ""}
+                  </small>
+                </div>
+              );
+            }
+            return (
+              <div style={{ fontSize: 12.5, color: "var(--color-ink-soft)", marginBottom: 8 }}>
+                金額：{def.hasQuote ? "講師の見積り" : "依頼の予算"} {def.amount ? formatMoney(def.amount, unit, def.request.tax_mode) : "別途協議"}（自動で入ります）
+              </div>
+            );
+          })()}
           {unit !== null && normalUnit(unit) !== "total" && (
             <div className="form-field">
               <label>数量（{normalUnit(unit) === "day" ? "日数" : "時間数"}）</label>
@@ -146,6 +190,7 @@ export function OrderPanel({ responseId, role }: { responseId: string; role: "re
           )}
           <div className="form-field">
             <label>明細（経費など・任意）</label>
+            {prefilled && <small style={{ display: "block", color: "var(--color-ink-soft)", marginBottom: 6 }}>依頼で指定された費用を入れています。変更・削除できます。</small>}
             {items.map((it, i) => (
               <div key={i} style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
                 <input type="text" maxLength={50} placeholder="品目（例：交通費）" value={it.name} onChange={(e) => setItems(items.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} style={{ flex: "2 1 140px", minWidth: 0 }} />

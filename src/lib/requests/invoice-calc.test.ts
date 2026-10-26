@@ -83,3 +83,16 @@ test("dayText", () => {
   assert.equal(dayText("2026-11-30"), "2026年11月30日");
   assert.equal(dayText(null), "");
 });
+
+test("calcInvoice: order cost lines are added, with the extra cost last (#44)", async () => {
+  const { calcInvoice, diffInvoices } = await import("./invoice-calc.ts");
+  const inv = { base_amount: 10000, amount_unit: "total", tax_mode: "excluded", quantity: null, extra_amount: 3000, extra_note: "交通費", items: [{ name: "事前研修費", qty: 1, unit_price: 30000 }, { name: "準備・事前打合せ費", qty: 1, unit_price: 5000 }] };
+  const c = calcInvoice(inv);
+  assert.equal(c.lines.length, 4);
+  assert.equal(c.subtotal, 48000);
+  assert.equal(c.tax, 4800);
+  assert.equal(c.total, 52800);
+  assert.equal(calcInvoice({ ...inv, items: undefined, extra_amount: null }).total, 11000);
+  const d = diffInvoices({ ...inv, items: [] }, inv);
+  assert.ok(d.some((x) => x.label === "注文書の費用項目"));
+});

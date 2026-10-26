@@ -149,29 +149,30 @@ export function createSupabaseMineStore(admin: SupabaseClient): MineHandoffStore
       }
     },
     async listRecommendedOpenRequestIds(instructorId) {
+      // The upper end of a range budget (migration 185) is read when the column exists; before that only the plain budget.
+      const loadRequests = async () => {
+        const query = (columns: string) => admin.from("training_requests").select(columns).is("target_instructor_id", null).eq("status", "pending").limit(5000);
+        const first = await query("request_id, expertise_field, preferred_format, budget, budget_max");
+        return first.error ? await query("request_id, expertise_field, preferred_format, budget") : first;
+      };
       const [{ data: profile, error: profileError }, { data: expertise, error: expertiseError }, { data: requests, error: requestsError }] = await Promise.all([
         admin.from("instructor_profiles").select("work_style, desired_rate_min").eq("id", instructorId).maybeSingle(),
         admin.from("instructor_expertise").select("subcategory_id").eq("instructor_id", instructorId),
-        admin
-          .from("training_requests")
-          .select("request_id, expertise_field, preferred_format, budget")
-          .is("target_instructor_id", null)
-          .eq("status", "pending")
-          .limit(5000),
+        loadRequests(),
       ]);
       fail(profileError);
       fail(expertiseError);
       fail(requestsError);
       const expertiseIds = new Set((expertise ?? []).map((row) => row.subcategory_id as string));
-      return (requests ?? [])
+      return ((requests ?? []) as unknown as Record<string, unknown>[])
         .filter((request) => {
           const fieldMatches = request.expertise_field && expertiseIds.has(request.expertise_field as string);
           const formatMatches =
             request.preferred_format === "both" ||
             (request.preferred_format === "online" && (profile?.work_style === "ONLINE" || profile?.work_style === "HYBRID")) ||
             (request.preferred_format === "offline" && (profile?.work_style === "ONSITE" || profile?.work_style === "HYBRID"));
-          const budgetMatches =
-            request.budget != null && profile?.desired_rate_min != null && Number(request.budget) >= Number(profile.desired_rate_min);
+          const upper = request.budget_max != null ? Number(request.budget_max) : request.budget != null ? Number(request.budget) : null;
+          const budgetMatches = upper != null && profile?.desired_rate_min != null && upper >= Number(profile.desired_rate_min);
           return fieldMatches || formatMatches || budgetMatches;
         })
         .map((request) => request.request_id as string);

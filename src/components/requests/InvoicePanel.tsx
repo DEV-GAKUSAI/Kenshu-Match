@@ -204,6 +204,7 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
           <div className="form-field">
             <label>追加費用（円・任意）</label>
             <input type="number" min={0} inputMode="numeric" placeholder="例：交通費 5000" value={extra} onChange={(e) => setExtra(e.target.value)} />
+            <small style={{ color: "var(--color-ink-soft)" }}>注文書に費用の項目（準備費・事前研修費など）がある場合は、自動で請求書に入ります。注文書の内容です。実費が違う場合は、追加費用に入力してください。</small>
           </div>
           <div className="form-field">
             <label>追加費用の内容</label>

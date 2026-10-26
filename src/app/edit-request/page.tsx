@@ -18,8 +18,7 @@ import { flushMineNotices } from "@/lib/mine/flush-client";
 import { inviteError, normalizeVisibility } from "@/lib/requests/visibility";
 import { RolesForm, rolesPayload, rolesToForm, type RolesFormValue } from "@/components/requests/RolesForm";
 import { normalizeSlots } from "@/lib/requests/roles";
-import { MoneyForm, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
-import { normalUnit, amountError } from "@/lib/requests/money";
+import { MoneyForm, moneyError, moneyFromRow, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
 import { normalizeDays } from "@/lib/requests/schedule";
 import type { RequestFormat, TrainingRequestRow } from "@/types/database";
 import { Select } from "@/components/ui/Select";
@@ -49,6 +48,8 @@ function EditRequestInner() {
   const [decidedBySlot, setDecidedBySlot] = useState<Record<string, number>>({});
   const [vis, setVis] = useState<VisibilityValue>({ visibility: "public", invited: [] });
   const [hadVisibility, setHadVisibility] = useState(false);
+  // True once migration 185 is run (the row has budget_mode), so all money columns are saved every time.
+  const [hadBudgetMode, setHadBudgetMode] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -81,15 +82,8 @@ function EditRequestInner() {
       setDeadline(r.apply_deadline ?? "");
       setHadDeadline(!!r.apply_deadline);
       setOrigDeadline(r.apply_deadline ?? "");
-      setMoney({
-        budget: r.budget ? String(r.budget) : "",
-        unit: normalUnit(r.budget_unit),
-        tax: r.tax_mode ?? "unspecified",
-        transport: r.transport_cost ?? "unspecified",
-        lodging: r.lodging_cost ?? "unspecified",
-        prep: r.prep_cost ?? "unspecified",
-        paymentTerms: r.payment_terms ?? "",
-      });
+      setMoney(moneyFromRow(r));
+      setHadBudgetMode(r.budget_mode !== undefined);
       setDetails({ days: normalizeDays(r.schedule_days), allDaysRequired: !!r.all_days_required, skills: r.req_skills ?? "", prep: r.req_prep ?? "", optionIds: r.detail_option_ids ?? [], otherTools: r.detail_other_tools ?? "" });
       setState("ok");
     })();
@@ -133,7 +127,7 @@ function EditRequestInner() {
     if (!Number.isInteger(n) || n < 1) return setError("対象人数を入力してください。");
     const dayError = validateDays(details?.days ?? []);
     if (dayError) return setError(dayError);
-    const budgetError = money?.budget.trim() ? amountError(Number(money.budget), "予算") : null;
+    const budgetError = money ? moneyError(money) : null;
     if (budgetError) return setError(budgetError);
     // A new deadline cannot be in the past (an old one that is already past can stay, so other edits still save).
     if (deadline && deadline !== origDeadline && deadline < todayJst()) return setError("応募締切は今日以降の日付にしてください。");
@@ -159,7 +153,7 @@ function EditRequestInner() {
         // Only when the column exists (migration 174), so editing keeps working before it is run.
         ...(hadVisibility ? { visibility: vis.visibility } : {}),
         ...(hadDeadline || deadline ? { apply_deadline: deadline || null } : {}),
-        ...moneyPayload(money!),
+        ...moneyPayload(money!, hadBudgetMode),
         ...detailsPayload(details!, true),
         // Only when roles are used (or were), so editing keeps working before migration 168 is run.
         ...(hadRoles || rolesPayload(roles).role_slots.length > 0 ? rolesPayload(roles) : {}),

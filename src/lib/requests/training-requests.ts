@@ -18,6 +18,11 @@ export interface NewTrainingRequestInput {
   transport_cost: CostShare;
   lodging_cost: CostShare;
   prep_cost: PrepCost;
+  /** Only sent when not the default (migration 185). */
+  budget_mode?: "fixed" | "range" | "negotiable";
+  budget_max?: number | null;
+  prep_amount?: number | null;
+  pretraining_amount?: number | null;
   payment_terms: string | null;
   schedule_days: ScheduleDay[];
   all_days_required: boolean;

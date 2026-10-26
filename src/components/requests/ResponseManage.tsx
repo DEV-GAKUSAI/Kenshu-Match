@@ -4,7 +4,8 @@ import { useState } from "react";
 
 import { useConfirm } from "@/components/common/ConfirmDialog";
 import { useToast } from "@/components/common/Toast";
-import { amountError, MAX_AMOUNT, normalUnit, UNIT_OPTIONS } from "@/lib/requests/money";
+import { BudgetHint } from "@/components/requests/BudgetHint";
+import { amountError, MAX_AMOUNT, normalUnit, UNIT_OPTIONS, type MoneyFields } from "@/lib/requests/money";
 import { reviseQuote, withdrawResponse } from "@/lib/requests/instructor-responses";
 import type { InstructorResponseRow } from "@/types/database";
 import { Select } from "@/components/ui/Select";
@@ -19,7 +20,7 @@ export function ResponseManage({
   onChanged,
 }: {
   response: InstructorResponseRow;
-  request: { status: string; budget_unit?: string | null };
+  request: MoneyFields & { status: string };
   onChanged: () => void;
 }) {
   const { showToast } = useToast();
@@ -84,6 +85,7 @@ export function ResponseManage({
                 <option value="excluded">税別</option>
               </Select>
             </div>
+            <BudgetHint request={request} price={price} />
           </div>
           <div className="form-field">
             <label>メッセージ</label>

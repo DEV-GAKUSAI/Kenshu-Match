@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { ApplyItemsBox, QuoteHistoryBox } from "@/components/requests/ApplicationDetails";
-import { quoteText } from "@/lib/requests/money";
+import { quoteText, quoteVsRange, type MoneyFields } from "@/lib/requests/money";
 import { getResponseChanges, type ResponseChange } from "@/lib/requests/instructor-responses";
 import { MineMeetingLine } from "@/components/mine/MineMeeting";
 import { formatMeetingTimeClient } from "@/lib/mine/meeting-format";
@@ -48,6 +48,7 @@ export function ApplicantRow({
   stage,
   onStageChange,
   onRequestInterview,
+  budget,
 }: {
   name: string;
   response: InstructorResponseRow;
@@ -68,6 +69,8 @@ export function ApplicantRow({
   onStageChange?: (value: "" | "screening" | "negotiation" | "passed") => void;
   /** Ask for an interview without booking a meeting (only while the request is open). */
   onRequestInterview?: () => void;
+  /** The request's budget, to say whether a quote is inside a range budget. */
+  budget?: MoneyFields;
 }) {
   const [open, setOpen] = useState(false);
   const [changes, setChanges] = useState<ResponseChange[]>([]);
@@ -84,7 +87,9 @@ export function ApplicantRow({
   const needsAnswer = live?.status === "change_requested" && live.proposed_by === "host";
   const meetUrl = live?.meeting_type === "google_meet" || live?.meeting_type === "zoom" ? live.meeting_url : null;
   const isNew = response.requester_seen_at === null;
-  const offer = response.action === "accept" ? "承諾" : quoteText(response);
+  // For a range budget, say whether the quote is inside it (a label only).
+  const range = response.action === "accept" || !budget ? null : quoteVsRange(budget, response);
+  const offer = response.action === "accept" ? "承諾" : `${quoteText(response)}${range === "in" ? "（予算の範囲内）" : range === "out" ? "（予算の範囲外）" : ""}`;
   const message = (response.message ?? "").trim();
   const interview = response.interview_status;
   const declined = interview === "declined";
