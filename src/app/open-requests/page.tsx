@@ -306,7 +306,7 @@ export default function OpenRequestsPage() {
   }
 
   const counts = useMemo(() => {
-    const open = allRequests.filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id));
+    const open = allRequests.filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id) && !deadlinePassed(r.apply_deadline));
     const mine = allRequests.filter((r) => r.myResponse);
     const recommended = open.filter((r) => matchReasons(r, myProfile).length > 0);
     return { open: open.length, mine: mine.length, recommended: recommended.length };
@@ -316,7 +316,7 @@ export default function OpenRequestsPage() {
   function listForTab(tab: Tab) {
     if (tab === "recommended") {
       return allRequests
-        .filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id) && matchReasons(r, myProfile).length > 0)
+        .filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id) && !deadlinePassed(r.apply_deadline) && matchReasons(r, myProfile).length > 0)
         .sort((a, b) => {
           const ra = matchReasons(a, myProfile);
           const rb = matchReasons(b, myProfile);
@@ -326,7 +326,7 @@ export default function OpenRequestsPage() {
         });
     }
     if (tab === "open") {
-      return allRequests.filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id));
+      return allRequests.filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id) && !deadlinePassed(r.apply_deadline));
     }
     return allRequests.filter((r) => r.myResponse);
   }
