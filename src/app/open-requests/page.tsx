@@ -83,6 +83,7 @@ function displayStatus(r: RequestWithJoins) {
     if (r.myResponse.action === "reject" || r.myResponse.action === "withdrawn") return { key: "rejected", label: r.myResponse.action === "withdrawn" ? "取り下げ済み" : "却下済み" };
     return { key: "quoted", label: "返信済み（依頼者の確定待ち）" };
   }
+  if (deadlinePassed(r.apply_deadline)) return { key: "closed", label: "受付終了" };
   return { key: "pending", label: "募集中" };
 }
 
@@ -90,6 +91,7 @@ function badgeClass(key: string) {
   if (key === "quoted") return "quoted";
   if (key === "rejected" || key === "not-selected") return "rejected";
   if (key === "selected") return "accepted";
+  if (key === "closed") return "completed";
   return key;
 }
 
@@ -131,7 +133,7 @@ function PublicPreviewList() {
                 <span>{fmtDate(r.created_at)}</span>
               </div>
             </div>
-            <span className="status-badge status-badge--pending">募集中</span>
+            <span className={`status-badge status-badge--${deadlinePassed(r.apply_deadline) ? "completed" : "pending"}`}>{deadlinePassed(r.apply_deadline) ? "受付終了" : "募集中"}</span>
           </div>
           <p className="request-card__desc">{r.description}</p>
           <div className="request-card__tags">
@@ -589,7 +591,7 @@ export default function OpenRequestsPage() {
               {normalizeSlots(r.role_slots).length > 0 ? <span className="open-tag">募集：{slotsSummary(normalizeSlots(r.role_slots))}</span> : null}
               {r.location ? <span className="open-tag">{r.location}</span> : null}
               {r.preferred_schedule ? <span className="open-tag">{r.preferred_schedule}</span> : null}
-              {r.apply_deadline ? <span className="open-tag">{deadlinePassed(r.apply_deadline) ? "受付終了" : `応募締切：${deadlineShort(r.apply_deadline)}`}</span> : null}
+              {r.apply_deadline ? <span className="open-tag">応募締切：{deadlineShort(r.apply_deadline)}</span> : null}
             </div>
 
             {r.myResponse && (

@@ -1206,6 +1206,14 @@ function RequesterRequestCard({
               )}
             </div>
           ) : null}
+          {/* #45: keep the edit link after applications arrive (the edit page itself locks once a lecturer is decided). */}
+          {applicants.length > 0 && (st.key === "pending" || st.key === "quoted") && (
+            <div className="request-card__actions">
+              <Link href={`/edit-request?id=${r.request_id}`} className="btn btn--ghost btn--sm">
+                内容を編集する
+              </Link>
+            </div>
+          )}
         </>
       ) : (
         <>

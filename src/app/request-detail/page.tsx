@@ -91,12 +91,14 @@ function displayStatus(r: TrainingRequestRow, myResponse: InstructorResponseRow 
     if (myResponse.action === "reject" || myResponse.action === "withdrawn") return { key: "rejected", label: myResponse.action === "withdrawn" ? "取り下げ済み" : "却下済み" };
     return { key: "quoted", label: "返信済み（依頼者の確定待ち）" };
   }
+  if (deadlinePassed(r.apply_deadline)) return { key: "closed", label: "受付終了" };
   return { key: "pending", label: "募集中" };
 }
 function badgeClass(key: string) {
   if (key === "quoted") return "quoted";
   if (key === "rejected" || key === "not-selected") return "rejected";
   if (key === "selected") return "accepted";
+  if (key === "closed") return "completed";
   return key;
 }
 
@@ -129,7 +131,7 @@ function PublicDetail({ requestId, onLoginGate }: { requestId: string; onLoginGa
               <span>{fmtDate(r.created_at)}</span>
             </div>
           </div>
-          <span className="status-badge status-badge--pending">募集中</span>
+          <span className={`status-badge status-badge--${deadlinePassed(r.apply_deadline) ? "completed" : "pending"}`}>{deadlinePassed(r.apply_deadline) ? "受付終了" : "募集中"}</span>
         </div>
         <Tags r={r} />
         <p className="request-card__desc" style={{ whiteSpace: "pre-wrap" }}>
