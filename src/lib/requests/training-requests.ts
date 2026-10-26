@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { yesterdayJst } from "@/lib/requests/deadline";
 import type { Visibility } from "@/lib/requests/visibility";
 import type { PublishState, RequestFormat, RequesterType } from "@/types/database";
 import type { RoleSlot } from "@/lib/requests/roles";
@@ -39,6 +40,13 @@ export interface NewTrainingRequestInput {
 export async function setPublishState(requestId: string, state: PublishState) {
   const supabase = createClient();
   const { error } = await supabase.from("training_requests").update({ publish_state: state }).eq("request_id", requestId);
+  return { error };
+}
+
+/** Company: stop taking new applications now (sets the deadline to yesterday; existing applicants stay). */
+export async function closeApplications(requestId: string) {
+  const supabase = createClient();
+  const { error } = await supabase.from("training_requests").update({ apply_deadline: yesterdayJst() }).eq("request_id", requestId).eq("status", "pending");
   return { error };
 }
 

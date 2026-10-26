@@ -3,6 +3,11 @@ export function todayJst(now: Date = new Date()): string {
   return new Date(now.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 }
 
+/** Yesterday in Japan time (YYYY-MM-DD): used to end applications right away. */
+export function yesterdayJst(now: Date = new Date()): string {
+  return todayJst(new Date(now.getTime() - 24 * 3600 * 1000));
+}
+
 export function deadlinePassed(deadline: string | null | undefined, now: Date = new Date()): boolean {
   if (!deadline) return false;
   return todayJst(now) > deadline;

@@ -34,11 +34,11 @@ import { OrderPanel } from "@/components/requests/OrderPanel";
 import { FlowPanel } from "@/components/requests/FlowPanel";
 import { InternalNote } from "@/components/requests/InternalNote";
 import { ResponseManage } from "@/components/requests/ResponseManage";
-import { deadlineShort } from "@/lib/requests/deadline";
+import { deadlineShort, deadlinePassed } from "@/lib/requests/deadline";
 import { finalizeResponse, closeRecruiting } from "@/lib/requests/actions";
 import { stageOf, STAGE_LABEL } from "@/lib/requests/stage";
 import { normalizeSlots, openSlots, progressSummary, slotCounts, slotsSummary, totalNeeded, totalRemaining } from "@/lib/requests/roles";
-import { setPublishState } from "@/lib/requests/training-requests";
+import { setPublishState, closeApplications } from "@/lib/requests/training-requests";
 import { budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
 import type { InstructorResponseRow, TrainingRequestRow } from "@/types/database";
 import type { CurrentUser } from "@/lib/auth/auth";
@@ -889,7 +889,7 @@ function RequesterRequestCard({
   const rowParts = [
     rowWho,
     budgetText(r),
-    isBroadcast && r.apply_deadline ? `応募締切 ${deadlineShort(r.apply_deadline)}` : null,
+    isBroadcast && r.apply_deadline ? (deadlinePassed(r.apply_deadline) && (st.key === "pending" || st.key === "quoted") ? `受付終了（応募締切 ${deadlineShort(r.apply_deadline)}）` : `応募締切 ${deadlineShort(r.apply_deadline)}`) : null,
     isBroadcast && applicants.length > 0 && (st.key === "pending" || st.key === "quoted") ? `応募 ${applicants.length}名` : null,
     isBroadcast && (st.key === "pending" || st.key === "quoted") ? allDaysWarning(!!r.all_days_required, applicants.map((x) => x.apply_all_days)) : null,
     isBroadcast && r.visibility && r.visibility !== "public" ? VISIBILITY_TEXT[r.visibility] : null,
@@ -971,6 +971,24 @@ function RequesterRequestCard({
     await onChanged();
     setBusy(false);
     showToast("募集を終了しました。");
+  }
+
+  async function handleCloseApplications() {
+    const { ok } = await confirm({
+      title: "応募の受付を終了しますか？",
+      confirmLabel: "受付を終了する",
+      cancelLabel: "戻る",
+    });
+    if (!ok) return;
+    setBusy(true);
+    const { error } = await closeApplications(r.request_id);
+    if (error) {
+      setBusy(false);
+      return showToast(`エラー：${error.message}`);
+    }
+    await onChanged();
+    setBusy(false);
+    showToast("応募の受付を終了しました。");
   }
 
   async function handleCancel() {
@@ -1207,11 +1225,18 @@ function RequesterRequestCard({
             </div>
           ) : null}
           {/* #45: keep the edit link after applications arrive (the edit page itself locks once a lecturer is decided). */}
-          {applicants.length > 0 && (st.key === "pending" || st.key === "quoted") && (
+          {r.publish_state !== "draft" && (st.key === "pending" || st.key === "quoted") && (applicants.length > 0 || !deadlinePassed(r.apply_deadline)) && (
             <div className="request-card__actions">
-              <Link href={`/edit-request?id=${r.request_id}`} className="btn btn--ghost btn--sm">
-                内容を編集する
-              </Link>
+              {applicants.length > 0 && (
+                <Link href={`/edit-request?id=${r.request_id}`} className="btn btn--ghost btn--sm">
+                  内容を編集する
+                </Link>
+              )}
+              {!deadlinePassed(r.apply_deadline) && (
+                <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={handleCloseApplications}>
+                  応募の受付を終了する
+                </button>
+              )}
             </div>
           )}
         </>
