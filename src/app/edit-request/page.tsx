@@ -10,6 +10,7 @@ import { useToast } from "@/components/common/Toast";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { createClient } from "@/lib/supabase/client";
 import { validateDays } from "@/lib/requests/schedule";
+import { todayJst } from "@/lib/requests/deadline";
 import { DetailsForm, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
 import { VisibilityForm, type VisibilityValue } from "@/components/requests/VisibilityForm";
 import { getInvites, saveInvites } from "@/lib/requests/invites";
@@ -40,6 +41,7 @@ function EditRequestInner() {
   const [participants, setParticipants] = useState("");
   const [deadline, setDeadline] = useState("");
   const [hadDeadline, setHadDeadline] = useState(false);
+  const [origDeadline, setOrigDeadline] = useState("");
   const [money, setMoney] = useState<MoneyFormValue | null>(null);
   const [details, setDetails] = useState<DetailsFormValue | null>(null);
   const [roles, setRoles] = useState<RolesFormValue>([]);
@@ -78,6 +80,7 @@ function EditRequestInner() {
       setParticipants(r.participant_count ? String(r.participant_count) : "");
       setDeadline(r.apply_deadline ?? "");
       setHadDeadline(!!r.apply_deadline);
+      setOrigDeadline(r.apply_deadline ?? "");
       setMoney({
         budget: r.budget ? String(r.budget) : "",
         unit: normalUnit(r.budget_unit),
@@ -130,6 +133,8 @@ function EditRequestInner() {
     if (!Number.isInteger(n) || n < 1) return setError("対象人数を入力してください。");
     const dayError = validateDays(details?.days ?? []);
     if (dayError) return setError(dayError);
+    // A new deadline cannot be in the past (an old one that is already past can stay, so other edits still save).
+    if (deadline && deadline !== origDeadline && deadline < todayJst()) return setError("応募締切は今日以降の日付にしてください。");
     const slotsNow = rolesPayload(roles).role_slots;
     const tooLow = slotsNow.find((sl) => (decidedBySlot[sl.id] ?? 0) > sl.headcount);
     if (tooLow) return setError(`「${tooLow.name}」はすでに${decidedBySlot[tooLow.id]}名決定済みのため、それより少なくできません。`);
