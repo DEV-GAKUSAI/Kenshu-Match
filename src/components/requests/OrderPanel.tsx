@@ -97,6 +97,8 @@ export function OrderPanel({ responseId, role }: { responseId: string; role: "re
     if (error) return showToast(error.message);
     showToast(accept ? "注文書を確認しました。" : "注文書を辞退しました。");
     await load();
+    // The invoice box on the same card depends on the order (declined → no invoice yet).
+    window.dispatchEvent(new Event("kl-order-changed"));
   }
 
   return (

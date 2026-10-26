@@ -39,6 +39,9 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- load() sets state only after awaiting
     void load();
+    const onOrderChanged = () => void load();
+    window.addEventListener("kl-order-changed", onOrderChanged);
+    return () => window.removeEventListener("kl-order-changed", onOrderChanged);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [responseId]);
 

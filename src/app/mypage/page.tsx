@@ -896,6 +896,8 @@ function RequesterRequestCard({
   // Full name only when the instructor released it for THIS request (direct accept, or 情報を公開する).
   const releasedForThis = (r.target_instructor_id ? resp : selectedResp)?.released_name?.trim() || null;
   const instr = releasedForThis ? { ...instrBase, name: releasedForThis } : instrBase;
+  // Until the lecturers' details have loaded the map is empty: do not say 未公開 yet.
+  const contactOr = (v?: string | null) => v || (Object.keys(instructorMap).length > 0 ? NOT_RELEASED : "読み込み中…");
   const applicants = isBroadcast ? (r.instructor_responses || []).filter((x) => x.action === "accept" || x.action === "quote") : [];
   // Applicants as closed rows: the ones that need an answer first, then NEW, then the rest.
   const sortedApplicants = [...applicants].sort(
@@ -1403,8 +1405,8 @@ function RequesterRequestCard({
                     {nameOfDecided(sr)} 先生
                     {sr.role_slot_id ? `（${roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? ""}）` : ""}
                   </div>
-                  <div>メール：{instructorMap[sr.instructor_id]?.contact_email || NOT_RELEASED}</div>
-                  <div>電話番号：{instructorMap[sr.instructor_id]?.contact_phone || NOT_RELEASED}</div>
+                  <div>メール：{contactOr(instructorMap[sr.instructor_id]?.contact_email)}</div>
+                  <div>電話番号：{contactOr(instructorMap[sr.instructor_id]?.contact_phone)}</div>
                 </div>
               ))}
             </div>
@@ -1412,8 +1414,8 @@ function RequesterRequestCard({
           <div className="contact-box">
             <strong>連絡先：</strong>
             <div>名前：{instr.name || "講師"}</div>
-            <div>メール：{instr.contact_email || NOT_RELEASED}</div>
-            <div>電話番号：{instr.contact_phone || NOT_RELEASED}</div>
+            <div>メール：{contactOr(instr.contact_email)}</div>
+            <div>電話番号：{contactOr(instr.contact_phone)}</div>
           </div>
           )}
           {st.key === "accepted" && (
