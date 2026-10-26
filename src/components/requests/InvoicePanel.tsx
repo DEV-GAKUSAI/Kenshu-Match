@@ -25,6 +25,7 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
   const [note, setNote] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [termsHint, setTermsHint] = useState("");
+  const [unit, setUnit] = useState<string | null>(null);
   const [bank, setBank] = useState({ bank: "", branch: "", type: "普通", number: "", holder: "" });
   const [regNo, setRegNo] = useState("");
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -54,7 +55,9 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
       setBank({ bank: b?.bank ?? "", branch: b?.branch ?? "", type: b?.type || "普通", number: b?.number ?? "", holder: b?.holder ?? "" });
       setRegNo(r);
     }
-    setQty(i?.quantity ? String(i.quantity) : "");
+    // The first invoice starts from the 数量 on the order.
+    setQty(i?.quantity ? String(i.quantity) : !i && o?.main_qty ? String(o.main_qty) : "");
+    setUnit(i?.amount_unit ?? o?.amount_unit ?? null);
     setExtra(i?.extra_amount ? String(i.extra_amount) : "");
     setExtraNote(i?.extra_note ?? "");
     setNote(i?.note ?? "");
@@ -78,6 +81,7 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
     if (n !== null && (!Number.isFinite(n) || n < 0)) return showToast("追加費用は0以上の数字で入力してください。");
     const q = qty.trim() === "" ? null : Number(qty);
     if (q !== null && (!Number.isFinite(q) || q <= 0)) return showToast("時間数・日数は0より大きい数字で入力してください。");
+    if ((unit === "hour" || unit === "day") && q === null) return showToast(`${unit === "hour" ? "時間数" : "日数"}を入力してください（金額が「${unit === "hour" ? "時間" : "1日"}あたり」のため）。`);
     if (!dueDate) return showToast("支払期限の日付を入力してください。");
     const b = normalizeBank({ ...bank, number: toHalfWidth(bank.number).replace(/[-\s]/g, "") });
     const be = bankError(b);

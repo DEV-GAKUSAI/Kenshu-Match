@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { bankError, calcInvoice, diffInvoices, normalizeBank, receiptError, registrationError, toHalfWidth } from "./invoice-calc.ts";
+import { bankError, calcInvoice, dayText, diffInvoices, normalizeBank, receiptError, registrationError, toHalfWidth } from "./invoice-calc.ts";
 
 const bank = { bank: "みずほ銀行", branch: "渋谷支店", type: "普通", number: "1234567", holder: "タナカ タロウ" };
 
@@ -77,4 +77,9 @@ test("diffInvoices: lists only what changed", () => {
   assert.equal(d[0].before, "6");
   assert.equal(d[2].before, "なし");
   assert.deepEqual(diffInvoices(a, a), []);
+});
+
+test("dayText", () => {
+  assert.equal(dayText("2026-11-30"), "2026年11月30日");
+  assert.equal(dayText(null), "");
 });

@@ -94,6 +94,12 @@ export function bankText(b: BankInfo | null): string {
   return b ? `${b.bank} ${b.branch} ${b.type} ${b.number} ${b.holder}` : "";
 }
 
+/** 2026-11-30 → 2026年11月30日 */
+export function dayText(d?: string | null): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d ?? "");
+  return m ? `${m[1]}年${Number(m[2])}月${Number(m[3])}日` : "";
+}
+
 export type InvoiceDiff = { label: string; before: string; after: string };
 
 /** What changed from an older version of the invoice to a newer one (empty when nothing). */
@@ -106,7 +112,7 @@ export function diffInvoices(a: InvoiceLike, b: InvoiceLike): InvoiceDiff[] {
   add("時間数・日数", a.quantity ? String(a.quantity) : "", b.quantity ? String(b.quantity) : "");
   add("追加費用", a.extra_amount ? `¥${Number(a.extra_amount).toLocaleString("ja-JP")}` : "", b.extra_amount ? `¥${Number(b.extra_amount).toLocaleString("ja-JP")}` : "");
   add("追加費用の内容", (a.extra_note ?? "").trim(), (b.extra_note ?? "").trim());
-  add("支払期限", a.due_date ?? "", b.due_date ?? "");
+  add("支払期限", dayText(a.due_date), dayText(b.due_date));
   add("振込先", bankText(normalizeBank(a.bank_info)), bankText(normalizeBank(b.bank_info)));
   add("登録番号", a.registration_no ?? "", b.registration_no ?? "");
   add("領収書", normalizeReceipts(a.receipts).map((r) => r.name).join("、"), normalizeReceipts(b.receipts).map((r) => r.name).join("、"));
