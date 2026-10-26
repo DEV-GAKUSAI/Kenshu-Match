@@ -11,6 +11,7 @@ interface ClaimedRow {
   mine_user_id: string;
   event_code: string;
   attempts: number;
+  request_id: string | null;
 }
 
 /**

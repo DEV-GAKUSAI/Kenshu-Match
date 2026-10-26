@@ -1,5 +1,6 @@
 "use client";
 
+import { NoteIcon } from "@/components/requests/ToolIcons";
 import { useEffect, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -78,7 +79,8 @@ export function InternalNote({ requestId, requesterId }: { requestId: string; re
         </div>
       ) : (
         <button type="button" className="btn btn--ghost btn--sm tool-btn" onClick={() => setOpen(true)}>
-          {saved ? "社内メモを編集" : "社内メモ・担当者"}
+          <NoteIcon />
+          {saved ? "メモを編集" : "メモ・担当者"}
         </button>
       )}
     </div>

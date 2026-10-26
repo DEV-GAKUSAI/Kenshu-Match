@@ -59,7 +59,9 @@
 /* Company request rows: tools (社内メモ・商流) in one tidy row, details above. */
 .request-card__tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 12px; }
 .request-card__tools .tool-block { flex: 1 1 100%; order: 1; font-size: 13px; }
-.request-card__tools .tool-btn { order: 2; }
+.request-card__tools { gap: 8px; }
+.request-card__tools .tool-btn { order: 2; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 12.5px; line-height: 1.4; white-space: nowrap; text-decoration: none; }
+.request-card__tools .tool-btn__icon { flex: none; }
 .req-badge--pending { background: #fdf1dc; color: #92650f; }
 
 .req-badge--draft { background: #eceff1; color: #546e7a; }
