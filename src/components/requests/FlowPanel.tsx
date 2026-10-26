@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useToast } from "@/components/common/Toast";
 import { getFlow, getPartners, saveFlow, PARTNER_KIND_TEXT, type Partner, type RequestFlow } from "@/lib/requester/partners";
 import { Select } from "@/components/ui/Select";
+import { FlowIcon } from "@/components/requests/ToolIcons";
 
 /** 商流: who we order from / pay, who sits in between, and who actually teaches (#53). Private to the company. */
 export function FlowPanel({
@@ -147,7 +148,8 @@ export function FlowPanel({
         </div>
       ) : (
         <button type="button" className="btn btn--ghost btn--sm tool-btn" onClick={() => setOpen(true)}>
-          {hasFlow ? "商流を編集" : "商流を設定"}
+          <FlowIcon />
+          {hasFlow ? "商流編集" : "商流設定"}
         </button>
       )}
     </div>

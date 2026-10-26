@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CopyIcon, EyeIcon, EyeOffIcon } from "@/components/requests/ToolIcons";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/common/Toast";
@@ -511,14 +512,35 @@ function InstructorRequestRow({
     meetingText,
     fmtDate(r.created_at),
   ].filter(Boolean);
-  const badgeKey = attn ? "attn" : st.key;
-  const badgeLabel = attn ? attn.label : st.key === "quoted" ? "返信済み" : st.label;
+  // Only a small red dot marks "needs you"; it goes away once the lecturer opens the row (remembered in this browser).
+  const seenKey = attn ? `kl-seen:${r.request_id}:${attn.label}` : null;
+  const [seen, setSeen] = useState(() => {
+    if (!seenKey || typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem(seenKey) === "1";
+    } catch {
+      return false; // storage not available: the dot just shows
+    }
+  });
+  function toggleOpen() {
+    if (!open && seenKey && !seen) {
+      setSeen(true);
+      try {
+        window.localStorage.setItem(seenKey, "1");
+      } catch {
+        /* ignore */
+      }
+    }
+    setOpen((v) => !v);
+  }
+  const badgeKey = st.key;
+  const badgeLabel = st.key === "quoted" ? "返信済み" : st.label;
   return (
-    <div className={`req-row${attn ? " req-row--attn" : ""}${open ? " is-open" : ""}`}>
-      <button type="button" className="req-row__head" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+    <div className={`req-row${open ? " is-open" : ""}`}>
+      <button type="button" className="req-row__head" aria-expanded={open} onClick={toggleOpen}>
         <span className="req-row__main">
           <span className="req-row__line1">
-            {attn && <span className="req-row__dot" aria-hidden="true" />}
+            {attn && !seen && <span className="req-row__dot" role="img" aria-label={attn.label} />}
             <span className="req-row__title">{r.title}</span>
           </span>
           <span className="req-row__line2">{parts.join("　・　")}</span>
@@ -1220,26 +1242,25 @@ function RequesterRequestCard({
         </>
       )}
 
-      {r.requester_type !== "individual" && (
+      {/* One compact row: メモ・担当者 | 商流設定 | 依頼を複製 | 公開停止 (wraps only on narrow screens). */}
+      {(r.requester_type !== "individual" || (isBroadcast && r.publish_state !== "draft")) && (
         <div className="request-card__tools">
-          <InternalNote requestId={r.request_id} requesterId={userId} />
-          <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} severalInstructors={hasRoles} />
-        </div>
-      )}
-
-      {isBroadcast && r.publish_state !== "draft" && (
-        <div className="request-card__actions">
-          <Link href={`/post-request?copy=${r.request_id}`} className="btn btn--ghost btn--sm">
-            複製して新しい依頼を作る
-          </Link>
-        </div>
-      )}
-
-      {isBroadcast && st.key === "quoted" && (
-        <div className="request-card__actions">
-          <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={() => changePublish(r.publish_state === "paused" ? "published" : "paused")}>
-            {r.publish_state === "paused" ? "公開を再開する" : "公開を一時停止する"}
-          </button>
+          {r.requester_type !== "individual" && <InternalNote requestId={r.request_id} requesterId={userId} />}
+          {r.requester_type !== "individual" && (
+            <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} severalInstructors={hasRoles} />
+          )}
+          {isBroadcast && r.publish_state !== "draft" && (
+            <Link href={`/post-request?copy=${r.request_id}`} className="btn btn--ghost btn--sm tool-btn">
+              <CopyIcon />
+              依頼を複製
+            </Link>
+          )}
+          {isBroadcast && (st.key === "pending" || st.key === "quoted") && (
+            <button type="button" className="btn btn--ghost btn--sm tool-btn" disabled={busy} onClick={() => changePublish(r.publish_state === "paused" ? "published" : "paused")}>
+              {r.publish_state === "paused" ? <EyeIcon /> : <EyeOffIcon />}
+              {r.publish_state === "paused" ? "公開再開" : "公開停止"}
+            </button>
+          )}
         </div>
       )}
 
@@ -1248,11 +1269,6 @@ function RequesterRequestCard({
           <Link href={`/edit-request?id=${r.request_id}`} className="btn btn--ghost btn--sm">
             内容を編集する
           </Link>
-          {isBroadcast && (
-            <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={() => changePublish(r.publish_state === "paused" ? "published" : "paused")}>
-              {r.publish_state === "paused" ? "公開を再開する" : "公開を一時停止する"}
-            </button>
-          )}
           <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={handleCancel}>
             依頼をキャンセルする
           </button>

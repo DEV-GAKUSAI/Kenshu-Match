@@ -19,7 +19,11 @@ export interface NoticeRow {
   event_id: string;
   mine_user_id: string;
   event_code: string;
+  /** The 案件 the notice is about (an opaque id). Mine uses it to open that 案件. */
+  request_id?: string | null;
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** The exact JSON body for Mine's hub. Only ids and a fixed code -- no names or text. */
 export function buildNoticeBody(row: NoticeRow, now: Date): string | null {
@@ -31,6 +35,7 @@ export function buildNoticeBody(row: NoticeRow, now: Date): string | null {
     type: "service_event",
     mine_user_id: row.mine_user_id,
     event_code: row.event_code,
+    ...(row.request_id && UUID.test(row.request_id) ? { ref: row.request_id.toLowerCase() } : {}),
     occurred_at: now.toISOString().replace(/\.\d{3}Z$/, "Z"),
   });
 }

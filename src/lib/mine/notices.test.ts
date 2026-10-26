@@ -42,3 +42,14 @@ test("retry delay grows and is capped", () => {
   assert.equal(retryDelayMinutes(3), 8);
   assert.equal(retryDelayMinutes(10), 60);
 });
+
+test("a notice about a 案件 carries only its id as ref; bad ids are left out", () => {
+  const id = "66666666-6666-4666-8666-666666666666";
+  const withRef = JSON.parse(buildNoticeBody({ ...row, request_id: id.toUpperCase() }, new Date("2026-10-19T03:04:05Z")) as string);
+  assert.equal(withRef.ref, id);
+  assert.deepEqual(Object.keys(withRef).sort(), ["event_code", "event_id", "mine_user_id", "occurred_at", "ref", "schema_version", "service", "type"]);
+  for (const bad of [null, undefined, "", "Tokyo Training Co.", "1 or 1=1"]) {
+    const body = JSON.parse(buildNoticeBody({ ...row, request_id: bad as string | null | undefined }, new Date("2026-10-19T03:04:05Z")) as string);
+    assert.equal("ref" in body, false);
+  }
+});
