@@ -4,12 +4,16 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { useToast } from "@/components/common/Toast";
+import { getOrderForResponse } from "@/lib/requests/orders";
 import { getInvoiceForResponse, INVOICE_STATUS_TEXT, respondInvoice, submitInvoice, type InvoiceRow } from "@/lib/requests/invoices";
+
+const INVOICE_RETURN_REASONS = ["金額が違う", "追加費用の内容が不明", "時間数・日数が違う", "税の扱いが違う"];
 
 /** 請求書: the decided instructor submits it, the company confirms, returns or marks it paid (#52). */
 export function InvoicePanel({ responseId, role }: { responseId: string; role: "requester" | "instructor" }) {
   const { showToast } = useToast();
   const [inv, setInv] = useState<InvoiceRow | null>(null);
+  const [orderDeclined, setOrderDeclined] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState(false);
   const [qty, setQty] = useState("");
@@ -23,6 +27,8 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
   async function load() {
     const i = await getInvoiceForResponse(responseId);
     setInv(i);
+    const o = await getOrderForResponse(responseId);
+    setOrderDeclined(o?.status === "declined");
     setQty(i?.quantity ? String(i.quantity) : "");
     setExtra(i?.extra_amount ? String(i.extra_amount) : "");
     setExtraNote(i?.extra_note ?? "");
@@ -31,6 +37,7 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load() sets state only after awaiting
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [responseId]);
@@ -65,7 +72,8 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
     await load();
   }
 
-  const canEdit = role === "instructor" && (!inv || inv.status === "submitted" || inv.status === "returned");
+  // A declined order has to be re-issued (and confirmed) before the first invoice (#51 test finding).
+  const canEdit = role === "instructor" && (inv ? inv.status === "submitted" || inv.status === "returned" : !orderDeclined);
 
   return (
     <div className="request-card__response" style={{ marginTop: 14 }}>
@@ -75,6 +83,8 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
           {inv.invoice_no}（第{inv.revision}版）　{INVOICE_STATUS_TEXT[inv.status]}
           {inv.status === "returned" && inv.return_reason && <div style={{ color: "var(--color-danger, #c0392b)" }}>理由：{inv.return_reason}</div>}
         </div>
+      ) : role === "instructor" && orderDeclined ? (
+        <div style={{ fontSize: 13, color: "var(--color-ink-soft)" }}>注文書を辞退しているため、請求書は提出できません。企業が注文書を再発行したら、内容を確認してください。</div>
       ) : (
         <div style={{ fontSize: 13, color: "var(--color-ink-soft)" }}>研修のあとに請求書を提出できます。金額は決定した見積り（または注文書）から自動で入ります。</div>
       )}
@@ -109,6 +119,13 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
         <div className="inline-quote-form is-open" style={{ marginTop: 10 }}>
           <div className="form-field">
             <label>差し戻しの理由</label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+              {INVOICE_RETURN_REASONS.map((text) => (
+                <button key={text} type="button" className="btn btn--ghost btn--sm" onClick={() => setReason(text)}>
+                  {text}
+                </button>
+              ))}
+            </div>
             <textarea rows={2} maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
           </div>
           <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={() => respond("return")}>

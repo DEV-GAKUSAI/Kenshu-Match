@@ -11,6 +11,8 @@ export interface ConfirmOptions {
   tone?: "primary" | "danger";
   /** When set, shows a text box and returns what was typed as `reason`. */
   reasonLabel?: string;
+  /** Ready-made reasons shown as small buttons; pressing one fills the text box (still editable). */
+  reasonPresets?: string[];
 }
 
 export interface ConfirmResult {
@@ -70,6 +72,23 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             {options.reasonLabel ? (
               <div className="form-field confirm-box__reason">
                 <label htmlFor="confirm-reason">{options.reasonLabel}</label>
+                {options.reasonPresets?.length ? (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", margin: "4px 0 8px" }}>
+                    {options.reasonPresets.map((text) => (
+                      <button
+                        key={text}
+                        type="button"
+                        className="btn btn--ghost btn--sm"
+                        onClick={() => {
+                          reasonRef.current = text;
+                          setReason(text);
+                        }}
+                      >
+                        {text}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 <textarea
                   id="confirm-reason"
                   rows={3}

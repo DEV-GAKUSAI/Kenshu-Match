@@ -806,6 +806,9 @@ function requesterDisplayStatus(r: ReqWithJoins) {
   return { key: "pending", label: "対応待ち" };
 }
 
+/** Shown instead of a lecturer's mail / phone that has not been released to the company yet. */
+const NOT_RELEASED = "未公開（講師が公開すると表示されます）";
+
 /** 募集状況 of one request (for the list filter). */
 function recruitStateOf(r: ReqWithJoins): RecruitState | null {
   return recruitState({ status: r.status, publishState: r.publish_state, isBroadcast: !r.target_instructor_id, deadlinePassed: deadlinePassed(r.apply_deadline) });
@@ -943,6 +946,11 @@ function RequesterRequestCard({
     showToast(hasRoles ? "講師を決定しました。連絡先が開示されます。" : "依頼を確定しました。連絡先が開示されます。");
   }
 
+  async function confirmFinalize(responseId: string, instructorId: string) {
+    const res = await confirm({ title: "この内容で依頼を確定しますか？", confirmLabel: "確定する", cancelLabel: "戻る" });
+    if (res.ok) await finalize(responseId, instructorId);
+  }
+
   async function changeStage(responseId: string, value: "" | "screening" | "negotiation" | "passed") {
     setBusy(true);
     const { error } = await setResponseStage(responseId, value || null);
@@ -1042,6 +1050,7 @@ function RequesterRequestCard({
       cancelLabel: "戻る",
       tone: "danger",
       reasonLabel: "キャンセル理由（任意）",
+      reasonPresets: ["内容を変更して作り直す", "予算・日程が合わなくなった", "別の講師に決めた", "企画自体を中止"],
     });
     if (!ok) return;
     const reason = typedReason || null;
@@ -1303,7 +1312,7 @@ function RequesterRequestCard({
 
           {st.key === "quoted" && resp && (
             <div className="request-card__actions">
-              <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => finalize(resp.response_id, resp.instructor_id)}>
+              <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => confirmFinalize(resp.response_id, resp.instructor_id)}>
                 この内容で依頼を確定する
               </button>
               <Link href={`/edit-request?id=${r.request_id}`} className="btn btn--ghost btn--sm">
@@ -1394,8 +1403,8 @@ function RequesterRequestCard({
                     {nameOfDecided(sr)} 先生
                     {sr.role_slot_id ? `（${roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? ""}）` : ""}
                   </div>
-                  <div>メール：{instructorMap[sr.instructor_id]?.contact_email || "未登録"}</div>
-                  <div>電話番号：{instructorMap[sr.instructor_id]?.contact_phone || "未登録"}</div>
+                  <div>メール：{instructorMap[sr.instructor_id]?.contact_email || NOT_RELEASED}</div>
+                  <div>電話番号：{instructorMap[sr.instructor_id]?.contact_phone || NOT_RELEASED}</div>
                 </div>
               ))}
             </div>
@@ -1403,8 +1412,8 @@ function RequesterRequestCard({
           <div className="contact-box">
             <strong>連絡先：</strong>
             <div>名前：{instr.name || "講師"}</div>
-            <div>メール：{instr.contact_email || "未登録"}</div>
-            <div>電話番号：{instr.contact_phone || "未登録"}</div>
+            <div>メール：{instr.contact_email || NOT_RELEASED}</div>
+            <div>電話番号：{instr.contact_phone || NOT_RELEASED}</div>
           </div>
           )}
           {st.key === "accepted" && (
