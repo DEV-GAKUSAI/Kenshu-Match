@@ -8,7 +8,7 @@ import { useToast } from "@/components/common/Toast";
 import { createClient } from "@/lib/supabase/client";
 
 /** 社内メモ・担当者: only the company sees it, never the instructors (#46 / #47). */
-export function InternalNote({ requestId, requesterId }: { requestId: string; requesterId: string }) {
+export function InternalNote({ requestId, requesterId, onSaved }: { requestId: string; requesterId: string; onSaved?: () => void }) {
   const { showToast } = useToast();
   const [open, setOpen] = useState(false);
   const [owner, setOwner] = useState("");
@@ -47,6 +47,7 @@ export function InternalNote({ requestId, requesterId }: { requestId: string; re
     setSaved({ owner: owner.trim(), note: note.trim() });
     setOpen(false);
     showToast("社内メモを保存しました。");
+    onSaved?.();
   }
 
   return (

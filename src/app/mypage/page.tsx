@@ -39,6 +39,7 @@ import { finalizeResponse, closeRecruiting } from "@/lib/requests/actions";
 import { stageOf, STAGE_LABEL } from "@/lib/requests/stage";
 import { normalizeSlots, openSlots, progressSummary, slotCounts, slotsSummary, totalNeeded, totalRemaining } from "@/lib/requests/roles";
 import { setPublishState, closeApplications } from "@/lib/requests/training-requests";
+import { nextAction } from "@/lib/requests/next-action";
 import { budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
 import type { InstructorResponseRow, TrainingRequestRow } from "@/types/database";
 import type { CurrentUser } from "@/lib/auth/auth";
@@ -807,6 +808,7 @@ function RequesterRequestCard({
   instructorMap,
   meetings,
   mineLinked,
+  owner,
   onChanged,
 }: {
   r: ReqWithJoins;
@@ -814,6 +816,8 @@ function RequesterRequestCard({
   instructorMap: Record<string, { name?: string | null; contact_email?: string | null; contact_phone?: string | null }>;
   meetings: Record<string, KenshuMineMeetingRow>;
   mineLinked: Set<string>;
+  /** 担当者 saved in 社内メモ (company only), shown in the row. */
+  owner?: string;
   onChanged: () => void | Promise<void>;
 }) {
   const { showToast } = useToast();
@@ -886,12 +890,22 @@ function RequesterRequestCard({
       ? `決定：${instr.name || "講師"} 先生`
       : "公募依頼"
     : `依頼先：${instr.name || "講師"} 先生`;
+  const next = nextAction({
+    statusKey: st.key,
+    isDraft: r.publish_state === "draft",
+    isBroadcast,
+    deadlinePassed: deadlinePassed(r.apply_deadline),
+    applicants: applicants.map((x) => ({ isNew: x.requester_seen_at === null, interview: x.interview_status ?? null, passed: x.stage === "passed", decided: !!x.is_selected })),
+  });
   const rowParts = [
     rowWho,
+    next ? `次の対応：${next}` : null,
     budgetText(r),
     isBroadcast && r.apply_deadline ? (deadlinePassed(r.apply_deadline) && (st.key === "pending" || st.key === "quoted") ? `受付終了（応募締切 ${deadlineShort(r.apply_deadline)}）` : `応募締切 ${deadlineShort(r.apply_deadline)}`) : null,
     isBroadcast && applicants.length > 0 && (st.key === "pending" || st.key === "quoted") ? `応募 ${applicants.length}名` : null,
     isBroadcast && (st.key === "pending" || st.key === "quoted") ? allDaysWarning(!!r.all_days_required, applicants.map((x) => x.apply_all_days)) : null,
+    hasRoles && (st.key === "pending" || st.key === "quoted") && totalRemaining(slotStats) > 0 ? `あと${totalRemaining(slotStats)}名` : null,
+    owner ? `担当：${owner}` : null,
     isBroadcast && r.visibility && r.visibility !== "public" ? VISIBILITY_TEXT[r.visibility] : null,
     fmtDate(r.created_at),
     `案件番号 ${r.request_id.slice(0, 8)}`,
@@ -1280,7 +1294,7 @@ function RequesterRequestCard({
       {/* One compact row: メモ・担当者 | 商流設定 | 依頼を複製 | 公開停止 (wraps only on narrow screens). */}
       {(r.requester_type !== "individual" || (isBroadcast && r.publish_state !== "draft")) && (
         <div className="request-card__tools">
-          {r.requester_type !== "individual" && <InternalNote requestId={r.request_id} requesterId={userId} />}
+          {r.requester_type !== "individual" && <InternalNote requestId={r.request_id} requesterId={userId} onSaved={() => void onChanged()} />}
           {r.requester_type !== "individual" && (
             <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} severalInstructors={hasRoles} />
           )}
@@ -1393,6 +1407,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
   const [search, setSearch] = useState("");
   const [year, setYear] = useState("");
   const [unseenCount, setUnseenCount] = useState(0);
+  const [owners, setOwners] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     flushMineNotices();
@@ -1403,6 +1418,14 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
     }
     const rows = (data || []) as unknown as ReqWithJoins[];
     setAll(rows);
+    // 担当者 (company only): saved in the 社内メモ. Searched and shown in each row.
+    if (user.role === "COMPANY") {
+      const db = createBrowserClient() as unknown as { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => Promise<{ data: { request_id: string; owner_name: string | null }[] | null }> } } };
+      const { data: noteRows } = await db.from("request_internal_notes").select("request_id, owner_name").eq("requester_id", user.id);
+      const map: Record<string, string> = {};
+      for (const n of noteRows || []) if (n.owner_name?.trim()) map[n.request_id] = n.owner_name.trim();
+      setOwners(map);
+    }
 
     const unseenResponseIds = rows.flatMap((r) => (r.instructor_responses || []).filter((x) => x.requester_seen_at === null).map((x) => x.response_id));
     setUnseenCount(unseenResponseIds.length);
@@ -1478,8 +1501,8 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
     return all
       .filter((r) => currentTab === "all" || requesterDisplayStatus(r).key === currentTab)
       .filter((r) => !year || new Date(r.created_at).getFullYear() === Number(year))
-      .filter((r) => !kw || `${r.title} ${r.description} ${r.location ?? ""} ${r.request_id}`.toLowerCase().includes(kw));
-  }, [all, currentTab, search, year]);
+      .filter((r) => !kw || `${r.title} ${r.description} ${r.location ?? ""} ${r.request_id} ${owners[r.request_id] ?? ""}`.toLowerCase().includes(kw));
+  }, [all, currentTab, search, year, owners]);
   const years = useMemo(() => [...new Set((all || []).map((r) => new Date(r.created_at).getFullYear()))].sort((x, y) => y - x), [all]);
   const mineLinked = useMineLinkedInstructors(
     (all || []).flatMap((r) => (r.instructor_responses || []).map((x) => x.instructor_id)),
@@ -1538,7 +1561,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
         })}
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 14px" }}>
-        <input type="search" placeholder="案件名・キーワード・案件番号で探す" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: "1 1 220px", minWidth: 0 }} />
+        <input type="search" placeholder={user.role === "COMPANY" ? "案件名・キーワード・案件番号・担当者で探す" : "案件名・キーワード・案件番号で探す"} value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: "1 1 220px", minWidth: 0 }} />
         {years.length > 1 && (
           <Select aria-label="年" value={year} onChange={(e) => setYear(e.target.value)} style={{ flex: "0 0 120px" }}>
             <option value="">すべての年</option>
@@ -1566,6 +1589,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
           instructorMap={instructorMap}
           meetings={meetings}
           mineLinked={mineLinked}
+          owner={owners[r.request_id]}
           onChanged={load}
         />
       ))}
