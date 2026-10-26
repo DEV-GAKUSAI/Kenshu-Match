@@ -7,6 +7,7 @@ import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { budgetText, isHourly, quoteText } from "@/lib/requests/money";
 import { requestFormatLabel } from "@/lib/requests/schedule";
+import { matchesSearch } from "@/lib/requests/search";
 import { getOpenRequestsPublicPreview, getOpenRequestsForInstructor } from "@/lib/requests/training-requests";
 import { markResultsSeenByInstructor, submitInstructorResponse } from "@/lib/requests/instructor-responses";
 import { useToast } from "@/components/common/Toast";
@@ -332,12 +333,11 @@ export default function OpenRequestsPage() {
   }
 
   function passesFilters(r: RequestWithJoins) {
-    const kw = q.trim().toLowerCase();
     const area = fArea.trim().toLowerCase();
     const rate = Number(fRate) || 0;
-    if (kw) {
-      const hay = `${r.title} ${r.description} ${r.preferred_schedule ?? ""} ${r.request_id}`.toLowerCase();
-      if (!hay.includes(kw)) return false;
+    if (q.trim()) {
+      const hay = `${r.title} ${r.description} ${r.preferred_schedule ?? ""} ${r.location ?? ""} ${r.request_id} ${budgetText(r) ?? ""} ${requestFormatLabel(r)} ${displayStatus(r).label}`;
+      if (!matchesSearch(q, hay)) return false;
     }
     if (fField && r.expertise_field !== fField) return false;
     if (area && !(r.location ?? "").toLowerCase().includes(area)) return false;

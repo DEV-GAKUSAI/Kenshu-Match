@@ -16,6 +16,7 @@ export function nextAction({
   isDraft,
   isBroadcast,
   deadlinePassed,
+  isPaused = false,
   applicants,
 }: {
   /** requesterDisplayStatus().key */
@@ -23,6 +24,8 @@ export function nextAction({
   isDraft: boolean;
   isBroadcast: boolean;
   deadlinePassed: boolean;
+  /** 公開停止中: lecturers cannot see the request, so nobody new can apply. */
+  isPaused?: boolean;
   applicants: NextActionApplicant[];
 }): string | null {
   if (statusKey === "cancelled" || statusKey === "completed" || statusKey === "rejected") return null;
@@ -31,7 +34,7 @@ export function nextAction({
   if (!isBroadcast) return statusKey === "quoted" ? "見積りの確認・確定" : "講師の返答待ち";
 
   const open = applicants.filter((a) => !a.decided);
-  if (open.length === 0) return deadlinePassed ? "締切を延ばすか取消" : "応募待ち";
+  if (open.length === 0) return deadlinePassed ? "締切を延ばすか取消" : isPaused ? "公開再開が必要" : "応募待ち";
   if (open.some((a) => a.interview === "released" && !a.passed)) return "講師を決定する";
   const fresh = open.filter((a) => a.isNew).length;
   if (fresh > 0) return `応募の確認（NEW ${fresh}名）`;

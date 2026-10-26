@@ -40,6 +40,7 @@ import { stageOf, STAGE_LABEL } from "@/lib/requests/stage";
 import { normalizeSlots, openSlots, progressSummary, slotCounts, slotsSummary, totalNeeded, totalRemaining } from "@/lib/requests/roles";
 import { setPublishState, closeApplications } from "@/lib/requests/training-requests";
 import { nextAction } from "@/lib/requests/next-action";
+import { matchesSearch } from "@/lib/requests/search";
 import { budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
 import type { InstructorResponseRow, TrainingRequestRow } from "@/types/database";
 import type { CurrentUser } from "@/lib/auth/auth";
@@ -802,6 +803,21 @@ function requesterDisplayStatus(r: ReqWithJoins) {
   return { key: "pending", label: "対応待ち" };
 }
 
+/** 次の対応 of one request (shown in its row, and searchable). */
+function nextActionOf(r: ReqWithJoins): string | null {
+  const st = requesterDisplayStatus(r);
+  const isBroadcast = !r.target_instructor_id;
+  const applicants = isBroadcast ? (r.instructor_responses || []).filter((x) => x.action === "accept" || x.action === "quote") : [];
+  return nextAction({
+    statusKey: st.key,
+    isDraft: r.publish_state === "draft",
+    isBroadcast,
+    deadlinePassed: deadlinePassed(r.apply_deadline),
+    isPaused: r.publish_state === "paused",
+    applicants: applicants.map((x) => ({ isNew: x.requester_seen_at === null, interview: x.interview_status ?? null, passed: x.stage === "passed", decided: !!x.is_selected })),
+  });
+}
+
 function RequesterRequestCard({
   r,
   userId,
@@ -824,6 +840,8 @@ function RequesterRequestCard({
   const confirm = useConfirm();
   const st = requesterDisplayStatus(r);
   const requestOpen = r.status !== "cancelled" && r.status !== "completed";
+  // "Now" for the meeting buttons, read once (keeps the render pure).
+  const [nowMs] = useState(() => Date.now());
   /** Meeting line + 「面談を予約」 for one instructor reply (Mine booking, Phase 3c). */
   const meetingParts = (response: InstructorResponseRow) => {
     const meeting = meetings[response.response_id];
@@ -832,9 +850,9 @@ function RequesterRequestCard({
       response.stage !== "passed" &&
       (response.action === "accept" || response.action === "quote") &&
       mineLinked.has(response.instructor_id) &&
-      (!meeting || meeting.status === "cancelled" || Date.parse(meeting.ends_at) <= Date.now());
+      (!meeting || meeting.status === "cancelled" || Date.parse(meeting.ends_at) <= nowMs);
     // Mine Phase 3d: change the time or cancel an upcoming meeting.
-    const canChange = requestOpen && !!meeting && meeting.status !== "cancelled" && Date.parse(meeting.ends_at) > Date.now();
+    const canChange = requestOpen && !!meeting && meeting.status !== "cancelled" && Date.parse(meeting.ends_at) > nowMs;
     // Changing an upcoming meeting sits next to its Meet button; booking a first one stands alone.
     const button =
       canChange && meeting ? (
@@ -890,13 +908,7 @@ function RequesterRequestCard({
       ? `決定：${instr.name || "講師"} 先生`
       : "公募依頼"
     : `依頼先：${instr.name || "講師"} 先生`;
-  const next = nextAction({
-    statusKey: st.key,
-    isDraft: r.publish_state === "draft",
-    isBroadcast,
-    deadlinePassed: deadlinePassed(r.apply_deadline),
-    applicants: applicants.map((x) => ({ isNew: x.requester_seen_at === null, interview: x.interview_status ?? null, passed: x.stage === "passed", decided: !!x.is_selected })),
-  });
+  const next = nextActionOf(r);
   const rowParts = [
     rowWho,
     next ? `次の対応：${next}` : null,
@@ -1251,6 +1263,12 @@ function RequesterRequestCard({
                   応募の受付を終了する
                 </button>
               )}
+              {/* Also here (not only inside an applicant row): the whole request can be cancelled while nobody is decided. */}
+              {st.key === "quoted" && selectedResps.length === 0 && (
+                <button type="button" className="btn btn--danger btn--sm" disabled={busy} onClick={handleCancel}>
+                  依頼をキャンセルする
+                </button>
+              )}
             </div>
           )}
         </>
@@ -1497,12 +1515,27 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
 
   const filtered = useMemo(() => {
     if (!all) return [];
-    const kw = search.trim().toLowerCase();
     return all
       .filter((r) => currentTab === "all" || requesterDisplayStatus(r).key === currentTab)
       .filter((r) => !year || new Date(r.created_at).getFullYear() === Number(year))
-      .filter((r) => !kw || `${r.title} ${r.description} ${r.location ?? ""} ${r.request_id} ${owners[r.request_id] ?? ""}`.toLowerCase().includes(kw));
-  }, [all, currentTab, search, year, owners]);
+      .filter((r) => {
+        if (!search.trim()) return true;
+        const names = [r.target_instructor_id, ...(r.instructor_responses || []).map((x) => x.instructor_id)].map((id) => (id ? instructorMap[id]?.name ?? "" : ""));
+        const hay = [
+          r.title,
+          r.description,
+          r.location ?? "",
+          r.request_id,
+          owners[r.request_id] ?? "",
+          names.join(" "),
+          requesterDisplayStatus(r).label,
+          nextActionOf(r) ?? "",
+          budgetText(r) ?? "",
+          r.visibility && r.visibility !== "public" ? VISIBILITY_TEXT[r.visibility] ?? "" : "",
+        ].join(" ");
+        return matchesSearch(search, hay);
+      });
+  }, [all, currentTab, search, year, owners, instructorMap]);
   const years = useMemo(() => [...new Set((all || []).map((r) => new Date(r.created_at).getFullYear()))].sort((x, y) => y - x), [all]);
   const mineLinked = useMineLinkedInstructors(
     (all || []).flatMap((r) => (r.instructor_responses || []).map((x) => x.instructor_id)),
