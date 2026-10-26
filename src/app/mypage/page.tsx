@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { allDaysWarning } from "@/lib/requests/schedule";
+import { allDaysWarning, normalizeDays } from "@/lib/requests/schedule";
 import { CopyIcon, EyeIcon, EyeOffIcon } from "@/components/requests/ToolIcons";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
@@ -41,6 +41,7 @@ import { normalizeSlots, openSlots, progressSummary, slotCounts, slotsSummary, t
 import { setPublishState, closeApplications } from "@/lib/requests/training-requests";
 import { nextAction } from "@/lib/requests/next-action";
 import { matchesSearch } from "@/lib/requests/search";
+import { recruitState, RECRUIT_STATE_LABEL, monthsOfDays, monthLabel, type RecruitState } from "@/lib/requests/list-filters";
 import { budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
 import type { InstructorResponseRow, TrainingRequestRow } from "@/types/database";
 import type { CurrentUser } from "@/lib/auth/auth";
@@ -803,6 +804,11 @@ function requesterDisplayStatus(r: ReqWithJoins) {
   return { key: "pending", label: "対応待ち" };
 }
 
+/** 募集状況 of one request (for the list filter). */
+function recruitStateOf(r: ReqWithJoins): RecruitState | null {
+  return recruitState({ status: r.status, publishState: r.publish_state, isBroadcast: !r.target_instructor_id, deadlinePassed: deadlinePassed(r.apply_deadline) });
+}
+
 /** 次の対応 of one request (shown in its row, and searchable). */
 function nextActionOf(r: ReqWithJoins): string | null {
   const st = requesterDisplayStatus(r);
@@ -1424,6 +1430,9 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
   const [currentTab, setCurrentTab] = useState("all");
   const [search, setSearch] = useState("");
   const [year, setYear] = useState("");
+  const [recruitFilter, setRecruitFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [monthFilter, setMonthFilter] = useState("");
   const [unseenCount, setUnseenCount] = useState(0);
   const [owners, setOwners] = useState<Record<string, string>>({});
 
@@ -1518,6 +1527,9 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
     return all
       .filter((r) => currentTab === "all" || requesterDisplayStatus(r).key === currentTab)
       .filter((r) => !year || new Date(r.created_at).getFullYear() === Number(year))
+      .filter((r) => !recruitFilter || recruitStateOf(r) === recruitFilter)
+      .filter((r) => !roleFilter || normalizeSlots(r.role_slots).some((sl) => sl.name === roleFilter))
+      .filter((r) => !monthFilter || monthsOfDays(normalizeDays(r.schedule_days)).includes(monthFilter))
       .filter((r) => {
         if (!search.trim()) return true;
         const names = [r.target_instructor_id, ...(r.instructor_responses || []).map((x) => x.instructor_id)].map((id) => (id ? instructorMap[id]?.name ?? "" : ""));
@@ -1535,7 +1547,9 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
         ].join(" ");
         return matchesSearch(search, hay);
       });
-  }, [all, currentTab, search, year, owners, instructorMap]);
+  }, [all, currentTab, search, year, recruitFilter, roleFilter, monthFilter, owners, instructorMap]);
+  const roleOptions = useMemo(() => [...new Set((all || []).flatMap((r) => normalizeSlots(r.role_slots).map((sl) => sl.name)))], [all]);
+  const monthOptions = useMemo(() => [...new Set((all || []).flatMap((r) => monthsOfDays(normalizeDays(r.schedule_days))))].sort(), [all]);
   const years = useMemo(() => [...new Set((all || []).map((r) => new Date(r.created_at).getFullYear()))].sort((x, y) => y - x), [all]);
   const mineLinked = useMineLinkedInstructors(
     (all || []).flatMap((r) => (r.instructor_responses || []).map((x) => x.instructor_id)),
@@ -1595,12 +1609,40 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 14px" }}>
         <input type="search" placeholder={user.role === "COMPANY" ? "案件名・キーワード・案件番号・担当者で探す" : "案件名・キーワード・案件番号で探す"} value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: "1 1 220px", minWidth: 0 }} />
-        {years.length > 1 && (
+        {years.length > 0 && (
           <Select aria-label="年" value={year} onChange={(e) => setYear(e.target.value)} style={{ flex: "0 0 120px" }}>
             <option value="">すべての年</option>
             {years.map((y) => (
               <option key={y} value={String(y)}>
                 {y}年
+              </option>
+            ))}
+          </Select>
+        )}
+        <Select aria-label="募集状況" value={recruitFilter} onChange={(e) => setRecruitFilter(e.target.value)} style={{ flex: "0 0 140px" }}>
+          <option value="">募集状況：すべて</option>
+          {(Object.keys(RECRUIT_STATE_LABEL) as RecruitState[]).map((k) => (
+            <option key={k} value={k}>
+              {RECRUIT_STATE_LABEL[k]}
+            </option>
+          ))}
+        </Select>
+        {roleOptions.length > 0 && (
+          <Select aria-label="職種" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} style={{ flex: "0 0 140px" }}>
+            <option value="">職種：すべて</option>
+            {roleOptions.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </Select>
+        )}
+        {monthOptions.length > 0 && (
+          <Select aria-label="開催月" value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} style={{ flex: "0 0 150px" }}>
+            <option value="">開催月：すべて</option>
+            {monthOptions.map((m) => (
+              <option key={m} value={m}>
+                {monthLabel(m)}
               </option>
             ))}
           </Select>
