@@ -337,7 +337,10 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
               {r.title}
             </div>
             <div className="request-card__meta">
-              <span>{r.requester_type === "company" ? "企業" : "生徒"}からの公募</span>
+              <span>
+                {r.requester_type === "company" ? "企業" : "生徒"}
+                {r.target_instructor_id ? "からの直接依頼" : "からの公募"}
+              </span>
               <span>{fmtDate(r.created_at)}</span>
             </div>
           </div>

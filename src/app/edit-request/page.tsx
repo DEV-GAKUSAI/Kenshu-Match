@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/common/Toast";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { createClient } from "@/lib/supabase/client";
+import { validateDays } from "@/lib/requests/schedule";
 import { DetailsForm, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
 import { VisibilityForm, type VisibilityValue } from "@/components/requests/VisibilityForm";
 import { getInvites, saveInvites } from "@/lib/requests/invites";
@@ -127,6 +128,8 @@ function EditRequestInner() {
     if (!title.trim() || !description.trim()) return setError("タイトルと依頼内容を入力してください。");
     if (format !== "online" && !location.trim()) return setError("対面の場合は実施場所の入力が必要です。");
     if (!Number.isInteger(n) || n < 1) return setError("対象人数を入力してください。");
+    const dayError = validateDays(details?.days ?? []);
+    if (dayError) return setError(dayError);
     const slotsNow = rolesPayload(roles).role_slots;
     const tooLow = slotsNow.find((sl) => (decidedBySlot[sl.id] ?? 0) > sl.headcount);
     if (tooLow) return setError(`「${tooLow.name}」はすでに${decidedBySlot[tooLow.id]}名決定済みのため、それより少なくできません。`);

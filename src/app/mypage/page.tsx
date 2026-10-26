@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { allDaysWarning } from "@/lib/requests/schedule";
 import { CopyIcon, EyeIcon, EyeOffIcon } from "@/components/requests/ToolIcons";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
@@ -890,6 +891,7 @@ function RequesterRequestCard({
     budgetText(r),
     isBroadcast && r.apply_deadline ? `応募締切 ${deadlineShort(r.apply_deadline)}` : null,
     isBroadcast && applicants.length > 0 && (st.key === "pending" || st.key === "quoted") ? `応募 ${applicants.length}名` : null,
+    isBroadcast && (st.key === "pending" || st.key === "quoted") ? allDaysWarning(!!r.all_days_required, applicants.map((x) => x.apply_all_days)) : null,
     isBroadcast && r.visibility && r.visibility !== "public" ? VISIBILITY_TEXT[r.visibility] : null,
     fmtDate(r.created_at),
     `案件番号 ${r.request_id.slice(0, 8)}`,
