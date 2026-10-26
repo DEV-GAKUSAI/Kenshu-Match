@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/common/Toast";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { DetailsForm, EMPTY_DETAILS, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
-import { MoneyForm, EMPTY_MONEY, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
+import { MoneyForm, EMPTY_MONEY, moneyError, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
 import type { MinePublicProfile } from "@/lib/mine/public-profile";
 import { InstructorBookCard } from "@/components/requests/InstructorBookCard";
 import { MineProfileBlocks } from "@/components/mine/MineProfileBlocks";
@@ -298,6 +298,11 @@ function InstructorDetailInner() {
               ? "対象人数を入力してください。"
               : "入力内容をご確認ください。"
       );
+      return;
+    }
+    const moneyErr = moneyError(reqMoney);
+    if (moneyErr) {
+      setReqFormError(moneyErr);
       return;
     }
     setReqFormError("");

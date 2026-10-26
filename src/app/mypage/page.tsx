@@ -42,6 +42,7 @@ import { setPublishState, closeApplications } from "@/lib/requests/training-requ
 import { nextAction } from "@/lib/requests/next-action";
 import { matchesSearch } from "@/lib/requests/search";
 import { recruitState, RECRUIT_STATE_LABEL, monthsOfDays, monthLabel, type RecruitState } from "@/lib/requests/list-filters";
+import { BudgetHint } from "@/components/requests/BudgetHint";
 import { amountError, MAX_AMOUNT, budgetText, costLines, normalUnit, quoteText, UNIT_OPTIONS } from "@/lib/requests/money";
 import type { InstructorResponseRow, TrainingRequestRow } from "@/types/database";
 import type { CurrentUser } from "@/lib/auth/auth";
@@ -464,6 +465,7 @@ function InstructorRequestCard({
                   <option value="excluded">税別</option>
                 </Select>
               </div>
+              <BudgetHint request={r} price={quotePrice} />
             </div>
             <ApplyFields value={apply} onChange={setApply} roleOptions={normalizeSlots(r.role_slots).map((x) => x.name)} />
             <div className="form-field">
@@ -1246,6 +1248,7 @@ function RequesterRequestCard({
                       onDecide={() => handleFinalizeApplicant(a.response_id, a.instructor_id)}
                       stage={stageOf(a, st.key === "accepted" || st.key === "completed")}
                       onRequestInterview={st.key === "pending" || st.key === "quoted" ? () => askInterview(a.response_id) : undefined}
+                      budget={r}
                       onStageChange={st.key === "accepted" || st.key === "completed" || a.is_selected ? undefined : (v) => changeStage(a.response_id, v)}
                       decidedLabel={a.is_selected ? `決定${hasRoles ? `：${roleSlots.find((x) => x.id === a.role_slot_id)?.name ?? ""}` : ""}` : null}
                       decideExtra={

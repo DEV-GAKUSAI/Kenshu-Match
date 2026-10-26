@@ -7,8 +7,8 @@ import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { getInstructorNames } from "@/lib/instructor/profile";
 import { getRequesterContacts } from "@/lib/requester/profile";
-import { costLines, formatMoney } from "@/lib/requests/money";
-import { getOrder, getOrderChanges, ORDER_STATUS_TEXT, type OrderRow } from "@/lib/requests/orders";
+import { budgetAmountText, budgetMode, costLines, formatMoney } from "@/lib/requests/money";
+import { getOrder, getOrderChanges, getOrderDefaults, ORDER_STATUS_TEXT, type OrderDefaults, type OrderRow } from "@/lib/requests/orders";
 import { calcOrder, diffOrders } from "@/lib/requests/order-calc";
 
 /** 注文書 (#51): print-friendly page. 「印刷」→「PDFに保存」 gives the PDF. */
@@ -19,6 +19,7 @@ function OrderInner() {
   const [buyer, setBuyer] = useState("");
   const [seller, setSeller] = useState("");
   const [history, setHistory] = useState<OrderRow[]>([]);
+  const [defaults, setDefaults] = useState<OrderDefaults | null>(null);
 
   useEffect(() => {
     if (!authReady || !user || !id) return;
@@ -30,6 +31,8 @@ function OrderInner() {
       if (!o) return;
       const olds = await getOrderChanges(o.order_id);
       if (alive) setHistory(olds);
+      const d = await getOrderDefaults(o.response_id);
+      if (alive) setDefaults(d);
       const names = await getInstructorNames([o.instructor_id]);
       const buyers = await getRequesterContacts([o.requester_id]);
       if (!alive) return;
@@ -62,6 +65,8 @@ function OrderInner() {
   const yen = (n: number | null) => (n === null ? "—" : `¥${n.toLocaleString()}`);
   const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric", timeZone: "Asia/Tokyo" });
   const issued = fmtDate(order.issued_at);
+  // The request budget is shown (not printed) when it was a range / 応相談 or differs from the order amount.
+  const budgetLine = defaults ? ((budgetMode(defaults.request) !== "fixed" || (defaults.request.budget ?? 0) !== (order.amount ?? 0)) ? budgetAmountText(defaults.request) : null) : null;
   const cell = { border: "1px solid var(--color-border, #ccd5d1)", padding: "6px 8px", fontSize: 13 } as const;
   // Each version with what changed from the one before it (#51).
   const versions = [...history, order];
@@ -110,6 +115,15 @@ function OrderInner() {
             <dt>日程</dt>
             <dd style={{ whiteSpace: "pre-line" }}>{order.schedule_text || "別途調整"}</dd>
           </div>
+          {budgetLine && (
+            <div className="no-print">
+              <dt>依頼時の予算</dt>
+              <dd>
+                {budgetLine}
+                {order.amount ? ` → 注文 ${formatMoney(order.amount, order.amount_unit, order.tax_mode)}` : ""}
+              </dd>
+            </div>
+          )}
         </dl>
         {calc.lines.length > 0 ? (
           <>

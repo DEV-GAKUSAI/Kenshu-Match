@@ -21,6 +21,8 @@ export type InvoiceRow = {
   quantity: number | null;
   extra_amount: number | null;
   extra_note: string | null;
+  /** Cost lines taken from the confirmed order (#44); empty on older invoices */
+  items?: unknown;
   note: string | null;
   party_name: string | null;
   speaker_name: string | null;
@@ -50,6 +52,7 @@ const ERRORS: Record<string, string> = {
   not_editable: "すでに確認・支払い済みのため変更できません。",
   not_found: "対象が見つかりません。",
   too_long: "文字数が多すぎます。",
+  no_amount: "金額が決まっていません。企業が注文書を発行し、講師が確認してから提出してください。",
   bad_date: "支払期限は今日から2年以内の日付にしてください。",
   bad_reg_no: "登録番号は「T」と13桁の数字で入力してください。",
   bad_bank: "振込先の入力内容を確認してください。",

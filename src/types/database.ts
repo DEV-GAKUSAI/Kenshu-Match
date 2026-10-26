@@ -118,6 +118,11 @@ export type TrainingRequestRow = {
   transport_cost: CostShare;
   lodging_cost: CostShare;
   prep_cost: PrepCost;
+  /** migration 185: fixed (default) | range | negotiable */
+  budget_mode?: "fixed" | "range" | "negotiable";
+  budget_max?: number | null;
+  prep_amount?: number | null;
+  pretraining_amount?: number | null;
   payment_terms: string | null;
   schedule_days: ScheduleDay[];
   all_days_required: boolean;
@@ -232,6 +237,11 @@ export type OpenRequestPublicPreviewRow = {
   transport_cost: CostShare;
   lodging_cost: CostShare;
   prep_cost: PrepCost;
+  /** migration 185: fixed (default) | range | negotiable */
+  budget_mode?: "fixed" | "range" | "negotiable";
+  budget_max?: number | null;
+  prep_amount?: number | null;
+  pretraining_amount?: number | null;
   payment_terms: string | null;
   schedule_days: ScheduleDay[];
   all_days_required: boolean;

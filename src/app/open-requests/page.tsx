@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { ResponseManage } from "@/components/requests/ResponseManage";
-import { budgetText, isHourly, quoteText } from "@/lib/requests/money";
+import { budgetText, budgetUpper, isHourly, quoteText } from "@/lib/requests/money";
 import { requestFormatLabel } from "@/lib/requests/schedule";
 import { matchesSearch } from "@/lib/requests/search";
 import { getOpenRequestsPublicPreview, getOpenRequestsForInstructor } from "@/lib/requests/training-requests";
@@ -67,7 +67,7 @@ function matchReasons(
     (r.preferred_format === "online" && (myProfile.workStyle === "ONLINE" || myProfile.workStyle === "HYBRID")) ||
     (r.preferred_format === "offline" && (myProfile.workStyle === "ONSITE" || myProfile.workStyle === "HYBRID"));
   if (formatOk) reasons.push("形態");
-  if (isHourly(r) && r.budget != null && myProfile.desiredRateMin != null && r.budget >= myProfile.desiredRateMin) reasons.push("予算");
+  if (isHourly(r) && budgetUpper(r) != null && myProfile.desiredRateMin != null && (budgetUpper(r) as number) >= myProfile.desiredRateMin) reasons.push("予算");
   return reasons;
 }
 // おすすめ = 専門分野が合う案件だけ。形態・予算だけ合う案件は「参考」(#60).
@@ -342,7 +342,7 @@ export default function OpenRequestsPage() {
     if (fField && r.expertise_field !== fField) return false;
     if (area && !(r.location ?? "").toLowerCase().includes(area)) return false;
     if (fFormat && r.preferred_format !== fFormat && r.preferred_format !== "both") return false;
-    if (rate && !(isHourly(r) && r.budget != null && r.budget >= rate)) return false;
+    if (rate && !(isHourly(r) && budgetUpper(r) != null && (budgetUpper(r) as number) >= rate)) return false;
     if (fAudience && !(r.detail_option_ids ?? []).includes(fAudience)) return false;
     if (fTool && !(r.detail_option_ids ?? []).includes(fTool)) return false;
     return true;
