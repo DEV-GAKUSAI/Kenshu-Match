@@ -7,6 +7,8 @@ import { useToast } from "@/components/common/Toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { getInstructorNames } from "@/lib/instructor/profile";
+import { evaluationSummaryText, type EvalSummary } from "@/lib/requests/evaluation-calc";
+import { getMyEvaluationSummary } from "@/lib/requests/evaluations";
 import { addExternalEntry, deleteBookEntry, getBookEntries, KIND_TEXT, updateBookEntry, type BookEntry, type BookKind } from "@/lib/requester/book";
 import "../mypage/mypage.css";
 import { Select } from "@/components/ui/Select";
@@ -18,6 +20,7 @@ export default function MyInstructorsPage() {
   useRoleTheme("business");
   const [entries, setEntries] = useState<BookEntry[] | null>(null);
   const [names, setNames] = useState<Record<string, string>>({});
+  const [evals, setEvals] = useState<Record<string, EvalSummary>>({});
   const [filter, setFilter] = useState<"all" | BookKind>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -32,9 +35,11 @@ export default function MyInstructorsPage() {
     const ids = rows.map((r) => r.instructor_id).filter((x): x is string => !!x);
     const map = await getInstructorNames(ids);
     setNames(Object.fromEntries(Object.entries(map).map(([id, v]) => [id, v.name ?? "（名前未設定）"])));
+    setEvals(await getMyEvaluationSummary());
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load() sets state only after awaiting
     if (authReady && user && (user.role === "COMPANY" || user.role === "INDIVIDUAL")) void load();
   }, [authReady, user, load]);
 
@@ -174,6 +179,7 @@ export default function MyInstructorsPage() {
                 <span className="req-row__line2">
                   {e.instructor_id ? "Kenshu Link登録の講師" : "Kenshu Link外の講師"}
                   {e.rating ? ` ・ ${"★".repeat(e.rating)}` : ""}
+                  {e.instructor_id && evals[e.instructor_id] ? ` ・ ★${evals[e.instructor_id].avg.toFixed(1)}（依頼ごと${evals[e.instructor_id].count}件）` : ""}
                   {e.note ? ` ・ ${e.note.replace(/\s+/g, " ").slice(0, 40)}` : ""}
                 </span>
               </span>
@@ -190,6 +196,7 @@ export default function MyInstructorsPage() {
                   </p>
                 )}
                 {e.external_contact && <p style={{ margin: "10px 0 0", fontSize: 13 }}>連絡先：{e.external_contact}</p>}
+                {e.instructor_id && evaluationSummaryText(evals[e.instructor_id]) && <p style={{ margin: "10px 0 0", fontSize: 13, fontWeight: 700, color: "#0e7a5f" }}>{evaluationSummaryText(evals[e.instructor_id])}</p>}
                 <div className="form-row" style={{ marginTop: 12 }}>
                   <div className="form-field">
                     <label>区分</label>

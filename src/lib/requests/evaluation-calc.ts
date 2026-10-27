@@ -54,3 +54,26 @@ export function averageScore(v: Pick<EvalInput, EvalKey>): number {
   const sum = EVAL_ITEMS.reduce((s, i) => s + v[i.key], 0);
   return Math.round((sum / EVAL_ITEMS.length) * 10) / 10;
 }
+
+export type EvalSummary = { count: number; avg: number; reuseYes: number; reuseNo: number };
+
+/** Per lecturer: how many evaluations, the average of their averages (one decimal), and how many said ぜひ / しない. */
+export function summarizeEvaluations(rows: (Pick<EvalInput, EvalKey> & { instructor_id: string; reuse: string })[]): Record<string, EvalSummary> {
+  const sums: Record<string, { count: number; total: number; yes: number; no: number }> = {};
+  for (const r of rows) {
+    const s = (sums[r.instructor_id] ??= { count: 0, total: 0, yes: 0, no: 0 });
+    s.count += 1;
+    s.total += averageScore(r);
+    if (r.reuse === "yes") s.yes += 1;
+    if (r.reuse === "no") s.no += 1;
+  }
+  const out: Record<string, EvalSummary> = {};
+  for (const [id, s] of Object.entries(sums)) out[id] = { count: s.count, avg: Math.round((s.total / s.count) * 10) / 10, reuseYes: s.yes, reuseNo: s.no };
+  return out;
+}
+
+/** One line for the company's instructor book, e.g. 「依頼ごとの評価 ★3.8（2件）・ぜひ再依頼 1件」. */
+export function evaluationSummaryText(s: EvalSummary | undefined): string | null {
+  if (!s) return null;
+  return `依頼ごとの評価 ★${s.avg.toFixed(1)}（${s.count}件）${s.reuseYes > 0 ? `・ぜひ再依頼 ${s.reuseYes}件` : ""}${s.reuseNo > 0 ? `・再依頼しない ${s.reuseNo}件` : ""}`;
+}

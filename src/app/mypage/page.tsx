@@ -33,6 +33,7 @@ import { DecidedTabs } from "@/components/requests/DecidedTabs";
 import { ProgressStrip } from "@/components/requests/ProgressStrip";
 import { docWaits, hasUnseenWait, isWaitSeen, markWaitsSeen, type DocState, type Wait } from "@/lib/requests/docs-wait";
 import { getDocStates } from "@/lib/requests/docs-status";
+import { getEvaluatedResponseIds } from "@/lib/requests/evaluations";
 import { EmptyNote } from "@/components/ui/EmptyNote";
 import { FlowPanel } from "@/components/requests/FlowPanel";
 import { InternalNote } from "@/components/requests/InternalNote";
@@ -916,6 +917,7 @@ function RequesterRequestCard({
   proposals = 0,
   onSeen,
   docs,
+  evaluated,
   onChanged,
 }: {
   r: ReqWithJoins;
@@ -931,6 +933,8 @@ function RequesterRequestCard({
   onSeen?: (count: number) => void;
   /** Order / invoice status of the decided replies (for the red dot). */
   docs?: Record<string, DocState>;
+  /** Replies of this company that already have an evaluation (reminder dot until rated). */
+  evaluated?: Set<string>;
   onChanged: () => void | Promise<void>;
 }) {
   const { showToast } = useToast();
@@ -1004,7 +1008,10 @@ function RequesterRequestCard({
   // Each has its own key, so a new event shows the dot again after the row was opened before.
   const [waitTick, setWaitTick] = useState(0);
   const openRequest = st.key === "pending" || st.key === "quoted";
+  // A completed request whose lecturer has not been rated yet (#55): the dot reminds once; rating is in the 評価 tab.
+  const evalTargets = r.status === "completed" ? (isBroadcast ? selectedResps : resp ? [resp] : []) : [];
   const waits: Wait[] = [
+    ...evalTargets.filter((x) => evaluated && !evaluated.has(x.response_id)).map((x) => ({ key: `evaluate:${x.response_id}`, label: "講師を評価する" })),
     ...(r.instructor_responses || []).filter((x) => x.is_selected).flatMap((x) => docWaits("requester", docs?.[x.response_id])),
     ...(openRequest
       ? applicants
@@ -1592,6 +1599,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
   const [monthFilter, setMonthFilter] = useState("");
   const [unseenCount, setUnseenCount] = useState(0);
   const [docStates, setDocStates] = useState<Record<string, DocState>>({});
+  const [evaluatedIds, setEvaluatedIds] = useState<Set<string> | undefined>(undefined);
   const [owners, setOwners] = useState<Record<string, string>>({});
   const [proposalCounts, setProposalCounts] = useState<Record<string, number>>({});
   const [view, setView] = useState<"mine" | "partner">("mine");
@@ -1611,6 +1619,13 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
       setDocStates(await getDocStates(rows.flatMap((r) => (r.instructor_responses || []).filter((x) => x.is_selected).map((x) => x.response_id))));
     } catch {
       setDocStates({});
+    }
+    // Which finished requests were already rated (the reminder dot).
+    try {
+      const finished = rows.filter((r) => r.status === "completed").flatMap((r) => (!r.target_instructor_id ? (r.instructor_responses || []).filter((x) => x.is_selected) : (r.instructor_responses || []).slice(0, 1)).map((x) => x.response_id));
+      setEvaluatedIds(await getEvaluatedResponseIds(finished));
+    } catch {
+      setEvaluatedIds(undefined);
     }
     // 担当者 (company only): saved in the 社内メモ. Searched and shown in each row.
     if (user.role === "COMPANY") {
@@ -1876,6 +1891,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
           onSeen={(n) => setUnseenCount((c) => Math.max(0, c - n))}
           proposals={proposalCounts[r.request_id] ?? 0}
           docs={docStates}
+          evaluated={evaluatedIds}
           onChanged={load}
         />
       ))}
