@@ -91,7 +91,7 @@ export function Header() {
             </>
           ) : (
             <>
-              <Link className="header-user" href={user.role === "ADMIN" ? "/admin" : "/mypage"}>
+              <Link className="header-user" href={user.role === "ADMIN" ? "/admin" : "/mypage"} aria-label={`${user.name}（マイページ）`}>
                 <span className="hanko hanko--role" aria-hidden="true" style={{ width: 26, height: 26, fontSize: 12 }}>
                   {(ROLE_LABELS[user.role] || "").slice(0, 1)}
                 </span>

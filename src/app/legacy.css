@@ -2044,3 +2044,52 @@ input[type="checkbox"]:not(.toggle-switch *):disabled { cursor: not-allowed; opa
 }
 .ksel__panel > .ksel__group:first-child { border-top: 0; margin-top: 0; }
 .ksel__opt.is-grouped { padding-left: 20px; }
+
+
+/* ==========================================================================
+   ヘッダー：スマホ幅（〜560px）— 1行に収める
+   ========================================================================== */
+
+@media (max-width: 560px) {
+  :root { --header-h: 64px; }
+  .site-header__inner { padding: 0 12px; gap: 8px; }
+  .brand { gap: 8px; flex-shrink: 0; }
+  .brand__logo { width: 34px; height: 34px; }
+  .brand__name { font-size: 15px; white-space: nowrap; }
+  .site-header .brand__sub { display: none; }
+  .header-actions { gap: 6px; flex-shrink: 0; }
+  .header-actions .btn { padding: 8px 12px; font-size: 12px; }
+  /* the user chip keeps only the round role mark (it still opens マイページ) */
+  .header-user { padding: 4px; gap: 0; }
+  .header-user__name { display: none; }
+  .nav-toggle { width: 38px; height: 38px; flex-shrink: 0; }
+}
+
+@media (max-width: 380px) {
+  .site-header__inner { padding: 0 10px; }
+  .brand__logo { width: 30px; height: 30px; }
+  .brand__name { font-size: 14px; }
+  .header-actions .btn { padding: 7px 10px; }
+}
+
+/* ---- phone: buttons, tables, tap targets, small text ---- */
+@media (max-width: 560px) {
+  /* button rows stay inside the card */
+  .form-actions { flex-wrap: wrap; }
+  .form-actions .btn { flex: 1 1 auto; justify-content: center; }
+
+  /* order / invoice item table: flexible columns instead of fixed widths */
+  .doc-table th, .doc-table td { padding: 6px 4px !important; font-size: 12px !important; }
+  .doc-table th { width: auto !important; white-space: nowrap; }
+  .doc-table td:nth-child(n+3) { white-space: nowrap; }
+  .doc-table td:nth-child(2) { min-width: 64px; }
+
+  /* easier to tap */
+  .site-footer__links { gap: 4px 18px; }
+  .site-footer__links a { display: inline-block; padding: 8px 0; }
+  .breadcrumb a, .auth-switch a, .auth-card a { display: inline-block; padding: 6px 0; }
+
+  /* small text a little bigger */
+  .section__eyebrow, .auth-card__eyebrow, .status-tab__count,
+  .instructor-card__tag, .site-footer__copy, .field-optional { font-size: 12px; }
+}

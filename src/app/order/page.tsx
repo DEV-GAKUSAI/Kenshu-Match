@@ -132,7 +132,7 @@ function OrderInner() {
         </dl>
         {calc.lines.length > 0 ? (
           <>
-            <table style={{ width: "100%", borderCollapse: "collapse", margin: "14px 0 0" }}>
+            <table className="doc-table" style={{ width: "100%", borderCollapse: "collapse", margin: "14px 0 0" }}>
               <thead>
                 <tr style={{ background: "#f2f5f4" }}>
                   <th style={{ ...cell, width: 36 }}>No.</th>

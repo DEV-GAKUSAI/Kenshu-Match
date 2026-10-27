@@ -332,7 +332,7 @@ function InstructorsPageInner() {
         </div>
       </div>
 
-      <div className="filter-bar" style={{ gridTemplateColumns: "repeat(3, 1fr) 1.7fr auto" }}>
+      <div className="filter-bar filter-bar--main">
         <div className="filter-field">
           <label>分野（複数選択可）</label>
           <MultiSelect
@@ -387,7 +387,7 @@ function InstructorsPageInner() {
         </button>
       </div>
 
-      <div className="filter-bar" style={{ gridTemplateColumns: "1.4fr 1fr 1fr", marginTop: 12 }}>
+      <div className="filter-bar filter-bar--avail">
         <div className="filter-field">
           <label>稼働できる期間（この期間すべて）</label>
           <span style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "center" }}>
