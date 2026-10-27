@@ -1801,12 +1801,12 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
         </div>
       )}
       <div hidden={view !== "mine"}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h2 className="section__title" style={{ fontSize: 18, margin: 0 }}>
+      <div className="list-head">
+        <h2 className="section__title list-head__title" style={{ fontSize: 18, margin: 0 }}>
           依頼一覧
           {unseenCount > 0 && <span className="status-badge status-badge--rejected" style={{ marginLeft: 6 }}>{unseenCount}</span>}
         </h2>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div className="list-head__actions">
           {user.role === "COMPANY" && (
             <>
               <Link href="/my-instructors" className="btn btn--ghost btn--sm">

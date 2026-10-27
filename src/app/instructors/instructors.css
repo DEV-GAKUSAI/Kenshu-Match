@@ -86,3 +86,21 @@
     grid-column: 1 / -1;
   }
 }
+
+/* phone: let filter fields shrink so the page does not scroll sideways */
+.filter-bar > * { min-width: 0; }
+.filter-bar select, .filter-bar input { max-width: 100%; }
+.multi-select__panel { max-width: calc(100vw - 32px); }
+
+/* filter rows: column layout lives here (not inline) so phones can stack them */
+.filter-bar.filter-bar--main { grid-template-columns: repeat(3, 1fr) 1.7fr auto; }
+.filter-bar.filter-bar--avail { grid-template-columns: 1.4fr 1fr 1fr; margin-top: 12px; }
+@media (max-width: 900px) {
+  .filter-bar.filter-bar--main, .filter-bar.filter-bar--avail { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .filter-bar.filter-bar--main, .filter-bar.filter-bar--avail { grid-template-columns: 1fr; }
+  .filter-bar .filter-reset { width: 100%; }
+}
+.filter-field > span > * { min-width: 0; }
+.filter-field input[type="date"] { width: 100%; min-width: 0; }
