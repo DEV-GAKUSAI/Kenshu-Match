@@ -3,6 +3,7 @@
 import { ALL_DAYS_TEXT, MATERIALS_TEXT, PREP_TEXT } from "@/components/requests/ApplyFields";
 import { useEffect, useState } from "react";
 import { formatMoney } from "@/lib/requests/money";
+import { applyDiff } from "@/lib/requests/apply-diff";
 import { getResponseChanges, type ResponseChange } from "@/lib/requests/instructor-responses";
 import type { InstructorResponseRow } from "@/types/database";
 
@@ -52,11 +53,25 @@ export function QuoteHistoryBox({ changes, response }: { changes: ResponseChange
               <span style={{ color: "var(--color-ink-soft)" }}>{c.old_price ? formatMoney(c.old_price, response.quote_unit, null) : "承諾のみ"} で応募していました</span>
             ) : (
               <>
-                {c.kind === "revised" && (
+                {c.kind === "revised" && c.old_price !== c.new_price && (
                   <span style={{ color: "var(--color-ink-soft)", textDecoration: "line-through" }}>{c.old_price ? formatMoney(c.old_price, response.quote_unit, null) : "承諾のみ"}</span>
                 )}
-                {c.kind === "revised" && <span style={{ margin: "0 6px", color: "var(--color-ink-soft)" }}>→</span>}
+                {c.kind === "revised" && c.old_price !== c.new_price && <span style={{ margin: "0 6px", color: "var(--color-ink-soft)" }}>→</span>}
                 <strong style={{ fontSize: 15, color: "#0F7A5F" }}>{c.new_price ? formatMoney(c.new_price, response.quote_unit, response.quote_tax_mode) : "承諾のみ"}</strong>
+                {c.kind === "revised" && c.old_price === c.new_price && <span style={{ marginLeft: 6, fontSize: 12, color: "var(--color-ink-soft)" }}>（金額は変更なし）</span>}
+                {c.kind === "revised" && (c.old_message ?? "") !== (c.new_message ?? "") && (
+                  <div style={{ fontSize: 12.5, color: "var(--color-ink-soft)", marginTop: 2 }}>メッセージを更新しました</div>
+                )}
+                {c.kind === "revised" &&
+                  c.new_apply &&
+                  applyDiff(c.old_apply, c.new_apply).map((d) => (
+                    <div key={d.label} style={{ fontSize: 12.5, marginTop: 2 }}>
+                      <span style={{ color: "var(--color-ink-soft)" }}>{d.label}：</span>
+                      <span style={{ color: "var(--color-ink-soft)", textDecoration: "line-through" }}>{d.before}</span>
+                      <span style={{ margin: "0 4px", color: "var(--color-ink-soft)" }}>→</span>
+                      <strong>{d.after}</strong>
+                    </div>
+                  ))}
               </>
             )}
           </span>

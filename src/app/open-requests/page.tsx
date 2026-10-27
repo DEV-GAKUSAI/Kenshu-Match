@@ -6,7 +6,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { budgetText, budgetUpper, isHourly, quoteText } from "@/lib/requests/money";
-import { requestFormatLabel } from "@/lib/requests/schedule";
+import { normalizeDays, requestFormatLabel } from "@/lib/requests/schedule";
+import { matchesAmount, matchesMineState, matchesOpenState, matchesPeriod, matchesRole, MINE_STATE_TEXT, roleNamesOf, UNIT_FILTER_TEXT, type MineState, type OpenState } from "@/lib/requests/open-filters";
+import type { BudgetUnit } from "@/lib/requests/money";
 import { matchesSearch } from "@/lib/requests/search";
 import { getOpenRequestsPublicPreview, getOpenRequestsForInstructor } from "@/lib/requests/training-requests";
 import { markResultsSeenByInstructor, submitInstructorResponse } from "@/lib/requests/instructor-responses";
@@ -179,6 +181,13 @@ export default function OpenRequestsPage() {
   const [fArea, setFArea] = useState("");
   const [fFormat, setFFormat] = useState("");
   const [fRate, setFRate] = useState("");
+  const [fUnit, setFUnit] = useState<"" | BudgetUnit>("");
+  const [fRole, setFRole] = useState("");
+  const [fFrom, setFFrom] = useState("");
+  const [fTo, setFTo] = useState("");
+  // 募集状況: 応募可能・あなたに合う案件 start with 募集中 only; 応募済み shows everything.
+  const [fOpenState, setFOpenState] = useState<OpenState>("open");
+  const [fMineState, setFMineState] = useState<MineState>("");
   const [fAudience, setFAudience] = useState("");
   const [fTool, setFTool] = useState("");
   const [detailOptions, setDetailOptions] = useState<DetailOption[]>([]);
@@ -317,7 +326,7 @@ export default function OpenRequestsPage() {
   function listForTab(tab: Tab) {
     if (tab === "recommended") {
       return allRequests
-        .filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id) && !deadlinePassed(r.apply_deadline) && matchReasons(r, myProfile).length > 0)
+        .filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id) && matchesOpenState(deadlinePassed(r.apply_deadline), fOpenState) && matchReasons(r, myProfile).length > 0)
         .sort((a, b) => {
           const ra = matchReasons(a, myProfile);
           const rb = matchReasons(b, myProfile);
@@ -327,14 +336,13 @@ export default function OpenRequestsPage() {
         });
     }
     if (tab === "open") {
-      return allRequests.filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id) && !deadlinePassed(r.apply_deadline));
+      return allRequests.filter((r) => r.status === "pending" && !r.myResponse && !hiddenIds.includes(r.request_id) && matchesOpenState(deadlinePassed(r.apply_deadline), fOpenState));
     }
-    return allRequests.filter((r) => r.myResponse);
+    return allRequests.filter((r) => r.myResponse && matchesMineState(displayStatus(r).key, fMineState));
   }
 
   function passesFilters(r: RequestWithJoins) {
     const area = fArea.trim().toLowerCase();
-    const rate = Number(fRate) || 0;
     if (q.trim()) {
       const hay = `${r.title} ${r.description} ${r.preferred_schedule ?? ""} ${r.location ?? ""} ${r.request_id} ${budgetText(r) ?? ""} ${requestFormatLabel(r)} ${displayStatus(r).label}`;
       if (!matchesSearch(q, hay)) return false;
@@ -342,7 +350,9 @@ export default function OpenRequestsPage() {
     if (fField && r.expertise_field !== fField) return false;
     if (area && !(r.location ?? "").toLowerCase().includes(area)) return false;
     if (fFormat && r.preferred_format !== fFormat && r.preferred_format !== "both") return false;
-    if (rate && !(isHourly(r) && budgetUpper(r) != null && (budgetUpper(r) as number) >= rate)) return false;
+    if (!matchesAmount(r, fUnit, Number(fRate) || 0)) return false;
+    if (!matchesRole(r.role_slots, fRole)) return false;
+    if (!matchesPeriod(normalizeDays(r.schedule_days), fFrom, fTo)) return false;
     if (fAudience && !(r.detail_option_ids ?? []).includes(fAudience)) return false;
     if (fTool && !(r.detail_option_ids ?? []).includes(fTool)) return false;
     return true;
@@ -351,7 +361,7 @@ export default function OpenRequestsPage() {
   const filtered = useMemo(
     () => listForTab(currentTab).filter(passesFilters),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allRequests, currentTab, hiddenIds, myProfile, q, fField, fArea, fFormat, fRate, fAudience, fTool],
+    [allRequests, currentTab, hiddenIds, myProfile, q, fField, fArea, fFormat, fRate, fUnit, fRole, fFrom, fTo, fOpenState, fMineState, fAudience, fTool],
   );
 
   // When the current tab shows nothing: how many matches the other tabs have (applied requests only show under 応募済み).
@@ -362,9 +372,11 @@ export default function OpenRequestsPage() {
       .map((t) => ({ tab: t, name: names[t], n: listForTab(t).filter(passesFilters).length }))
       .filter((x) => x.n > 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allRequests, currentTab, hiddenIds, myProfile, q, fField, fArea, fFormat, fRate, fAudience, fTool]);
+  }, [allRequests, currentTab, hiddenIds, myProfile, q, fField, fArea, fFormat, fRate, fUnit, fRole, fFrom, fTo, fOpenState, fMineState, fAudience, fTool]);
 
-  const filterActive = !!(q.trim() || fField || fArea.trim() || fFormat || fRate || fAudience || fTool);
+  const stateActive = currentTab === "mine" ? !!fMineState : fOpenState !== "open";
+  const filterActive = !!(q.trim() || fField || fArea.trim() || fFormat || fRate || fUnit || fRole || fFrom || fTo || stateActive || fAudience || fTool);
+  const roleChoices = useMemo(() => roleNamesOf(allRequests), [allRequests]);
 
   if (!authReady || (user && user.role === "INSTRUCTOR" && loading)) {
     return (
@@ -470,8 +482,63 @@ export default function OpenRequestsPage() {
               <input type="text" placeholder="例：東京" value={fArea} onChange={(e) => setFArea(e.target.value)} />
             </div>
             <div className="form-field">
-              <label>時間あたり単価（円以上）</label>
+              <label>募集状況</label>
+              {currentTab === "mine" ? (
+                <Select value={fMineState} onChange={(e) => setFMineState(e.target.value as MineState)}>
+                  <option value="">すべて</option>
+                  {(Object.keys(MINE_STATE_TEXT) as Exclude<MineState, "">[]).map((k) => (
+                    <option key={k} value={k}>
+                      {MINE_STATE_TEXT[k]}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <Select value={fOpenState} onChange={(e) => setFOpenState(e.target.value as OpenState)}>
+                  <option value="open">募集中</option>
+                  <option value="closed">受付終了（応募締切を過ぎた案件）</option>
+                  <option value="">すべて</option>
+                </Select>
+              )}
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-field">
+              <label>単価の種類</label>
+              <Select value={fUnit} onChange={(e) => setFUnit(e.target.value as "" | BudgetUnit)}>
+                <option value="">すべて</option>
+                {(Object.keys(UNIT_FILTER_TEXT) as BudgetUnit[]).map((u) => (
+                  <option key={u} value={u}>
+                    {UNIT_FILTER_TEXT[u]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="form-field">
+              <label>金額（円以上）</label>
               <input type="number" min={0} step={1000} placeholder="例：10000" value={fRate} onChange={(e) => setFRate(e.target.value)} />
+              {fRate && !fUnit && <span style={{ fontSize: 12, color: "var(--color-ink-soft)" }}>単価の種類を選ばない場合は「時間」の案件だけを比べます。範囲指定の案件は上限の金額で比べ、応相談の案件は表示されません。</span>}
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-field">
+              <label>職種</label>
+              <Select value={fRole} onChange={(e) => setFRole(e.target.value)}>
+                <option value="">すべて</option>
+                {roleChoices.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="form-field">
+              <label>開催期間</label>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input type="date" aria-label="開催期間の開始日" value={fFrom} onChange={(e) => setFFrom(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+                <span>〜</span>
+                <input type="date" aria-label="開催期間の終了日" value={fTo} onChange={(e) => setFTo(e.target.value)} style={{ flex: 1, minWidth: 0 }} />
+              </div>
+              {(fFrom || fTo) && <span style={{ fontSize: 12, color: "var(--color-ink-soft)" }}>日程が未定の案件は表示されません。</span>}
             </div>
           </div>
           {detailOptions.length > 0 && (
@@ -515,6 +582,12 @@ export default function OpenRequestsPage() {
               setFArea("");
               setFFormat("");
               setFRate("");
+              setFUnit("");
+              setFRole("");
+              setFFrom("");
+              setFTo("");
+              setFOpenState("open");
+              setFMineState("");
             }}
           >
             条件をクリア
