@@ -1,4 +1,5 @@
 // 日ごとの日程・場所・実施形態 (#43, #58). One list entry per day.
+import { isPrefecture, prefectureShort } from "./prefectures.ts";
 
 export type DayFormat = "online" | "offline" | "undecided";
 
@@ -9,6 +10,10 @@ export type ScheduleDay = {
   format: DayFormat;
   place: string;
   content: string;
+  /** 都道府県 (#58): one of the 47, "" = 未設定. Used for the area search. */
+  prefecture?: string;
+  /** 会場調整中 (#58): the venue (not the date) is not fixed yet. Missing = 確定. */
+  venueTentative?: boolean;
   /** 休憩 (#43): optional, HH:MM. Both or none. */
   breakStart?: string;
   breakEnd?: string;
@@ -16,7 +21,7 @@ export type ScheduleDay = {
   tentative?: boolean;
 };
 
-export const EMPTY_DAY: ScheduleDay = { date: "", start: "", end: "", format: "undecided", place: "", content: "", breakStart: "", breakEnd: "", tentative: false };
+export const EMPTY_DAY: ScheduleDay = { date: "", start: "", end: "", format: "undecided", place: "", content: "", prefecture: "", venueTentative: false, breakStart: "", breakEnd: "", tentative: false };
 
 export const MAX_DAYS = 31;
 
@@ -33,6 +38,8 @@ export function normalizeDays(value: unknown): ScheduleDay[] {
       format,
       place: str(d.place, 120),
       content: str(d.content, 300),
+      prefecture: isPrefecture(d.prefecture) ? d.prefecture : "",
+      venueTentative: d.venueTentative === true,
       breakStart: str(d.breakStart, 5),
       breakEnd: str(d.breakEnd, 5),
       tentative: d.tentative === true,
@@ -43,7 +50,7 @@ export function normalizeDays(value: unknown): ScheduleDay[] {
 /** Drop rows the company left completely empty. */
 export function cleanDays(days: ScheduleDay[]): ScheduleDay[] {
   return normalizeDays(days).filter(
-    (d) => d.date || d.start || d.end || d.place.trim() || d.content.trim() || d.format !== "undecided" || d.breakStart || d.breakEnd || d.tentative,
+    (d) => d.date || d.start || d.end || d.place.trim() || d.content.trim() || d.prefecture || d.venueTentative || d.format !== "undecided" || d.breakStart || d.breakEnd || d.tentative,
   );
 }
 
@@ -83,10 +90,19 @@ export function dayLine(d: ScheduleDay): string {
     date = Number.isNaN(t.getTime()) ? d.date : t.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric", weekday: "short", timeZone: "Asia/Tokyo" });
   }
   const time = d.start || d.end ? `${d.start || "?"}〜${d.end || "?"}` : "時間未定";
-  const where = d.format === "offline" && d.place.trim() ? `対面・${d.place.trim()}` : d.format === "online" && d.place.trim() ? `オンライン（${d.place.trim()}）` : FORMAT_TEXT[d.format];
+  const place = d.place.trim();
+  let where: string;
+  if (d.format === "offline") {
+    where = ["対面", d.prefecture, place].filter(Boolean).join("・");
+  } else if (d.format === "online") {
+    where = place ? `オンライン（${place}）` : FORMAT_TEXT.online;
+  } else {
+    where = [FORMAT_TEXT.undecided, d.prefecture, place].filter(Boolean).join("・");
+  }
+  const venueState = d.venueTentative && d.format !== "online" ? "会場調整中" : "";
   const rest = d.breakStart && d.breakEnd ? `休憩 ${d.breakStart}〜${d.breakEnd}` : "";
-  const state = d.tentative ? "調整中" : "";
-  return [`${date} ${time}`, rest, where, d.content.trim(), state].filter(Boolean).join(" ／ ");
+  const state = d.tentative ? "日程調整中" : "";
+  return [`${date} ${time}`, rest, where, venueState, d.content.trim(), state].filter(Boolean).join(" ／ ");
 }
 
 const FORMAT_TAG: Record<string, string> = { online: "オンライン", offline: "対面", both: "オンライン・対面" };
@@ -109,4 +125,24 @@ export function allDaysWarning(required: boolean, answers: (string | null | unde
   const unanswered = answers.filter((a) => !a).length;
   const parts = [partial > 0 ? `一部の日程のみ ${partial}名` : null, unanswered > 0 ? `全日程の可否が未回答 ${unanswered}名` : null].filter(Boolean);
   return parts.length > 0 ? `全日程必須：${parts.join("・")}` : null;
+}
+
+/** The prefectures named in the days (no repeats, in the order given). */
+export function dayPrefectures(days: unknown): string[] {
+  return [...new Set(normalizeDays(days).map((d) => d.prefecture ?? "").filter(Boolean))];
+}
+
+/**
+ * Area search (#58): does the request take place in this prefecture? A day's prefecture decides. Older requests
+ * (and days without a prefecture) are matched by the free-text location / place, e.g. 「東京本社」 for 東京都.
+ */
+export function matchesPrefecture(r: { schedule_days?: unknown; location?: string | null }, prefecture: string): boolean {
+  if (!prefecture) return true;
+  const days = normalizeDays(r.schedule_days);
+  if (days.some((d) => d.prefecture === prefecture)) return true;
+  const short = prefectureShort(prefecture);
+  const texts = [r.location ?? "", ...days.filter((d) => !d.prefecture).map((d) => d.place)];
+  // 「京都」 is inside 「東京都」: do not let a 京都府 search find Tokyo text.
+  const found = (t: string, name: string) => (name === "京都" ? /(?<!東)京都/.test(t) : t.includes(name));
+  return texts.some((t) => found(t, prefecture) || found(t, short));
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { cleanDays, EMPTY_DAY, MAX_DAYS, type DayFormat, type ScheduleDay } from "@/lib/requests/schedule";
 import { Select } from "@/components/ui/Select";
+import { JP_PREFECTURES } from "@/lib/requests/prefectures";
 import { DetailConditionsForm } from "@/components/requests/DetailConditionsForm";
 
 export type DetailsFormValue = {
@@ -43,8 +44,10 @@ function daySummary(d: ScheduleDay): string {
   }
   if (d.start || d.end) parts.push(`${d.start || "--:--"}〜${d.end || "--:--"}`);
   parts.push(FORMAT_LABEL[d.format] || "形態未定");
+  if (d.format !== "online" && d.prefecture) parts.push(d.prefecture);
   if (d.place) parts.push(d.place);
-  if (d.tentative) parts.push("調整中");
+  if (d.venueTentative && d.format !== "online") parts.push("会場調整中");
+  if (d.tentative) parts.push("日程調整中");
   return parts.join(" ・ ");
 }
 
@@ -115,11 +118,27 @@ export function DetailsForm({ value, onChange, idPrefix = "req" }: { value: Deta
               <input type="time" aria-label="休憩の終了" value={d.breakEnd ?? ""} onChange={(e) => setDay(i, { breakEnd: e.target.value })} />
               <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13.5, marginLeft: "auto" }}>
                 <input type="checkbox" checked={!!d.tentative} onChange={(e) => setDay(i, { tentative: e.target.checked })} />
-                この日の日程は調整中
+                この日の日程（日時）は調整中
               </label>
             </div>
+            {d.format !== "online" && (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 8 }}>
+                <Select aria-label="都道府県" value={d.prefecture ?? ""} onChange={(e) => setDay(i, { prefecture: e.target.value })} style={{ flex: "0 1 180px" }}>
+                  <option value="">都道府県（未定）</option>
+                  {JP_PREFECTURES.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </Select>
+                <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13.5 }}>
+                  <input type="checkbox" checked={!!d.venueTentative} onChange={(e) => setDay(i, { venueTentative: e.target.checked })} />
+                  会場は調整中
+                </label>
+              </div>
+            )}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-              <input type="text" maxLength={120} placeholder="場所（例：東京本社）" value={d.place} onChange={(e) => setDay(i, { place: e.target.value })} style={{ flex: "1 1 180px", minWidth: 0 }} />
+              <input type="text" maxLength={120} placeholder={d.format === "online" ? "オンラインの場合のツール等（例：Zoom）" : "会場名（例：東京本社 3階会議室）"} value={d.place} onChange={(e) => setDay(i, { place: e.target.value })} style={{ flex: "1 1 180px", minWidth: 0 }} />
               <input type="text" maxLength={300} placeholder="この日の内容（任意）" value={d.content} onChange={(e) => setDay(i, { content: e.target.value })} style={{ flex: "2 1 240px", minWidth: 0 }} />
             </div>
             </div>

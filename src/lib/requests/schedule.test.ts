@@ -62,3 +62,55 @@ test("allDaysWarning: only for all-days-required requests; counts partial and un
   assert.equal(allDaysWarning(true, ["all", "partial"]), "全日程必須：一部の日程のみ 1名");
   assert.equal(allDaysWarning(true, ["none", "partial", null, undefined, "all"]), "全日程必須：一部の日程のみ 2名・全日程の可否が未回答 2名");
 });
+
+import { dayPrefectures, matchesPrefecture } from "./schedule.ts";
+import { isPrefecture, prefectureShort } from "./prefectures.ts";
+
+test("prefecture and venue state are kept, bad prefectures are dropped (#58)", () => {
+  const out = normalizeDays([{ format: "offline", prefecture: "東京都", venueTentative: true }, { format: "offline", prefecture: "月" }]);
+  assert.equal(out[0].prefecture, "東京都");
+  assert.equal(out[0].venueTentative, true);
+  assert.equal(out[1].prefecture, "");
+  assert.equal(out[1].venueTentative, false);
+});
+
+test("a day with only a prefecture or only 会場調整中 is not an empty row", () => {
+  assert.equal(cleanDays([{ ...EMPTY_DAY, prefecture: "大阪府" }]).length, 1);
+  assert.equal(cleanDays([{ ...EMPTY_DAY, venueTentative: true }]).length, 1);
+});
+
+test("dayLine shows prefecture, venue and 会場調整中 for on-site days", () => {
+  const line = dayLine({ ...EMPTY_DAY, date: "2026-11-02", format: "offline", prefecture: "東京都", place: "本社", venueTentative: true });
+  assert.ok(line.includes("対面・東京都・本社"));
+  assert.ok(line.includes("会場調整中"));
+  const online = dayLine({ ...EMPTY_DAY, format: "online", prefecture: "東京都", venueTentative: true });
+  assert.ok(!online.includes("会場調整中"));
+  assert.ok(!online.includes("東京都"));
+  const dateOnly = dayLine({ ...EMPTY_DAY, tentative: true, format: "online" });
+  assert.ok(dateOnly.endsWith("日程調整中"));
+});
+
+test("dayPrefectures lists each prefecture once", () => {
+  const days = [{ prefecture: "東京都" }, { prefecture: "東京都" }, { prefecture: "大阪府" }, {}];
+  assert.deepEqual(dayPrefectures(days), ["東京都", "大阪府"]);
+});
+
+test("area search: day prefecture first, old free text as a fallback", () => {
+  const withDays = { schedule_days: [{ format: "offline", prefecture: "大阪府" }], location: "東京本社" };
+  assert.equal(matchesPrefecture(withDays, "大阪府"), true);
+  assert.equal(matchesPrefecture(withDays, "東京都"), true); // location text still counts
+  assert.equal(matchesPrefecture(withDays, "愛知県"), false);
+  assert.equal(matchesPrefecture({ schedule_days: [], location: "札幌市内" }, "北海道"), false); // no 北海道 in the text
+  assert.equal(matchesPrefecture({ schedule_days: [{ format: "offline", place: "京都オフィス" }], location: "" }, "京都府"), true);
+  assert.equal(matchesPrefecture({ schedule_days: [], location: "" }, ""), true);
+  assert.equal(matchesPrefecture({ schedule_days: [], location: "東京都内" }, "京都府"), false); // 東京都 is not 京都府
+  assert.equal(matchesPrefecture({ schedule_days: [], location: "京都市" }, "京都府"), true);
+});
+
+test("prefecture helpers", () => {
+  assert.equal(isPrefecture("東京都"), true);
+  assert.equal(isPrefecture("東京"), false);
+  assert.equal(prefectureShort("神奈川県"), "神奈川");
+  assert.equal(prefectureShort("北海道"), "北海道");
+  assert.equal(prefectureShort("京都府"), "京都");
+});
