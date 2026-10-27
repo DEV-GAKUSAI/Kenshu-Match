@@ -96,6 +96,14 @@ export function CheckCircleIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+export function StarIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+      <path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.9 6.8 19.7l1-5.9L3.5 9.7l5.9-.8L12 3.5z" />
+    </svg>
+  );
+}
+
 export function YenIcon({ size = 16 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>

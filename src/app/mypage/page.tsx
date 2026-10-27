@@ -935,6 +935,7 @@ function RequesterRequestCard({
 }) {
   const { showToast } = useToast();
   const confirm = useConfirm();
+  const { user: authUser } = useAuth();
   const st = requesterDisplayStatus(r);
   const requestOpen = r.status !== "cancelled" && r.status !== "completed";
   // "Now" for the meeting buttons, read once (keeps the render pure).
@@ -1049,6 +1050,11 @@ function RequesterRequestCard({
         showContact={contactOn}
         requestOpen={hasRoles}
         contact={{ name: p.name, roleLabel: p.roleLabel, email: contactOr(info?.contact_email), phone: contactOr(info?.contact_phone) }}
+        evaluation={
+          r.status === "completed"
+            ? { requestId: r.request_id, requesterId: userId, instructorId: p.instructorId, instructorName: p.name, defaultEvaluator: authUser?.name ?? "" }
+            : undefined
+        }
       />
     );
   }
