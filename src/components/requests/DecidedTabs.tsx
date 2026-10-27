@@ -3,13 +3,14 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { ContactCard } from "@/components/requests/ContactCard";
+import { EvaluationPanel } from "@/components/requests/EvaluationPanel";
 import { InvoicePanel } from "@/components/requests/InvoicePanel";
 import { OrderPanel } from "@/components/requests/OrderPanel";
 import { getDocStates } from "@/lib/requests/docs-status";
 import { docFlowIndex, type DocState } from "@/lib/requests/docs-wait";
-import { CheckCircleIcon, DocIcon, DocIllustration, MailIcon, SendIcon, YenIcon } from "@/components/ui/Illustrations";
+import { CheckCircleIcon, DocIcon, DocIllustration, MailIcon, SendIcon, StarIcon, YenIcon } from "@/components/ui/Illustrations";
 
-type TabKey = "docs" | "contact";
+type TabKey = "docs" | "contact" | "eval";
 
 /**
  * What belongs to ONE decided lecturer, in two tabs: 注文書・請求書 and 連絡先.
@@ -23,6 +24,7 @@ export function DecidedTabs({
   requestOpen,
   role = "requester",
   contact,
+  evaluation,
 }: {
   responseId: string;
   showDocs: boolean;
@@ -33,10 +35,13 @@ export function DecidedTabs({
   /** Whose screen this is. */
   role?: "requester" | "instructor";
   contact: { name: string; roleLabel?: string | null; email: string; phone: string; hint?: string };
+  /** The company can rate the lecturer once the training is completed (#55). Leave out to hide the tab. */
+  evaluation?: { requestId: string; requesterId: string; instructorId: string; instructorName: string; defaultEvaluator: string };
 }) {
   const tabs: { key: TabKey; label: string; icon: ReactNode }[] = [];
   if (showDocs) tabs.push({ key: "docs", label: "注文書・請求書", icon: <DocIcon /> });
   if (showContact) tabs.push({ key: "contact", label: "連絡先", icon: <MailIcon /> });
+  if (evaluation) tabs.push({ key: "eval", label: "評価", icon: <StarIcon /> });
   const [tab, setTab] = useState<TabKey | null>(null);
   // Where the order / invoice are now (the flow strip lights the current step).
   const [doc, setDoc] = useState<DocState | null>(null);
@@ -94,6 +99,16 @@ export function DecidedTabs({
             <OrderPanel responseId={responseId} role={role} requestOpen={requestOpen} />
             {showInvoice && <InvoicePanel responseId={responseId} role={role} />}
           </>
+        )}
+        {active === "eval" && evaluation && (
+          <EvaluationPanel
+            requestId={evaluation.requestId}
+            responseId={responseId}
+            requesterId={evaluation.requesterId}
+            instructorId={evaluation.instructorId}
+            instructorName={evaluation.instructorName}
+            defaultEvaluator={evaluation.defaultEvaluator}
+          />
         )}
         {active === "contact" && <ContactCard name={contact.name} roleLabel={contact.roleLabel} email={contact.email} phone={contact.phone} hint={contact.hint} />}
       </div>
