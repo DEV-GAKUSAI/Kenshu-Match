@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { PROGRESS_STEPS, progressIndex } from "./progress.ts";
+import { DIRECT_PROGRESS_STEPS, PROGRESS_STEPS, directProgressIndex, progressIndex } from "./progress.ts";
 
 const base = { status: "pending", applied: false, interviewReleased: false, decided: false };
 
@@ -24,4 +24,13 @@ test("a decided role while the request is still recruiting is already 研修", (
 test("completed shows everything done; cancelled shows nothing", () => {
   assert.equal(progressIndex({ ...base, status: "completed" }), 5);
   assert.equal(progressIndex({ ...base, status: "cancelled", applied: true }), null);
+});
+
+test("direct request: 依頼 → 返答 → 決定 → 研修 → 完了", () => {
+  assert.deepEqual([...DIRECT_PROGRESS_STEPS], ["依頼", "返答", "決定", "研修", "完了"]);
+  assert.equal(directProgressIndex({ status: "pending", replied: false }), 1);
+  assert.equal(directProgressIndex({ status: "pending", replied: true }), 2);
+  assert.equal(directProgressIndex({ status: "accepted", replied: true }), 3);
+  assert.equal(directProgressIndex({ status: "completed", replied: true }), 5);
+  assert.equal(directProgressIndex({ status: "cancelled", replied: false }), null);
 });

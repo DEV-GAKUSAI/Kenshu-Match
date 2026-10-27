@@ -26,3 +26,22 @@ export function progressIndex(i: ProgressInput): number | null {
   if (i.applied) return 1;
   return 0;
 }
+
+/** A 直接依頼 (sent to one lecturer) has no applicants or interview, so the first two steps are named differently. */
+export const DIRECT_PROGRESS_STEPS = ["依頼", "返答", "決定", "研修", "完了"] as const;
+
+export type DirectProgressInput = {
+  /** training_requests.status */
+  status: string;
+  /** The lecturer has answered with a quote (not yet confirmed by the company). */
+  replied: boolean;
+};
+
+/** Same idea as progressIndex, for a direct request. The 依頼 step is done as soon as the request is sent. */
+export function directProgressIndex(i: DirectProgressInput): number | null {
+  if (i.status === "cancelled") return null;
+  if (i.status === "completed") return DIRECT_PROGRESS_STEPS.length;
+  if (i.status === "accepted") return 3;
+  if (i.replied) return 2;
+  return 1;
+}

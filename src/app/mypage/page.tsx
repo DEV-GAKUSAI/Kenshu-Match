@@ -299,7 +299,16 @@ function InstructorRequestCard({
   const requesterCompany = (requester as { company_name?: string | null } | undefined)?.company_name || null;
   const requesterContactName = requesterCompany || requester?.name || "依頼者";
   const requesterContactRole = requesterCompany ? (requester?.name && requester.name !== requesterCompany ? `担当者：${requester.name}` : null) : r.requester_type === "individual" ? "ご依頼者" : null;
-  const progressHint = !myResponse
+  const isDirectRequest = !!r.target_instructor_id;
+  const progressHint = isDirectRequest
+    ? r.status === "completed"
+      ? "研修は完了しました。"
+      : r.status === "accepted"
+      ? "承諾しました。注文書の確認と、研修の準備を進めてください。"
+      : !myResponse
+      ? "承諾するか、見積りを送って返答しましょう。"
+      : "見積りを送りました。企業の確定をお待ちください。"
+    : !myResponse
     ? "承諾するか、見積りを送って応募しましょう。"
     : myResponse.interview_status === "requested"
     ? "企業から面談の依頼が届いています。同意すると氏名が企業に公開されます。"
@@ -393,6 +402,9 @@ function InstructorRequestCard({
       </div>
       )}
 
+      {isDirectRequest && myResponse?.action !== "reject" && myResponse?.action !== "withdrawn" && (
+        <ProgressStrip direct={{ status: r.status, replied: !!myResponse && myResponse.action === "quote" }} hint={progressHint} />
+      )}
       {!r.target_instructor_id && myResponse?.action !== "reject" && myResponse?.action !== "withdrawn" && !((r.status === "accepted" || r.status === "completed") && !myResponse?.is_selected) && (
         <ProgressStrip
           input={{
@@ -1253,6 +1265,9 @@ function RequesterRequestCard({
         <Link href={`/request-detail?id=${r.request_id}`} style={{ textDecoration: "underline", textUnderlineOffset: 3 }}>依頼の詳細ページを開く</Link>
       </div>
 
+      {!isBroadcast && r.publish_state !== "draft" && st.key !== "rejected" && (
+        <ProgressStrip direct={{ status: r.status, replied: !!resp && resp.action === "quote" }} hint={next ? `次の対応：${next}` : null} />
+      )}
       {isBroadcast && r.publish_state !== "draft" && (
         <ProgressStrip
           input={{
