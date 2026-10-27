@@ -925,6 +925,27 @@ function RequesterRequestCard({
   const newApplicants = applicants.filter((x) => x.requester_seen_at === null).length;
   const answerNeeded = applicants.filter((x) => applicantPriority(x, meetings[x.response_id]) === 0).length;
 
+  const [busy, setBusy] = useState(false);
+  // The applicants of a 公募依頼 stay closed until the company opens them (there can be many).
+  const [listOpen, setListOpen] = useState(false);
+  // The whole request is one slim row; its details open on a click (same as the instructor side).
+  const [cardOpen, setCardOpen] = useState(false);
+  // A red dot until the company opens the row for the first time.
+  const [dotCleared, setDotCleared] = useState(false);
+  const attention = !dotCleared && (st.key === "pending" || st.key === "quoted") && (newApplicants > 0 || answerNeeded > 0);
+  function toggleRow() {
+    if (!cardOpen && !dotCleared) {
+      setDotCleared(true);
+      const ids = applicants.filter((x) => x.requester_seen_at === null).map((x) => x.response_id);
+      if (ids.length) {
+        void markResponsesSeenByRequester(ids);
+        onSeen?.(ids.length);
+      }
+    }
+    setCardOpen((v) => !v);
+  }
+  const nameOfDecided = (sr: InstructorResponseRow) => sr.released_name?.trim() || instructorMap[sr.instructor_id]?.name || "講師";
+  const decidedNames = selectedResps.map(nameOfDecided);
   // Who is decided, and what to show for each (注文書・請求書 / 連絡先).
   const inApplicantRows = isBroadcast && (st.key === "pending" || st.key === "quoted");
   const docsOn = hasRoles ? (st.key === "accepted" || st.key === "completed" || r.status === "pending") && selectedResps.length >= 1 : st.key === "accepted" || st.key === "completed";
@@ -947,27 +968,6 @@ function RequesterRequestCard({
       />
     );
   }
-  const [busy, setBusy] = useState(false);
-  // The applicants of a 公募依頼 stay closed until the company opens them (there can be many).
-  const [listOpen, setListOpen] = useState(false);
-  // The whole request is one slim row; its details open on a click (same as the instructor side).
-  const [cardOpen, setCardOpen] = useState(false);
-  // A red dot until the company opens the row for the first time.
-  const [dotCleared, setDotCleared] = useState(false);
-  const attention = !dotCleared && (st.key === "pending" || st.key === "quoted") && (newApplicants > 0 || answerNeeded > 0);
-  function toggleRow() {
-    if (!cardOpen && !dotCleared) {
-      setDotCleared(true);
-      const ids = applicants.filter((x) => x.requester_seen_at === null).map((x) => x.response_id);
-      if (ids.length) {
-        void markResponsesSeenByRequester(ids);
-        onSeen?.(ids.length);
-      }
-    }
-    setCardOpen((v) => !v);
-  }
-  const nameOfDecided = (sr: InstructorResponseRow) => sr.released_name?.trim() || instructorMap[sr.instructor_id]?.name || "講師";
-  const decidedNames = selectedResps.map(nameOfDecided);
   const rowWho = isBroadcast
     ? hasRoles && decidedNames.length > 0
       ? `決定：${decidedNames.join("・")} 先生`
