@@ -7,6 +7,7 @@ import { useToast } from "@/components/common/Toast";
 import { getFlow, getPartners, saveFlow, PARTNER_KIND_TEXT, type Partner, type RequestFlow } from "@/lib/requester/partners";
 import { Select } from "@/components/ui/Select";
 import { FlowIcon } from "@/components/requests/ToolIcons";
+import { PartnerProposalsBox } from "@/components/requests/PartnerProposalsBox";
 
 /** 商流: who we order from / pay, who sits in between, and who actually teaches (#53). Private to the company. */
 export function FlowPanel({
@@ -14,12 +15,15 @@ export function FlowPanel({
   requesterId,
   decidedName,
   severalInstructors = false,
+  onChanged,
 }: {
   requestId: string;
   requesterId: string;
   decidedName?: string | null;
   /** The request has role slots: no single 登壇講師; every document belongs to the instructor decided for it. */
   severalInstructors?: boolean;
+  /** Called after something changed here (a proposal was answered), so the list can refresh its badge. */
+  onChanged?: () => void;
 }) {
   const { showToast } = useToast();
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -29,6 +33,7 @@ export function FlowPanel({
   const [via, setVia] = useState<string[]>([]);
   const [speakerPartner, setSpeakerPartner] = useState("");
   const [speakerName, setSpeakerName] = useState("");
+  const [showAmount, setShowAmount] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function load() {
@@ -39,6 +44,7 @@ export function FlowPanel({
     setVia(f?.via_partner_ids ?? []);
     setSpeakerPartner(f?.speaker_partner_id ?? "");
     setSpeakerName(f?.speaker_name ?? "");
+    setShowAmount(f?.show_amount_to_partners === true);
   }
 
   useEffect(() => {
@@ -60,6 +66,7 @@ export function FlowPanel({
       via_partner_ids: via,
       speaker_partner_id: severalInstructors ? null : speakerPartner || null,
       speaker_name: severalInstructors || speakerPartner ? null : speakerName.trim() || null,
+      show_amount_to_partners: showAmount,
     });
     setBusy(false);
     if (error) return showToast("保存できませんでした。");
@@ -74,6 +81,15 @@ export function FlowPanel({
 
   return (
     <div style={{ display: "contents" }}>
+      <PartnerProposalsBox
+        requestId={requestId}
+        partners={partners}
+        severalInstructors={severalInstructors}
+        onDecided={() => {
+          void load();
+          onChanged?.();
+        }}
+      />
       {hasFlow && !open && (
         <div className="tool-block" style={{ color: "var(--color-ink-soft)", marginBottom: 6 }}>
           <strong style={{ color: "var(--color-ink)" }}>商流</strong>（講師には見えません）
@@ -137,6 +153,13 @@ export function FlowPanel({
             {!speakerPartner && <input type="text" maxLength={100} placeholder="登録にない講師の名前（任意）" value={speakerName} onChange={(e) => setSpeakerName(e.target.value)} style={{ marginTop: 6 }} />}
           </div>
           )}
+          <div className="form-field">
+            <label style={{ display: "flex", gap: 6, alignItems: "center", fontWeight: 400 }}>
+              <input type="checkbox" checked={showAmount} onChange={(e) => setShowAmount(e.target.checked)} />
+              金額を関係先に見せる
+            </label>
+            <span style={{ fontSize: 12, color: "var(--color-ink-soft)" }}>オフの場合、アカウント連携した関係先には金額が表示されません。社内メモは常に非公開です。</span>
+          </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={save}>
               保存する

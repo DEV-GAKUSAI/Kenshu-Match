@@ -58,6 +58,8 @@ import { DetailTabs } from "@/components/common/DetailTabs";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import type { MinePublicProfile } from "@/lib/mine/public-profile";
 import { VISIBILITY_TEXT } from "@/lib/requests/visibility";
+import { PartnerRequests } from "@/components/requests/PartnerRequests";
+import { getNewProposalCounts } from "@/lib/requester/partners";
 import "./mypage.css";
 import { Select } from "@/components/ui/Select";
 
@@ -844,6 +846,7 @@ function RequesterRequestCard({
   meetings,
   mineLinked,
   owner,
+  proposals = 0,
   onChanged,
 }: {
   r: ReqWithJoins;
@@ -853,6 +856,8 @@ function RequesterRequestCard({
   mineLinked: Set<string>;
   /** 担当者 saved in 社内メモ (company only), shown in the row. */
   owner?: string;
+  /** Lecturer proposals from partner companies that wait for an answer (#53). */
+  proposals?: number;
   onChanged: () => void | Promise<void>;
 }) {
   const { showToast } = useToast();
@@ -1122,6 +1127,7 @@ function RequesterRequestCard({
           <span className="req-row__line2">{rowParts.join("　・　")}</span>
         </span>
         {newApplicants > 0 && <span className="req-badge req-badge--attn">NEW {newApplicants}</span>}
+        {proposals > 0 && <span className="req-badge req-badge--attn">講師の提案 {proposals}</span>}
         {r.publish_state === "paused" && <span className="req-badge req-badge--paused">公開停止中</span>}
         <span className={`req-badge req-badge--${st.key}`}>{st.label}</span>
         <svg className="req-row__chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1342,7 +1348,7 @@ function RequesterRequestCard({
         <div className="request-card__tools">
           {r.requester_type !== "individual" && <InternalNote requestId={r.request_id} requesterId={userId} onSaved={() => void onChanged()} />}
           {r.requester_type !== "individual" && (
-            <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} severalInstructors={hasRoles} />
+            <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} severalInstructors={hasRoles} onChanged={onChanged} />
           )}
           {isBroadcast && r.publish_state !== "draft" && (
             <Link href={`/post-request?copy=${r.request_id}`} className="btn btn--ghost btn--sm tool-btn">
@@ -1457,6 +1463,9 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
   const [monthFilter, setMonthFilter] = useState("");
   const [unseenCount, setUnseenCount] = useState(0);
   const [owners, setOwners] = useState<Record<string, string>>({});
+  const [proposalCounts, setProposalCounts] = useState<Record<string, number>>({});
+  const [view, setView] = useState<"mine" | "partner">("mine");
+  const [partnerCount, setPartnerCount] = useState(0);
 
   const load = useCallback(async () => {
     flushMineNotices();
@@ -1474,6 +1483,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
       const map: Record<string, string> = {};
       for (const n of noteRows || []) if (n.owner_name?.trim()) map[n.request_id] = n.owner_name.trim();
       setOwners(map);
+      setProposalCounts(await getNewProposalCounts(rows.map((x) => x.request_id)));
     }
 
     const unseenResponseIds = rows.flatMap((r) => (r.instructor_responses || []).filter((x) => x.requester_seen_at === null).map((x) => x.response_id));
@@ -1597,6 +1607,23 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
       <div style={{ marginBottom: 28 }}>
         <RequesterProfileCard userId={user.id} fallbackName={user.name} />
       </div>
+      {user.role === "COMPANY" && (
+        <div className="status-tabs" role="tablist" aria-label="表示の切り替え" style={{ marginBottom: 18 }}>
+          <button type="button" role="tab" aria-selected={view === "mine"} className={`status-tab${view === "mine" ? " is-active" : ""}`} onClick={() => setView("mine")}>
+            自社の依頼
+          </button>
+          <button type="button" role="tab" aria-selected={view === "partner"} className={`status-tab${view === "partner" ? " is-active" : ""}`} onClick={() => setView("partner")}>
+            関係先の案件
+            {partnerCount > 0 && <span className="status-tab__count">({partnerCount})</span>}
+          </button>
+        </div>
+      )}
+      {user.role === "COMPANY" && (
+        <div hidden={view !== "partner"}>
+          <PartnerRequests onCount={setPartnerCount} />
+        </div>
+      )}
+      <div hidden={view !== "mine"}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h2 className="section__title" style={{ fontSize: 18, margin: 0 }}>
           依頼一覧
@@ -1687,9 +1714,11 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
           meetings={meetings}
           mineLinked={mineLinked}
           owner={owners[r.request_id]}
+          proposals={proposalCounts[r.request_id] ?? 0}
           onChanged={load}
         />
       ))}
+      </div>
     </>
   );
 }

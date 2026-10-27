@@ -11,6 +11,7 @@ import { getBookEntries } from "@/lib/requester/book";
 import { addPartner, deletePartner, getPartners, PARTNER_KIND_TEXT, updatePartner, type Partner, type PartnerKind } from "@/lib/requester/partners";
 import "../mypage/mypage.css";
 import { Select } from "@/components/ui/Select";
+import { PartnerInvitePanel } from "@/components/requests/PartnerInvitePanel";
 
 const EMPTY = { name: "", kind: "" as PartnerKind | "", contact: "", note: "", instructorId: "" };
 
@@ -82,7 +83,7 @@ export default function MyPartnersPage() {
     <main className="mypage">
       <div className="mypage__head">
         <h1 className="mypage__title">関係先の管理</h1>
-        <p className="mypage__role">協力会社や講師を登録します。依頼ごとの「商流」で、契約先・間に入る関係先・登壇講師として選べます。講師には見えません。</p>
+        <p className="mypage__role">協力会社や講師を登録します。依頼ごとの「商流」で、契約先・間に入る関係先・登壇講師として選べます。講師には見えません。協力会社には招待コードを渡すと、その会社が自分のアカウントで案件を確認し、講師を提案できます。</p>
       </div>
       <p style={{ margin: "0 0 14px" }}>
         <Link href="/mypage">← マイページに戻る</Link>
@@ -174,6 +175,7 @@ export default function MyPartnersPage() {
             <strong>{p.name}</strong>　<span className="instructor-card__tag">{PARTNER_KIND_TEXT[p.kind]}</span>{p.instructor_id ? <span className="instructor-card__tag">Kenshu Link講師と紐づけ済み</span> : null}
             {p.contact && <div style={{ fontSize: 13, marginTop: 4 }}>連絡先：{p.contact}</div>}
             {p.note && <div style={{ fontSize: 13, marginTop: 4, whiteSpace: "pre-wrap", color: "var(--color-ink-soft)" }}>{p.note}</div>}
+            {p.kind === "company" && <PartnerInvitePanel partner={p} onChanged={load} />}
             <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
               <button
                 type="button"
