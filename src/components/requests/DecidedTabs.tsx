@@ -17,14 +17,20 @@ export function DecidedTabs({
   responseId,
   showDocs,
   showContact,
+  showInvoice = true,
   requestOpen,
+  role = "requester",
   contact,
 }: {
   responseId: string;
   showDocs: boolean;
   showContact: boolean;
+  /** The invoice box (the lecturer can only submit after the training has been agreed). */
+  showInvoice?: boolean;
   requestOpen?: boolean;
-  contact: { name: string; roleLabel?: string | null; email: string; phone: string };
+  /** Whose screen this is. */
+  role?: "requester" | "instructor";
+  contact: { name: string; roleLabel?: string | null; email: string; phone: string; hint?: string };
 }) {
   const tabs: { key: TabKey; label: string; icon: ReactNode }[] = [];
   if (showDocs) tabs.push({ key: "docs", label: "注文書・請求書", icon: <DocIcon /> });
@@ -35,7 +41,7 @@ export function DecidedTabs({
 
   return (
     <div className="dt">
-      <div className="dt__tabs" role="tablist" aria-label="この講師の書類と連絡先">
+      <div className="dt__tabs" role="tablist" aria-label="書類と連絡先">
         {tabs.map((t) => (
           <button key={t.key} type="button" role="tab" aria-selected={active === t.key} className={`dt__tab${active === t.key ? " is-on" : ""}`} onClick={() => setTab(t.key)}>
             {t.icon}
@@ -63,11 +69,11 @@ export function DecidedTabs({
                 </li>
               </ol>
             </div>
-            <OrderPanel responseId={responseId} role="requester" requestOpen={requestOpen} />
-            <InvoicePanel responseId={responseId} role="requester" />
+            <OrderPanel responseId={responseId} role={role} requestOpen={requestOpen} />
+            {showInvoice && <InvoicePanel responseId={responseId} role={role} />}
           </>
         )}
-        {active === "contact" && <ContactCard name={contact.name} roleLabel={contact.roleLabel} email={contact.email} phone={contact.phone} />}
+        {active === "contact" && <ContactCard name={contact.name} roleLabel={contact.roleLabel} email={contact.email} phone={contact.phone} hint={contact.hint} />}
       </div>
     </div>
   );
