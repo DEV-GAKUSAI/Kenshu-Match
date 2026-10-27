@@ -85,6 +85,22 @@ export function sizeLabel(bytes: number): string {
   return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)}MB` : `${Math.max(1, Math.round(bytes / 1024))}KB`;
 }
 
+/**
+ * Positions (0-based) of the order's cost rows that are NOT on the invoice. Used to pre-select the checkboxes when an invoice
+ * is edited again: a row counts as "on the invoice" when the invoice has a row with the same name, quantity and price (#44).
+ */
+export function skippedRows(orderItems: unknown, invoiceItems: unknown): number[] {
+  const left = normalizeItems(invoiceItems).map((i) => `${i.name}\u0000${i.qty}\u0000${i.unit_price}`);
+  const skipped: number[] = [];
+  normalizeItems(orderItems).forEach((o, idx) => {
+    const key = `${o.name}\u0000${o.qty}\u0000${o.unit_price}`;
+    const at = left.indexOf(key);
+    if (at >= 0) left.splice(at, 1);
+    else skipped.push(idx);
+  });
+  return skipped;
+}
+
 /** The lines and totals: 講師料 (数量×単価) and the 追加費用 as one more line; same tax rules as the order. */
 export function calcInvoice(inv: InvoiceLike): OrderTotals {
   const extra = inv.extra_amount && inv.extra_amount > 0 ? Math.trunc(inv.extra_amount) : 0;

@@ -425,7 +425,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
                     <option value="excluded">税別</option>
                   </Select>
                 </div>
-                <BudgetHint request={r} price={quotePrice} />
+                <BudgetHint request={r} price={quotePrice} quoteTax={quoteTax} />
               </div>
               <ApplyFields value={apply} onChange={setApply} roleOptions={normalizeSlots(r.role_slots).map((x) => x.name)} />
               <div className="form-field">

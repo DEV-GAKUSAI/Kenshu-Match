@@ -43,8 +43,8 @@ test("amount limit (#50)", () => {
 test("budgetText: fixed stays as before, range and 応相談 are new", () => {
   assert.equal(budgetText({ budget: 15000, budget_unit: "hour", tax_mode: "excluded" }), "予算 ¥15,000／時間（税別）");
   assert.equal(budgetText({ budget: 15000, budget_unit: "hour", tax_mode: "excluded", budget_mode: "fixed" }), "予算 ¥15,000／時間（税別）");
-  assert.equal(budgetText({ budget: 10000, budget_max: 15000, budget_mode: "range", budget_unit: "hour", tax_mode: "excluded" }), "予算 ¥10,000〜¥15,000／時間（税別）");
-  assert.equal(budgetText({ budget: 100000, budget_max: 200000, budget_mode: "range", budget_unit: "total", tax_mode: "unspecified" }), "予算 ¥100,000〜¥200,000（総額）");
+  assert.equal(budgetText({ budget: 10000, budget_max: 15000, budget_mode: "range", budget_unit: "hour", tax_mode: "excluded" }), "予算の目安 ¥10,000〜¥15,000／時間（税別）");
+  assert.equal(budgetText({ budget: 100000, budget_max: 200000, budget_mode: "range", budget_unit: "total", tax_mode: "unspecified" }), "予算の目安 ¥100,000〜¥200,000（総額）");
   assert.equal(budgetText({ budget: null, budget_mode: "negotiable", budget_unit: "day", tax_mode: "included" }), "予算 応相談（1日あたり・税込）");
   assert.equal(budgetText({ budget: null }), null);
   assert.equal(budgetAmountText({ budget: null, budget_mode: "range" }), null);
@@ -91,4 +91,13 @@ test("quoteVsRange: only for a range with the same unit", () => {
   assert.equal(quoteVsRange(r, { quote_price: 12000, quote_unit: "day" }), null);
   assert.equal(quoteVsRange({ budget: 15000 }, { quote_price: 12000 }), null);
   assert.equal(quoteVsRange(r, { quote_price: null }), null);
+});
+
+test("quoteVsRange: 税込 vs 税別 cannot be compared; unspecified is compared as is (#44)", async () => {
+  const { quoteVsRange } = await import("./money.ts");
+  const r = { budget: 10000, budget_max: 15000, budget_mode: "range" as const, budget_unit: "hour", tax_mode: "excluded" };
+  assert.equal(quoteVsRange(r, { quote_price: 12000, quote_unit: "hour", quote_tax_mode: "excluded" }), "in");
+  assert.equal(quoteVsRange(r, { quote_price: 12000, quote_unit: "hour", quote_tax_mode: "included" }), null);
+  assert.equal(quoteVsRange(r, { quote_price: 12000, quote_unit: "hour", quote_tax_mode: null }), "in");
+  assert.equal(quoteVsRange(r, { quote_price: 18000, quote_unit: "hour", quote_tax_mode: "excluded" }), "out");
 });

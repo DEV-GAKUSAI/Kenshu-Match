@@ -5,9 +5,10 @@ import Link from "next/link";
 
 import { useToast } from "@/components/common/Toast";
 import { useAuth } from "@/hooks/useAuth";
-import { BANK_TYPES, RECEIPT_MAX_FILES, bankError, normalizeBank, normalizeReceipts, receiptError, registrationError, sizeLabel, toHalfWidth, type Receipt } from "@/lib/requests/invoice-calc";
+import { BANK_TYPES, RECEIPT_MAX_FILES, bankError, normalizeBank, normalizeReceipts, receiptError, registrationError, sizeLabel, skippedRows, toHalfWidth, type Receipt } from "@/lib/requests/invoice-calc";
 import { getInvoiceForResponse, getLastInvoiceDetails, INVOICE_STATUS_TEXT, respondInvoice, submitInvoice, uploadReceipt, type InvoiceRow } from "@/lib/requests/invoices";
 import { getOrderDefaults, getOrderForResponse } from "@/lib/requests/orders";
+import { normalizeItems, type OrderItem } from "@/lib/requests/order-calc";
 
 const INVOICE_RETURN_REASONS = ["金額が違う", "追加費用の内容が不明", "時間数・日数が違う", "税の扱いが違う"];
 
@@ -26,6 +27,9 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
   const [dueDate, setDueDate] = useState("");
   const [termsHint, setTermsHint] = useState("");
   const [unit, setUnit] = useState<string | null>(null);
+  // The confirmed order's cost rows, and which of them (0-based) are left off this invoice (#44).
+  const [orderRows, setOrderRows] = useState<OrderItem[]>([]);
+  const [skip, setSkip] = useState<number[]>([]);
   const [bank, setBank] = useState({ bank: "", branch: "", type: "普通", number: "", holder: "" });
   const [regNo, setRegNo] = useState("");
   const [receipts, setReceipts] = useState<Receipt[]>([]);
@@ -39,6 +43,9 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
     setInv(i);
     const o = await getOrderForResponse(responseId);
     setOrderDeclined(o?.status === "declined");
+    const rows = o?.status === "confirmed" ? normalizeItems(o.items) : [];
+    setOrderRows(rows);
+    setSkip(i ? skippedRows(rows, i.items) : []);
     setDueDate(i?.due_date ?? "");
     setReceipts(normalizeReceipts(i?.receipts));
     if (role === "instructor") {
@@ -90,7 +97,7 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
     const re = registrationError(reg);
     if (re) return showToast(re);
     setBusy(true);
-    const { error } = await submitInvoice(responseId, n, extraNote.trim() || null, note.trim() || null, q, { dueDate, bank: b, registrationNo: reg || null, receipts });
+    const { error } = await submitInvoice(responseId, n, extraNote.trim() || null, note.trim() || null, q, { dueDate, bank: b, registrationNo: reg || null, receipts, skipItems: skip });
     setBusy(false);
     if (error) return showToast(error.message);
     showToast(inv ? "請求書を修正して再提出しました。" : "請求書を提出しました。");
@@ -204,8 +211,26 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
           <div className="form-field">
             <label>追加費用（円・任意）</label>
             <input type="number" min={0} inputMode="numeric" placeholder="例：交通費 5000" value={extra} onChange={(e) => setExtra(e.target.value)} />
-            <small style={{ color: "var(--color-ink-soft)" }}>注文書に費用の項目（準備費・事前研修費など）がある場合は、自動で請求書に入ります。注文書の内容です。実費が違う場合は、追加費用に入力してください。</small>
+            <small style={{ color: "var(--color-ink-soft)" }}>注文書にない費用（交通費など）を入れるときに使います。</small>
           </div>
+          {orderRows.length > 0 && (
+            <div className="form-field">
+              <label>注文書の費用項目</label>
+              <small style={{ color: "var(--color-ink-soft)", display: "block", marginBottom: 6 }}>注文書の内容です。実際にかからなかった項目は、チェックを外してください（請求書に入りません）。</small>
+              {orderRows.map((row, idx) => {
+                const on = !skip.includes(idx);
+                return (
+                  <label key={idx} style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 400, marginBottom: 4 }}>
+                    <input type="checkbox" checked={on} onChange={() => setSkip(on ? [...skip, idx] : skip.filter((x) => x !== idx))} />
+                    <span>
+                      {row.name}　{row.qty}×¥{row.unit_price.toLocaleString("ja-JP")}＝¥{Math.round(row.qty * row.unit_price).toLocaleString("ja-JP")}
+                      {on ? "" : "（請求書に入れません）"}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
           <div className="form-field">
             <label>追加費用の内容</label>
             <input type="text" maxLength={500} placeholder="例：新幹線代" value={extraNote} onChange={(e) => setExtraNote(e.target.value)} />
