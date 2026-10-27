@@ -17,9 +17,7 @@
 .req-group-title--attn { color: #c0392b; }
 .req-group-title__count { font-weight: 600; }
 .req-row { position: relative; background: #fff; border: 1px solid var(--color-border); border-radius: var(--radius-m, 12px); margin-bottom: 8px; }
-.req-row--attn { border-color: #f1c4bf; box-shadow: inset 4px 0 0 #d64545; background: #fffafa; }
 .req-row.is-open { border-color: #7fcfb6; box-shadow: 0 0 0 3px rgba(31, 179, 142, 0.12); }
-.req-row--attn.is-open { border-color: #f1c4bf; box-shadow: inset 4px 0 0 #d64545, 0 0 0 3px rgba(214, 69, 69, 0.10); }
 .req-row__head { border-radius: var(--radius-m, 12px); display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; background: transparent; border: 0; cursor: pointer; text-align: left; font: inherit; color: var(--color-ink); }
 .req-row.is-open > .req-row__head { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .req-row__head:hover { background: rgba(20, 60, 50, 0.03); }

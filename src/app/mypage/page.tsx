@@ -849,6 +849,7 @@ function RequesterRequestCard({
   mineLinked,
   owner,
   proposals = 0,
+  onSeen,
   onChanged,
 }: {
   r: ReqWithJoins;
@@ -860,6 +861,8 @@ function RequesterRequestCard({
   owner?: string;
   /** Lecturer proposals from partner companies that wait for an answer (#53). */
   proposals?: number;
+  /** Called with the number of NEW applicants that were just seen (opens the row). */
+  onSeen?: (count: number) => void;
   onChanged: () => void | Promise<void>;
 }) {
   const { showToast } = useToast();
@@ -926,7 +929,20 @@ function RequesterRequestCard({
   const [listOpen, setListOpen] = useState(false);
   // The whole request is one slim row; its details open on a click (same as the instructor side).
   const [cardOpen, setCardOpen] = useState(false);
-  const attention = (st.key === "pending" || st.key === "quoted") && (newApplicants > 0 || answerNeeded > 0);
+  // A red dot until the company opens the row for the first time.
+  const [dotCleared, setDotCleared] = useState(false);
+  const attention = !dotCleared && (st.key === "pending" || st.key === "quoted") && (newApplicants > 0 || answerNeeded > 0);
+  function toggleRow() {
+    if (!cardOpen && !dotCleared) {
+      setDotCleared(true);
+      const ids = applicants.filter((x) => x.requester_seen_at === null).map((x) => x.response_id);
+      if (ids.length) {
+        void markResponsesSeenByRequester(ids);
+        onSeen?.(ids.length);
+      }
+    }
+    setCardOpen((v) => !v);
+  }
   const nameOfDecided = (sr: InstructorResponseRow) => sr.released_name?.trim() || instructorMap[sr.instructor_id]?.name || "講師";
   const decidedNames = selectedResps.map(nameOfDecided);
   const rowWho = isBroadcast
@@ -1119,8 +1135,8 @@ function RequesterRequestCard({
   }
 
   return (
-    <div className={`req-row${attention ? " req-row--attn" : ""}${cardOpen ? " is-open" : ""}`}>
-      <button type="button" className="req-row__head" aria-expanded={cardOpen} onClick={() => setCardOpen((v) => !v)}>
+    <div className={`req-row${cardOpen ? " is-open" : ""}`}>
+      <button type="button" className="req-row__head" aria-expanded={cardOpen} onClick={toggleRow}>
         <span className="req-row__main">
           <span className="req-row__line1">
             {attention && <span className="req-row__dot" aria-hidden="true" />}
@@ -1128,7 +1144,6 @@ function RequesterRequestCard({
           </span>
           <span className="req-row__line2">{rowParts.join("　・　")}</span>
         </span>
-        {newApplicants > 0 && <span className="req-badge req-badge--attn">NEW {newApplicants}</span>}
         {proposals > 0 && <span className="req-badge req-badge--attn">講師の提案 {proposals}</span>}
         {r.publish_state === "paused" && <span className="req-badge req-badge--paused">公開停止中</span>}
         <span className={`req-badge req-badge--${st.key}`}>{st.label}</span>
@@ -1489,9 +1504,15 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
       setProposalCounts(await getNewProposalCounts(rows.map((x) => x.request_id)));
     }
 
-    const unseenResponseIds = rows.flatMap((r) => (r.instructor_responses || []).filter((x) => x.requester_seen_at === null).map((x) => x.response_id));
-    setUnseenCount(unseenResponseIds.length);
-    markResponsesSeenByRequester(unseenResponseIds);
+    // New applicants of open requests stay "unseen" (red dot) until the company opens that request's row;
+    // everything else is marked as seen right away.
+    const isOpenRow = (r: ReqWithJoins) => {
+      const key = requesterDisplayStatus(r).key;
+      return key === "pending" || key === "quoted";
+    };
+    const unseenOf = (r: ReqWithJoins) => (r.instructor_responses || []).filter((x) => x.requester_seen_at === null).map((x) => x.response_id);
+    setUnseenCount(rows.filter(isOpenRow).flatMap(unseenOf).length);
+    markResponsesSeenByRequester(rows.filter((r) => !isOpenRow(r)).flatMap(unseenOf));
 
     const allResponseInstructorIds = rows.flatMap((r) => (r.instructor_responses || []).map((x) => x.instructor_id));
     const targetIds = [...new Set([...rows.map((r) => resolveInstructorId(r)).filter((x): x is string => !!x), ...allResponseInstructorIds])];
@@ -1717,6 +1738,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
           meetings={meetings}
           mineLinked={mineLinked}
           owner={owners[r.request_id]}
+          onSeen={(n) => setUnseenCount((c) => Math.max(0, c - n))}
           proposals={proposalCounts[r.request_id] ?? 0}
           onChanged={load}
         />
