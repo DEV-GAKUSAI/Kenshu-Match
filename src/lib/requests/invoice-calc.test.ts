@@ -96,3 +96,16 @@ test("calcInvoice: order cost lines are added, with the extra cost last (#44)", 
   const d = diffInvoices({ ...inv, items: [] }, inv);
   assert.ok(d.some((x) => x.label === "注文書の費用項目"));
 });
+
+test("skippedRows: order rows that are not on the invoice (#44)", async () => {
+  const { skippedRows } = await import("./invoice-calc.ts");
+  const order = [{ name: "準備費", qty: 1, unit_price: 5000 }, { name: "事前研修費", qty: 1, unit_price: 30000 }, { name: "資料", qty: 1, unit_price: 8000 }];
+  assert.deepEqual(skippedRows(order, order), []);
+  assert.deepEqual(skippedRows(order, [order[0], order[2]]), [1]);
+  assert.deepEqual(skippedRows(order, []), [0, 1, 2]);
+  assert.deepEqual(skippedRows(order, undefined), [0, 1, 2]);
+  assert.deepEqual(skippedRows([], order), []);
+  // two identical rows, only one on the invoice: the later one counts as left off
+  const twin = [{ name: "交通", qty: 1, unit_price: 1000 }, { name: "交通", qty: 1, unit_price: 1000 }];
+  assert.deepEqual(skippedRows(twin, [twin[0]]), [1]);
+});

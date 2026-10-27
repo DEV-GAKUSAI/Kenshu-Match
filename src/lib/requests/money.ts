@@ -88,10 +88,11 @@ export function budgetAmountText(r: MoneyFields): string | null {
   return r.budget ? formatMoney(r.budget, r.budget_unit, r.tax_mode) : null;
 }
 
-/** 「予算 ¥15,000／時間（税別）」 / 「予算 ¥10,000〜¥15,000／時間」 / 「予算 応相談（時間あたり）」, or null when no budget was given. */
+/** 「予算 ¥15,000／時間（税別）」 / 「予算の目安 ¥10,000〜¥15,000／時間」 / 「予算 応相談（時間あたり）」, or null when no budget was given. */
 export function budgetText(r: MoneyFields): string | null {
   const t = budgetAmountText(r);
-  return t ? `予算 ${t}` : null;
+  // A range is a guide, not a promise of the top amount (#44), so it is worded 「予算の目安」.
+  return t ? `${budgetMode(r) === "range" ? "予算の目安" : "予算"} ${t}` : null;
 }
 
 /** The highest price the company would pay, as a number; null for 応相談 or no budget. Used only to hint a match. */
@@ -102,10 +103,15 @@ export function budgetUpper(r: MoneyFields): number | null {
   return r.budget ?? null;
 }
 
-/** For a range budget: is the lecturer's quote inside it? null when it cannot be told (not a range, no quote, other unit). */
-export function quoteVsRange(r: MoneyFields, quote: { quote_price: number | string | null; quote_unit?: string | null }): "in" | "out" | null {
+/**
+ * For a range budget: is the lecturer's quote inside it? null when it cannot be told (not a range, no quote, other unit,
+ * or one side is 税込 and the other 税別, which cannot be compared fairly).
+ */
+export function quoteVsRange(r: MoneyFields, quote: { quote_price: number | string | null; quote_unit?: string | null; quote_tax_mode?: string | null }): "in" | "out" | null {
   if (budgetMode(r) !== "range" || !r.budget || !r.budget_max || !quote.quote_price) return null;
   if (quote.quote_unit && normalUnit(quote.quote_unit) !== normalUnit(r.budget_unit)) return null;
+  const sides = [quote.quote_tax_mode, r.tax_mode].filter((t) => t === "included" || t === "excluded");
+  if (sides.length === 2 && sides[0] !== sides[1]) return null;
   const q = Number(quote.quote_price);
   return q >= r.budget && q <= r.budget_max ? "in" : "out";
 }

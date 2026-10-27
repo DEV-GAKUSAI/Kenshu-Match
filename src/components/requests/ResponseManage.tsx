@@ -85,7 +85,7 @@ export function ResponseManage({
                 <option value="excluded">税別</option>
               </Select>
             </div>
-            <BudgetHint request={request} price={price} />
+            <BudgetHint request={request} price={price} quoteTax={tax} />
           </div>
           <div className="form-field">
             <label>メッセージ</label>

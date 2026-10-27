@@ -14,7 +14,8 @@ const ORDER_DECLINE_REASONS = ["日程が合わない", "金額・条件が合�
 type ItemInput = { name: string; qty: string; price: string };
 
 /** 注文書: the company issues it for the decided instructor, the instructor confirms (#51). */
-export function OrderPanel({ responseId, role }: { responseId: string; role: "requester" | "instructor" }) {
+/** requestOpen: the request can still be edited (several decided lecturers, still recruiting); the note about budget changes is only useful then. */
+export function OrderPanel({ responseId, role, requestOpen = false }: { responseId: string; role: "requester" | "instructor"; requestOpen?: boolean }) {
   const { showToast } = useToast();
   const confirm = useConfirm();
   const [order, setOrder] = useState<OrderRow | null>(null);
@@ -156,7 +157,7 @@ export function OrderPanel({ responseId, role }: { responseId: string; role: "re
           </>
         )}
       </div>
-      {role === "requester" && order && order.status !== "confirmed" && (
+      {role === "requester" && requestOpen && order && order.status !== "confirmed" && (
         <div style={{ fontSize: 12, color: "var(--color-ink-soft)", marginTop: 6 }}>依頼の予算を変えても、発行済みの注文書は変わりません。変更は「内容を変更して再発行する」で行います。</div>
       )}
       {open && role === "requester" && (

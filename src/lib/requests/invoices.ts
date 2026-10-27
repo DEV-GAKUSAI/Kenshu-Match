@@ -38,7 +38,7 @@ export type InvoiceRow = {
 };
 
 /** The extra details sent with an invoice (migration 184). */
-export type InvoiceDetails = { dueDate: string | null; bank: BankInfo | null; registrationNo: string | null; receipts: Receipt[] };
+export type InvoiceDetails = { dueDate: string | null; bank: BankInfo | null; registrationNo: string | null; receipts: Receipt[]; /** order cost rows (0-based) left off the invoice, migration 186 */ skipItems?: number[] };
 
 export const INVOICE_STATUS_TEXT: Record<InvoiceStatus, string> = {
   submitted: "提出済み（確認待ち）",
@@ -57,6 +57,7 @@ const ERRORS: Record<string, string> = {
   bad_reg_no: "登録番号は「T」と13桁の数字で入力してください。",
   bad_bank: "振込先の入力内容を確認してください。",
   bad_receipts: "領収書の添付内容を確認してください。",
+  bad_items: "注文書の費用項目の選択を確認してください。",
 };
 
 function message(raw: string) {
@@ -79,7 +80,7 @@ export async function getInvoice(invoiceId: string): Promise<InvoiceRow | null> 
 }
 
 export async function submitInvoice(responseId: string, extra: number | null, extraNote: string | null, note: string | null, quantity: number | null, details: InvoiceDetails) {
-  const { data, error } = await db().rpc("submit_invoice", {
+  const args = {
     p_response_id: responseId,
     p_extra: extra,
     p_extra_note: extraNote,
@@ -89,7 +90,10 @@ export async function submitInvoice(responseId: string, extra: number | null, ex
     p_bank: details.bank,
     p_registration_no: details.registrationNo,
     p_receipts: details.receipts,
-  });
+  };
+  // The 10th argument is sent only when a row is left off, so ordinary submits keep working before migration 186 is run.
+  const skip = details.skipItems ?? [];
+  const { data, error } = await db().rpc("submit_invoice", skip.length > 0 ? { ...args, p_skip_items: skip } : args);
   return { invoiceId: (data as string | null) ?? null, error: error ? { message: message(error.message) } : null };
 }
 

@@ -116,13 +116,18 @@ function OrderInner() {
             <dd style={{ whiteSpace: "pre-line" }}>{order.schedule_text || "別途調整"}</dd>
           </div>
           {budgetLine && (
-            <div className="no-print">
-              <dt>依頼時の予算</dt>
-              <dd>
-                {budgetLine}
-                {order.amount ? ` → 注文 ${formatMoney(order.amount, order.amount_unit, order.tax_mode)}` : ""}
-              </dd>
-            </div>
+            <>
+              <div className="no-print">
+                <dt>依頼時の予算</dt>
+                <dd>{budgetLine}</dd>
+              </div>
+              {order.amount ? (
+                <div className="no-print">
+                  <dt>今回の注文金額</dt>
+                  <dd>{formatMoney(order.amount, order.amount_unit, order.tax_mode)}</dd>
+                </div>
+              ) : null}
+            </>
           )}
         </dl>
         {calc.lines.length > 0 ? (

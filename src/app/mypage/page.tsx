@@ -378,6 +378,12 @@ function InstructorRequestCard({
         {r.location ? <span className="instructor-card__tag">{r.location}</span> : null}
         {r.preferred_schedule ? <span className="instructor-card__tag">{r.preferred_schedule}</span> : null}
       </div>
+      {costLines(r).length > 0 && (
+        <div className="request-card__response" style={{ margin: "0 0 14px", fontSize: 13 }}>
+          <strong>費用・支払い</strong>
+          {costLines(r).join("　／　")}
+        </div>
+      )}
 
       {myResponse && (
         <div className="request-card__response">
@@ -465,7 +471,7 @@ function InstructorRequestCard({
                   <option value="excluded">税別</option>
                 </Select>
               </div>
-              <BudgetHint request={r} price={quotePrice} />
+              <BudgetHint request={r} price={quotePrice} quoteTax={quoteTax} />
             </div>
             <ApplyFields value={apply} onChange={setApply} roleOptions={normalizeSlots(r.role_slots).map((x) => x.name)} />
             <div className="form-field">
@@ -1386,7 +1392,7 @@ function RequesterRequestCard({
                 {nameOfDecided(sr)} 先生
                 {sr.role_slot_id ? `（${roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? ""}）` : ""}
               </strong>
-              <OrderPanel responseId={sr.response_id} role="requester" />
+              <OrderPanel responseId={sr.response_id} role="requester" requestOpen />
               <InvoicePanel responseId={sr.response_id} role="requester" />
             </div>
           ))
