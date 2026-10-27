@@ -103,6 +103,7 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
     showToast(inv ? "請求書を修正して再提出しました。" : "請求書を提出しました。");
     setOpen(false);
     await load();
+    window.dispatchEvent(new Event("kl-doc-changed"));
   }
 
   async function addReceipts(files: FileList | null) {
@@ -137,6 +138,7 @@ export function InvoicePanel({ responseId, role }: { responseId: string; role: "
     setReturning(false);
     setReason("");
     await load();
+    window.dispatchEvent(new Event("kl-doc-changed"));
   }
 
   // A declined order has to be re-issued (and confirmed) before the first invoice (#51 test finding).
