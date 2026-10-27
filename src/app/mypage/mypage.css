@@ -204,8 +204,8 @@
 
 /* ---- 講師の評価 (#55) ---- */
 .ev { padding-top: 12px; }
-.ev__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 14px; }
-.ev__avg { display: inline-flex; align-items: center; gap: 4px; font-size: 18px; font-weight: 800; color: #b7791f; }
+.ev__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 8px; font-size: 14px; }
+.ev__avg { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font-size: 18px; font-weight: 800; color: #b7791f; }
 .ev__note { margin: 0 0 12px; font-size: 13px; line-height: 1.7; color: var(--color-ink-soft); }
 .ev__list { margin: 0 0 10px; padding: 0; list-style: none; }
 .ev__list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--color-border); font-size: 13px; }
@@ -224,3 +224,5 @@ button.ev__star { cursor: pointer; }
 .ev__comment { margin: 10px 0 6px; padding: 10px 12px; border-radius: var(--radius-s); background: #fafdfc; border: 1px solid var(--color-border); font-size: 13px; line-height: 1.7; white-space: pre-wrap; }
 .ev__meta { margin: 6px 0 10px; font-size: 12px; color: var(--color-ink-soft); }
 .ev__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.ev__badge { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #eef2f1; color: #4a5a55; font-size: 11px; font-weight: 700; }
+.ev > .ev__badge { margin-bottom: 8px; }

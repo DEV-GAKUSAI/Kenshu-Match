@@ -69,9 +69,13 @@ export function InstructorBookCard({ requesterId, instructorId }: { requesterId:
       <p className="detail-block__text" style={{ fontSize: 12.5, color: "var(--color-ink-soft)" }}>
         この内容はあなたの会社だけに表示されます。講師や他の企業には見えません。
       </p>
-      {evaluationSummaryText(evalSummary) && (
+      {evaluationSummaryText(evalSummary) ? (
         <p className="detail-block__text" style={{ fontWeight: 700, color: "#0e7a5f" }}>
           {evaluationSummaryText(evalSummary)}
+        </p>
+      ) : (
+        <p className="detail-block__text" style={{ fontSize: 12.5, color: "var(--color-ink-soft)" }}>
+          依頼ごとの評価は、完了した依頼の「評価」タブ（マイページ）から入力できます。
         </p>
       )}
       {entry && !open && (

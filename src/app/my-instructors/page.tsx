@@ -97,6 +97,11 @@ export default function MyInstructorsPage() {
         </p>
       </div>
 
+
+      <p className="request-card__meta" style={{ margin: "0 0 14px", lineHeight: 1.7 }}>
+        「依頼ごとの評価」は、完了した依頼を開き、決定した講師の「評価」タブから入力できます（<Link href="/mypage">マイページへ</Link>）。入力するとここに平均が表示されます。
+      </p>
+
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 14px" }}>
         {([["all", "すべて"], ["regular", "取引先"], ["candidate", "候補"]] as const).map(([k, label]) => (
           <button key={k} type="button" className={`btn btn--sm ${filter === k ? "btn--primary" : "btn--ghost"}`} onClick={() => {

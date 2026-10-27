@@ -24,6 +24,11 @@ function Stars({ value, onChange, label }: { value: number; onChange?: (n: numbe
   );
 }
 
+/** The small label that tells this is the company's own private rating, not the public survey score. */
+function PrivateBadge() {
+  return <span className="ev__badge">社内評価（自社だけに表示）</span>;
+}
+
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("ja-JP", { year: "numeric", month: "numeric", day: "numeric", timeZone: "Asia/Tokyo" });
 }
@@ -101,6 +106,7 @@ export function EvaluationPanel({
       <div className="ev">
         <div className="ev__head">
           <strong>{instructorName} 先生への評価</strong>
+          <PrivateBadge />
           <span className="ev__avg">
             <span className="ev__star is-on" aria-hidden="true">★</span> {avg.toFixed(1)}
           </span>
@@ -131,6 +137,7 @@ export function EvaluationPanel({
   if (!editing) {
     return (
       <div className="ev">
+        <PrivateBadge />
         <p className="ev__note">研修お疲れさまでした。{instructorName} 先生の評価を残すと、次の依頼で講師を選ぶときの参考になります。この評価は自社だけに表示され、講師には見えません。</p>
         <button type="button" className="btn btn--primary btn--sm" onClick={startEdit}>
           講師を評価する
@@ -143,6 +150,7 @@ export function EvaluationPanel({
     <div className="ev">
       <div className="ev__head">
         <strong>{instructorName} 先生を評価する</strong>
+        <PrivateBadge />
       </div>
       <ul className="ev__list">
         {EVAL_ITEMS.map((i) => (
