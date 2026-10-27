@@ -59,6 +59,7 @@ import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import type { MinePublicProfile } from "@/lib/mine/public-profile";
 import { VISIBILITY_TEXT } from "@/lib/requests/visibility";
 import { PartnerRequests } from "@/components/requests/PartnerRequests";
+import { TeachingRecord } from "@/components/instructors/TeachingRecord";
 import { getNewProposalCounts } from "@/lib/requester/partners";
 import "./mypage.css";
 import { Select } from "@/components/ui/Select";
@@ -658,6 +659,7 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
       <div style={{ marginBottom: 28 }}>
         <ProfileStatusCard userId={user.id} />
       </div>
+      <TeachingRecord />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h2 className="section__title" style={{ fontSize: 18, margin: 0 }}>
           受け取った依頼

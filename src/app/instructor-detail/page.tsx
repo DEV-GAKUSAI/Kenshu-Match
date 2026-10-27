@@ -23,6 +23,7 @@ import { MOCK_INSTRUCTORS, INSTRUCTOR_DETAILS } from "@/lib/mockInstructors";
 import type { InstructorPublicDirectoryRow, RequestFormat, WorkStyle } from "@/types/database";
 import { Select } from "@/components/ui/Select";
 import { periodLabel, rolesLabel } from "@/lib/mine/availability";
+import { getTeachingCounts } from "@/lib/requester/partners";
 
 const FORMAT_LABEL: Record<string, string> = { online: "オンライン対応", offline: "対面のみ", both: "オンライン・対面 両方" };
 const WORK_STYLE_LABEL: Record<WorkStyle, string> = { ONLINE: "オンラインのみ", ONSITE: "対面のみ", HYBRID: "オンライン・対面 両方" };
@@ -66,6 +67,7 @@ function InstructorDetailInner() {
   const [surveyScore, setSurveyScore] = useState<string | null>(null);
   const [mineLoaded, setMineLoaded] = useState(false);
   const [surveyLoaded, setSurveyLoaded] = useState(false);
+  const [taught, setTaught] = useState(0);
   const [tab, setTab] = useState("profile");
   const hasProfile = !!(
     (mine && (mine.occupations?.length || mine.self_introduction || mine.professional_summary || mine.languages || mine.area)) ||
@@ -150,6 +152,7 @@ function InstructorDetailInner() {
       const r = row as { survey_avg?: number | null; survey_count?: number | null };
       setSurveyScore(r.survey_count && r.survey_avg != null ? surveyScoreLabel(r.survey_avg, r.survey_count) : null);
       setSurveyLoaded(true);
+      setTaught((await getTeachingCounts([rawId]))[rawId] ?? 0);
     })();
   }, [rawId, isRealId]);
 
@@ -397,6 +400,12 @@ function InstructorDetailInner() {
                     <button type="button" className="detail-header__rating" style={scoreLinkStyle} onClick={showSurveyResult}>
                       <span style={{ color: "#f2b84b" }}>★</span> {surveyScore}
                     </button>
+                  </>
+                )}
+                {taught > 0 && (
+                  <>
+                    <span>・</span>
+                    <span>登壇 {taught}件</span>
                   </>
                 )}
               </div>

@@ -18,9 +18,11 @@ function initial(name: string | null) {
 interface InstructorCardProps {
   instructor: InstructorPublicDirectoryRow;
   maxTags?: number;
+  /** Number of completed 登壇 (public). Shown only when 1 or more. */
+  taught?: number;
 }
 
-export function InstructorCard({ instructor: ins, maxTags = DEFAULT_MAX_TAGS }: InstructorCardProps) {
+export function InstructorCard({ instructor: ins, maxTags = DEFAULT_MAX_TAGS, taught = 0 }: InstructorCardProps) {
   const hasRate = ins.desired_rate_min != null;
   const allTags = [...(ins.expertise_fields || []), ...(ins.certifications || [])];
   const tags = allTags.slice(0, maxTags);
@@ -52,6 +54,7 @@ export function InstructorCard({ instructor: ins, maxTags = DEFAULT_MAX_TAGS }: 
             <div className="instructor-card__name">{ins.name || "（名前未設定）"}</div>
             <div className="instructor-card__area" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {(ins.prefectures || []).length ? ins.prefectures!.join("、") : "エリア未設定"}
+              {taught > 0 ? `　・　登壇 ${taught}件` : ""}
             </div>
           </div>
           {hasScore && (

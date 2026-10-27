@@ -8,6 +8,7 @@ import { withMineDisplay } from "@/lib/mine/display";
 import { withSurveySummary } from "@/lib/survey/summary-client";
 import { sortBySurveyAvg } from "@/lib/survey/summary";
 import { InstructorCard } from "@/components/instructors/InstructorCard";
+import { getTeachingCounts } from "@/lib/requester/partners";
 import type { InstructorPublicDirectoryRow } from "@/types/database";
 import { EMPTY_AVAILABILITY_FILTER, ROLE_LABEL, isAvailabilityFilterActive, matchesAvailability, periodLabel, rolesLabel, type AvailabilityFilter } from "@/lib/mine/availability";
 import "./instructors.css";
@@ -182,6 +183,7 @@ function InstructorsPageInner() {
   const setExpertiseOpen = (open: boolean) => setOpenPanel(open ? "expertise" : (p) => (p === "expertise" ? null : p));
 
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null);
+  const [taught, setTaught] = useState<Record<string, number>>({});
 
   useEffect(() => {
     (async () => {
@@ -192,8 +194,11 @@ function InstructorsPageInner() {
         return;
       }
       // Initials plus only what each instructor allowed in Mine (no full names, old rates or photos).
-      setAllInstructors(sortBySurveyAvg(await withSurveySummary(await withMineDisplay(data || []))));
+      const rows = sortBySurveyAvg(await withSurveySummary(await withMineDisplay(data || [])));
+      setAllInstructors(rows);
       setLoading(false);
+      // 登壇 count per lecturer (public); the cards simply show nothing if it cannot be loaded.
+      setTaught(await getTeachingCounts(rows.map((r) => r.id)));
     })();
 
     (async () => {
@@ -438,7 +443,7 @@ function InstructorsPageInner() {
             <p className="empty-state__desc">条件を変更するか、リセットして再度お試しください。</p>
           </div>
         )}
-        {!loading && !loadError && filtered.map((ins) => <InstructorCard key={ins.id} instructor={ins} />)}
+        {!loading && !loadError && filtered.map((ins) => <InstructorCard key={ins.id} instructor={ins} taught={taught[ins.id] ?? 0} />)}
       </div>
     </main>
   );
