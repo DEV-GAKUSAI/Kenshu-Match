@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { useToast } from "@/components/common/Toast";
-import { getFlow, getPartners, saveFlow, PARTNER_KIND_TEXT, type Partner, type RequestFlow } from "@/lib/requester/partners";
+import { getFlow, getFlowAccess, getPartners, saveFlow, saveFlowAccess, PARTNER_KIND_TEXT, type FlowAccess, type Partner, type RequestFlow } from "@/lib/requester/partners";
 import { Select } from "@/components/ui/Select";
 import { FlowIcon } from "@/components/requests/ToolIcons";
 import { PartnerProposalsBox } from "@/components/requests/PartnerProposalsBox";
@@ -33,22 +33,24 @@ export function FlowPanel({
   const [via, setVia] = useState<string[]>([]);
   const [speakerPartner, setSpeakerPartner] = useState("");
   const [speakerName, setSpeakerName] = useState("");
-  const [showAmount, setShowAmount] = useState(false);
+  const [access, setAccess] = useState<FlowAccess[]>([]);
   const [busy, setBusy] = useState(false);
 
   async function load() {
-    const [p, f] = await Promise.all([getPartners(), getFlow(requestId)]);
+    const [p, f, a] = await Promise.all([getPartners(), getFlow(requestId), getFlowAccess(requestId)]);
     setPartners(p);
+    setAccess(a);
     setFlow(f);
     setContract(f?.contract_partner_id ?? "");
     setVia(f?.via_partner_ids ?? []);
     setSpeakerPartner(f?.speaker_partner_id ?? "");
     setSpeakerName(f?.speaker_name ?? "");
-    setShowAmount(f?.show_amount_to_partners === true);
   }
 
   useEffect(() => {
-    void load();
+    (async () => {
+      await load();
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId]);
 
@@ -66,13 +68,31 @@ export function FlowPanel({
       via_partner_ids: via,
       speaker_partner_id: severalInstructors ? null : speakerPartner || null,
       speaker_name: severalInstructors || speakerPartner ? null : speakerName.trim() || null,
-      show_amount_to_partners: showAmount,
+      show_amount_to_partners: flow?.show_amount_to_partners === true,
     });
     setBusy(false);
     if (error) return showToast("保存できませんでした。");
     showToast("商流を保存しました。");
     setOpen(false);
     await load();
+  }
+
+  // Partners with their own account who are part of the saved 商流 (contract or in between).
+  const linkedInFlow = partners.filter(
+    (p) => !!p.account_id && (p.partner_id === flow?.contract_partner_id || (flow?.via_partner_ids ?? []).includes(p.partner_id)),
+  );
+  const accessOf = (id: string) => {
+    const row = access.find((a) => a.partner_id === id);
+    return { show_amount: row ? row.show_amount : flow?.show_amount_to_partners === true, show_note: row?.show_note === true };
+  };
+
+  async function setSwitch(partnerId: string, key: "show_amount" | "show_note", value: boolean) {
+    const next: FlowAccess = { partner_id: partnerId, ...accessOf(partnerId), [key]: value };
+    setBusy(true);
+    const { error } = await saveFlowAccess(requesterId, requestId, next);
+    setBusy(false);
+    if (error) return showToast("保存できませんでした。");
+    setAccess((rows) => [...rows.filter((r) => r.partner_id !== partnerId), next]);
   }
 
   function toggleVia(id: string) {
@@ -96,6 +116,28 @@ export function FlowPanel({
           <div>発注・請求の相手：{contractName ?? `${decidedName || "決定した講師"}（直接）`}</div>
           {viaNames.length > 0 && <div>間に入る関係先：{viaNames.join(" → ")}</div>}
           {!severalInstructors && <div>実際の登壇講師：{speaker ?? `${decidedName || "決定した講師"}`}</div>}
+        </div>
+      )}
+      {linkedInFlow.length > 0 && !open && (
+        <div className="tool-block pa-access">
+          <strong style={{ color: "var(--color-ink)" }}>関係先に見せる情報</strong>
+          <span style={{ color: "var(--color-ink-soft)" }}>（案件の概要・日程は、アカウント連携した関係先に常に見えます）</span>
+          {linkedInFlow.map((p) => {
+            const a = accessOf(p.partner_id);
+            return (
+              <div key={p.partner_id} className="pa-access__row">
+                <span className="pa-access__name">{p.name}</span>
+                <label className="pa-access__sw">
+                  <input type="checkbox" checked={a.show_amount} disabled={busy} onChange={(e) => void setSwitch(p.partner_id, "show_amount", e.target.checked)} />
+                  金額
+                </label>
+                <label className="pa-access__sw">
+                  <input type="checkbox" checked={a.show_note} disabled={busy} onChange={(e) => void setSwitch(p.partner_id, "show_note", e.target.checked)} />
+                  社内メモ
+                </label>
+              </div>
+            );
+          })}
         </div>
       )}
       {open ? (
@@ -153,13 +195,9 @@ export function FlowPanel({
             {!speakerPartner && <input type="text" maxLength={100} placeholder="登録にない講師の名前（任意）" value={speakerName} onChange={(e) => setSpeakerName(e.target.value)} style={{ marginTop: 6 }} />}
           </div>
           )}
-          <div className="form-field">
-            <label style={{ display: "flex", gap: 6, alignItems: "center", fontWeight: 400 }}>
-              <input type="checkbox" checked={showAmount} onChange={(e) => setShowAmount(e.target.checked)} />
-              金額を関係先に見せる
-            </label>
-            <span style={{ fontSize: 12, color: "var(--color-ink-soft)" }}>オフの場合、アカウント連携した関係先には金額が表示されません。社内メモは常に非公開です。</span>
-          </div>
+          <p style={{ margin: "0 0 8px", color: "var(--color-ink-soft)", fontSize: 12 }}>
+            金額・社内メモを関係先に見せるかどうかは、保存したあとに、関係先ごとに設定できます（初期設定は、どちらも見せません）。
+          </p>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={save}>
               保存する

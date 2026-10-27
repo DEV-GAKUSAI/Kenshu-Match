@@ -8,14 +8,22 @@ import { InviteSteps, PartnerFlowArt } from "@/components/requests/PartnerArt";
 import {
   acceptPartnerInvite,
   getInstructorChoices,
+  getPartnerDocuments,
   getPartnerLinks,
   getPartnerRequests,
   leavePartner,
   proposeLecturer,
   withdrawProposal,
+  type PartnerDocuments,
   type PartnerLink,
   type PartnerRequest,
 } from "@/lib/requester/partners";
+import { getBookEntries, type BookEntry } from "@/lib/requester/book";
+import { Select } from "@/components/ui/Select";
+import { calcOrder, type OrderLike } from "@/lib/requests/order-calc";
+import { calcInvoice, dayText, type InvoiceLike } from "@/lib/requests/invoice-calc";
+import { INVOICE_STATUS_TEXT } from "@/lib/requests/invoices";
+import { ORDER_STATUS_TEXT } from "@/lib/requests/orders";
 import { budgetText, costLines, type MoneyFields } from "@/lib/requests/money";
 import {
   canPropose,
@@ -37,7 +45,7 @@ const STATUS: Record<string, { key: string; label: string }> = {
   cancelled: { key: "cancelled", label: "キャンセル" },
 };
 
-type TabKey = "summary" | "days" | "speaker" | "money";
+type TabKey = "summary" | "days" | "speaker" | "money" | "docs";
 
 /** 関係先の案件 (#53): the tab of a partner company. Enter a code, see the shared requests, propose a lecturer. */
 export function PartnerRequests({ onCount, onPendingCode }: { onCount?: (n: number) => void; /** A code from the invitation link is waiting: the parent can open this tab. */ onPendingCode?: () => void }) {
@@ -236,6 +244,7 @@ function PartnerRequestRow({ r, onChanged }: { r: PartnerRequest; onChanged: () 
     ["days", `日程${days.length ? `（${days.length}）` : ""}`],
     ["speaker", `登壇講師${waiting ? `（提案${waiting}）` : ""}`],
     ...(r.show_amount && r.money ? ([["money", "金額"]] as [TabKey, string][]) : []),
+    ...(r.my_role === "contract" ? ([["docs", "書類"]] as [TabKey, string][]) : []),
   ];
 
   return (
@@ -277,6 +286,7 @@ function PartnerRequestRow({ r, onChanged }: { r: PartnerRequest; onChanged: () 
           )}
           {tab === "speaker" && <SpeakerTab r={r} onChanged={onChanged} />}
           {tab === "money" && r.money && <MoneyTab money={r.money} />}
+          {tab === "docs" && <DocsTab requestId={r.request_id} />}
         </div>
       )}
     </div>
@@ -309,9 +319,84 @@ function SummaryTab({ r }: { r: PartnerRequest }) {
           </>
         ) : null}
         <dt>金額</dt>
-        <dd className="pa-muted">{r.show_amount ? "「金額」タブをご覧ください。" : "依頼元の設定により表示されません。"}</dd>
+        <dd className="pa-muted">{r.show_amount ? "「金額」タブをご覧ください。" : r.my_role === "contract" ? "依頼元の設定により表示されません（注文書・請求書は「書類」タブで確認できます）。" : "依頼元の設定により表示されません。"}</dd>
       </dl>
       <p className="pa-desc">{r.description}</p>
+      {r.show_note && r.memo && (
+        <div className="pa-memo">
+          <strong>依頼元からのメモ</strong>
+          <p>{r.memo}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const yen = (n: number | null) => (n === null ? "—" : `¥${n.toLocaleString()}`);
+
+/** 書類 (read only): the 注文書 and 請求書 of a request, for the contract party. No bank details, no receipts. */
+function DocsTab({ requestId }: { requestId: string }) {
+  const [docs, setDocs] = useState<PartnerDocuments | null | undefined>(undefined);
+
+  useEffect(() => {
+    (async () => {
+      setDocs(await getPartnerDocuments(requestId));
+    })();
+  }, [requestId]);
+
+  if (docs === undefined) return <div className="pa-panel"><p className="pa-muted">読み込み中…</p></div>;
+  if (docs === null) return <div className="pa-panel"><p className="pa-muted">書類を表示できませんでした。</p></div>;
+
+  return (
+    <div className="pa-panel">
+      <p className="pa-muted" style={{ marginTop: 0 }}>契約先として、この案件の注文書・請求書を確認できます（閲覧のみ）。</p>
+      <h4 className="pa-form__title">注文書</h4>
+      {docs.orders.length === 0 && <p className="pa-muted">まだ発行されていません。</p>}
+      {docs.orders.map((o) => {
+        const t = calcOrder(o as unknown as OrderLike);
+        const status = ORDER_STATUS_TEXT[o.status as keyof typeof ORDER_STATUS_TEXT] ?? String(o.status ?? "");
+        return (
+          <div key={String(o.order_id)} className="pa-doc">
+            <div className="pa-doc__head">
+              <strong>{String(o.title ?? "")}</strong>
+              <span className="req-badge req-badge--pending">{status}</span>
+            </div>
+            <div className="pa-muted">番号 {String(o.order_no ?? "")}　・　発行 {dayText(String(o.issued_at ?? "").slice(0, 10))}</div>
+            <ul className="pa-lines">
+              {t.lines.map((l, i) => (
+                <li key={i}>
+                  {l.name}　{l.qty ? `${l.qty}${l.qtyLabel} × ` : ""}{yen(l.unitPrice)}　＝　{yen(l.amount)}
+                </li>
+              ))}
+            </ul>
+            <div className="pa-doc__total">合計 {yen(t.total)}（{t.taxLabel}）</div>
+            {o.payment_terms ? <div className="pa-muted">支払条件：{String(o.payment_terms)}</div> : null}
+          </div>
+        );
+      })}
+      <h4 className="pa-form__title" style={{ marginTop: 16 }}>請求書</h4>
+      {docs.invoices.length === 0 && <p className="pa-muted">まだ提出されていません。</p>}
+      {docs.invoices.map((i) => {
+        const t = calcInvoice(i as unknown as InvoiceLike);
+        const status = INVOICE_STATUS_TEXT[i.status as keyof typeof INVOICE_STATUS_TEXT] ?? String(i.status ?? "");
+        return (
+          <div key={String(i.invoice_id)} className="pa-doc">
+            <div className="pa-doc__head">
+              <strong>{String(i.title ?? "")}</strong>
+              <span className="req-badge req-badge--pending">{status}</span>
+            </div>
+            <div className="pa-muted">番号 {String(i.invoice_no ?? "")}　・　提出 {dayText(String(i.issued_at ?? "").slice(0, 10))}{i.due_date ? `　・　支払期日 ${dayText(String(i.due_date).slice(0, 10))}` : ""}</div>
+            <ul className="pa-lines">
+              {t.lines.map((l, n) => (
+                <li key={n}>
+                  {l.name}　{l.qty ? `${l.qty}${l.qtyLabel} × ` : ""}{yen(l.unitPrice)}　＝　{yen(l.amount)}
+                </li>
+              ))}
+            </ul>
+            <div className="pa-doc__total">合計 {yen(t.total)}（{t.taxLabel}）</div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -342,12 +427,29 @@ function SpeakerTab({ r, onChanged }: { r: PartnerRequest; onChanged: () => void
   const [pick, setPick] = useState<{ id: string; name: string } | null>(null);
   const [query, setQuery] = useState("");
   const [choices, setChoices] = useState<{ id: string; name: string }[] | null>(null);
+  const [book, setBook] = useState<BookEntry[] | null>(null);
   const [busy, setBusy] = useState(false);
   const mayPropose = canPropose(r.status);
 
   async function ensureChoices() {
     if (choices === null) setChoices(await getInstructorChoices());
   }
+  // My own 講師台帳: people I already know, registered lecturers and name-only entries.
+  useEffect(() => {
+    if (!canPropose(r.status)) return;
+    (async () => {
+      const [b, c] = await Promise.all([getBookEntries(), getInstructorChoices()]);
+      setBook(b);
+      setChoices(c);
+    })();
+  }, [r.status]);
+  const ledger = (book ?? [])
+    .map((e) => ({
+      key: e.entry_id,
+      id: e.instructor_id,
+      name: e.instructor_id ? (choices ?? []).find((c) => c.id === e.instructor_id)?.name ?? null : e.external_name,
+    }))
+    .filter((x): x is { key: string; id: string | null; name: string } => !!x.name);
   const matches = (choices ?? []).filter((c) => query.trim() && c.name.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6);
 
   async function submit() {
@@ -389,6 +491,28 @@ function SpeakerTab({ r, onChanged }: { r: PartnerRequest; onChanged: () => void
             <label htmlFor={`pa-name-${r.request_id}`}>講師名</label>
             <input id={`pa-name-${r.request_id}`} type="text" maxLength={100} value={pick ? pick.name : name} disabled={!!pick} onChange={(e) => setName(e.target.value)} placeholder="例：山田 太郎" />
           </div>
+          {ledger.length > 0 && !pick && (
+            <div className="form-field">
+              <label>自社の講師台帳から選ぶ（任意）</label>
+              <Select
+                value=""
+                onChange={(e) => {
+                  const hit = ledger.find((x) => x.key === e.target.value);
+                  if (!hit) return;
+                  if (hit.id) setPick({ id: hit.id, name: hit.name });
+                  else setName(hit.name);
+                }}
+              >
+                <option value="">選択してください</option>
+                {ledger.map((x) => (
+                  <option key={x.key} value={x.key}>
+                    {x.name}
+                    {x.id ? "（Kenshu Link講師）" : ""}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          )}
           <div className="form-field">
             <label htmlFor={`pa-pick-${r.request_id}`}>Kenshu Linkの講師から選ぶ（任意）</label>
             {pick ? (

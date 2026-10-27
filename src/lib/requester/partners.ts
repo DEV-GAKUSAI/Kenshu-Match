@@ -161,6 +161,9 @@ export type PartnerRequest = {
   /** My own proposals for this request (the database sends no request/partner ids here). */
   proposals: Omit<Proposal, "request_id" | "partner_id">[];
   created_at: string;
+  /** The company let this partner read the internal memo (then `memo` is filled). */
+  show_note: boolean;
+  memo: string | null;
 };
 
 export type AcceptResult = { ok: true; company_name: string | null; partner_name: string } | { ok: false; reason: string };
@@ -202,4 +205,52 @@ export async function leavePartner(partnerId: string) {
 export async function getInstructorChoices(): Promise<{ id: string; name: string }[]> {
   const { data } = await db().from("instructor_public_directory").select("id, name").order("created_at", { ascending: false }).limit(500);
   return ((data as { id: string; name: string | null }[] | null) ?? []).filter((r) => !!r.name).map((r) => ({ id: r.id, name: r.name as string }));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Per-partner visibility, documents and the teaching record (migration 188)
+// ---------------------------------------------------------------------------------------------
+
+export type FlowAccess = { partner_id: string; show_amount: boolean; show_note: boolean };
+
+/** What each partner of one request may see (amounts / internal memo). */
+export async function getFlowAccess(requestId: string): Promise<FlowAccess[]> {
+  const { data } = await db().from("request_flow_access").select("partner_id, show_amount, show_note").eq("request_id", requestId);
+  return (data as FlowAccess[] | null) ?? [];
+}
+
+export async function saveFlowAccess(requesterId: string, requestId: string, a: FlowAccess) {
+  const { error } = await db()
+    .from("request_flow_access")
+    .upsert({ request_id: requestId, requester_id: requesterId, ...a, updated_at: new Date().toISOString() });
+  return { error };
+}
+
+export type PartnerDocuments = {
+  orders: Record<string, unknown>[];
+  invoices: Record<string, unknown>[];
+};
+
+/** 注文書・請求書 of a request, read only. null = not the contract party. */
+export async function getPartnerDocuments(requestId: string): Promise<PartnerDocuments | null> {
+  const { data, error } = await db().rpc("partner_documents", { p_request_id: requestId });
+  if (error || !data) return null;
+  return data as PartnerDocuments;
+}
+
+export type TeachingEntry = { request_id: string; title: string; taught_on: string };
+
+/** My own 登壇実績 (lecturer). */
+export async function getTeachingRecord(): Promise<TeachingEntry[]> {
+  const { data } = await db().rpc("instructor_teaching_record");
+  return (data as TeachingEntry[] | null) ?? [];
+}
+
+/** Public 登壇 count per lecturer. */
+export async function getTeachingCounts(ids: string[]): Promise<Record<string, number>> {
+  const out: Record<string, number> = {};
+  if (!ids.length) return out;
+  const { data } = await db().rpc("instructor_teaching_counts", { p_ids: ids });
+  for (const r of (data as { instructor_id: string; taught: number }[] | null) ?? []) out[r.instructor_id] = r.taught;
+  return out;
 }

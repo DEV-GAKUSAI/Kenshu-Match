@@ -126,6 +126,23 @@
 .pa-prop__meta { margin-left: 8px; font-size: 12px; color: var(--color-ink-soft); }
 .pa-prop__note { margin-top: 2px; font-size: 12.5px; color: var(--color-ink-soft); white-space: pre-wrap; }
 .pa-prop__actions { display: flex; gap: 6px; flex-wrap: wrap; }
+/* 関係先に見せる情報 (per partner) */
+.pa-access { display: grid; gap: 6px; margin-bottom: 6px; }
+.pa-access__row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 6px 0; border-top: 1px dashed var(--color-border); }
+.pa-access__name { font-weight: 700; color: var(--color-ink); min-width: 120px; }
+.pa-access__sw { display: inline-flex; align-items: center; gap: 4px; font-weight: 400; cursor: pointer; }
+/* 書類 / memo (partner side) */
+.pa-doc { border: 1px solid var(--color-border); border-radius: var(--radius-s); padding: 10px 12px; margin-bottom: 8px; background: #fff; }
+.pa-doc__head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.pa-doc__total { font-weight: 700; margin-top: 4px; }
+.pa-memo { margin-top: 10px; padding: 8px 12px; border-left: 3px solid var(--color-border); background: #fafafa; }
+.pa-memo p { margin: 4px 0 0; white-space: pre-wrap; }
+/* 登壇実績 (lecturer マイページ) */
+.pa-record { margin-bottom: 28px; }
+.pa-record__list { list-style: none; margin: 8px 0 0; padding: 0; }
+.pa-record__list li { display: flex; gap: 12px; padding: 8px 0; border-top: 1px solid var(--color-border); font-size: 14px; }
+.pa-record__date { color: var(--color-ink-soft); min-width: 96px; }
+
 @media (max-width: 640px) {
   .pa-steps { grid-template-columns: 1fr; }
   .pa-dl { grid-template-columns: 1fr; gap: 2px; }
