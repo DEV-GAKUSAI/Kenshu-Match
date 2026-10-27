@@ -148,7 +148,7 @@ export function EvaluationPanel({
         {EVAL_ITEMS.map((i) => (
           <li key={i.key}>
             <span className="ev__label">{i.label}</span>
-            <Stars value={form[i.key]} label={i.label} onChange={(n) => setForm({ ...form, [i.key]: n })} />
+            <Stars value={form[i.key]} label={i.label} onChange={(n) => setForm((f) => ({ ...f, [i.key]: n }))} />
           </li>
         ))}
       </ul>
@@ -156,7 +156,7 @@ export function EvaluationPanel({
         <span className="ev__label">再依頼の意向</span>
         <div className="ev__choices">
           {REUSE_OPTIONS.map((o) => (
-            <button key={o.value} type="button" role="radio" aria-checked={form.reuse === o.value} className={`ev__choice${form.reuse === o.value ? " is-on" : ""}`} onClick={() => setForm({ ...form, reuse: o.value })}>
+            <button key={o.value} type="button" role="radio" aria-checked={form.reuse === o.value} className={`ev__choice${form.reuse === o.value ? " is-on" : ""}`} onClick={() => setForm((f) => ({ ...f, reuse: o.value }))}>
               {o.label}
             </button>
           ))}
@@ -164,11 +164,11 @@ export function EvaluationPanel({
       </div>
       <label className="ev__field">
         <span className="ev__label">コメント（任意）</span>
-        <textarea rows={3} maxLength={EVAL_COMMENT_MAX} value={form.comment} onChange={(e) => setForm({ ...form, comment: e.target.value })} placeholder="良かった点、次に期待することなど（自社だけに表示されます）" />
+        <textarea rows={3} maxLength={EVAL_COMMENT_MAX} value={form.comment} onChange={(e) => { const v = e.target.value; setForm((f) => ({ ...f, comment: v })); }} placeholder="良かった点、次に期待することなど（自社だけに表示されます）" />
       </label>
       <label className="ev__field">
         <span className="ev__label">評価した人</span>
-        <input type="text" maxLength={EVAL_NAME_MAX} value={form.evaluator_name} onChange={(e) => setForm({ ...form, evaluator_name: e.target.value })} placeholder="例：人事部 田中" />
+        <input type="text" maxLength={EVAL_NAME_MAX} value={form.evaluator_name} onChange={(e) => { const v = e.target.value; setForm((f) => ({ ...f, evaluator_name: v })); }} placeholder="例：人事部 田中" />
       </label>
       <div className="ev__actions">
         <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => void submit()}>
