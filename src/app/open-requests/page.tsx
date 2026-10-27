@@ -6,7 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { budgetText, budgetUpper, isHourly, quoteText } from "@/lib/requests/money";
-import { normalizeDays, requestFormatLabel } from "@/lib/requests/schedule";
+import { matchesPrefecture, normalizeDays, requestFormatLabel } from "@/lib/requests/schedule";
+import { JP_PREFECTURES } from "@/lib/requests/prefectures";
 import { matchesAmount, matchesMineState, matchesOpenState, matchesPeriod, matchesRole, MINE_STATE_TEXT, roleNamesOf, UNIT_FILTER_TEXT, type MineState, type OpenState } from "@/lib/requests/open-filters";
 import type { BudgetUnit } from "@/lib/requests/money";
 import { matchesSearch } from "@/lib/requests/search";
@@ -342,13 +343,12 @@ export default function OpenRequestsPage() {
   }
 
   function passesFilters(r: RequestWithJoins) {
-    const area = fArea.trim().toLowerCase();
     if (q.trim()) {
       const hay = `${r.title} ${r.description} ${r.preferred_schedule ?? ""} ${r.location ?? ""} ${r.request_id} ${budgetText(r) ?? ""} ${requestFormatLabel(r)} ${displayStatus(r).label}`;
       if (!matchesSearch(q, hay)) return false;
     }
     if (fField && r.expertise_field !== fField) return false;
-    if (area && !(r.location ?? "").toLowerCase().includes(area)) return false;
+    if (fArea && !matchesPrefecture(r, fArea)) return false;
     if (fFormat && r.preferred_format !== fFormat && r.preferred_format !== "both") return false;
     if (!matchesAmount(r, fUnit, Number(fRate) || 0)) return false;
     if (!matchesRole(r.role_slots, fRole)) return false;
@@ -375,7 +375,7 @@ export default function OpenRequestsPage() {
   }, [allRequests, currentTab, hiddenIds, myProfile, q, fField, fArea, fFormat, fRate, fUnit, fRole, fFrom, fTo, fOpenState, fMineState, fAudience, fTool]);
 
   const stateActive = currentTab === "mine" ? !!fMineState : fOpenState !== "open";
-  const filterActive = !!(q.trim() || fField || fArea.trim() || fFormat || fRate || fUnit || fRole || fFrom || fTo || stateActive || fAudience || fTool);
+  const filterActive = !!(q.trim() || fField || fArea || fFormat || fRate || fUnit || fRole || fFrom || fTo || stateActive || fAudience || fTool);
   const roleChoices = useMemo(() => roleNamesOf(allRequests), [allRequests]);
 
   if (!authReady || (user && user.role === "INSTRUCTOR" && loading)) {
@@ -478,8 +478,15 @@ export default function OpenRequestsPage() {
           </div>
           <div className="form-row">
             <div className="form-field">
-              <label>地域（実施場所）</label>
-              <input type="text" placeholder="例：東京" value={fArea} onChange={(e) => setFArea(e.target.value)} />
+              <label>地域（都道府県）</label>
+              <Select value={fArea} onChange={(e) => setFArea(e.target.value)}>
+                <option value="">すべて</option>
+                {JP_PREFECTURES.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </Select>
             </div>
             <div className="form-field">
               <label>募集状況</label>
