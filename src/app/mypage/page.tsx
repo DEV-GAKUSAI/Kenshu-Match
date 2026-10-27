@@ -1466,6 +1466,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
   const [proposalCounts, setProposalCounts] = useState<Record<string, number>>({});
   const [view, setView] = useState<"mine" | "partner">("mine");
   const [partnerCount, setPartnerCount] = useState(0);
+  const openPartnerView = useCallback(() => setView("partner"), []);
 
   const load = useCallback(async () => {
     flushMineNotices();
@@ -1620,7 +1621,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
       )}
       {user.role === "COMPANY" && (
         <div hidden={view !== "partner"}>
-          <PartnerRequests onCount={setPartnerCount} />
+          <PartnerRequests onCount={setPartnerCount} onPendingCode={openPartnerView} />
         </div>
       )}
       <div hidden={view !== "mine"}>

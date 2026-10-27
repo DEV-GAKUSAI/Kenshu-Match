@@ -17,6 +17,25 @@ export function formatInviteCode(code: string): string {
   return c.length > 4 ? `${c.slice(0, 4)}-${c.slice(4)}` : c;
 }
 
+/** The page the partner opens from the invitation message. It keeps the code until the partner is logged in. */
+export const INVITE_PAGE = "/partner-invite";
+/** Browser storage key that holds the code between the invitation page and マイページ. */
+export const INVITE_STORAGE_KEY = "kl-partner-invite-code";
+
+export function inviteLink(origin: string, code: string): string {
+  return `${origin.replace(/\/+$/, "")}${INVITE_PAGE}?code=${normalizeInviteCode(code)}`;
+}
+
+/** The invitation message the company sends (copied by one button). */
+export function inviteMessage(origin: string, code: string, leftText: string): string {
+  return [
+    `Kenshu Linkの招待コード：${formatInviteCode(code)}（${leftText}・1回だけ使えます）`,
+    `次のリンクを開くと、コードが入力済みの状態で連携できます。`,
+    inviteLink(origin, code),
+    `アカウントをお持ちでない場合は、企業として新規登録してください。`,
+  ].join("\n");
+}
+
 export function isCompleteInviteCode(input: string): boolean {
   return normalizeInviteCode(input).length === INVITE_CODE_LENGTH;
 }

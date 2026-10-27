@@ -45,8 +45,8 @@ export async function getPartners(): Promise<Partner[]> {
 }
 
 export async function addPartner(requesterId: string, p: { name: string; kind: PartnerKind; contact: string | null; note: string | null; instructor_id: string | null }) {
-  const { error } = await db().from("requester_partners").insert({ requester_id: requesterId, ...p, name: p.name.trim() });
-  return { error };
+  const { data, error } = await db().from("requester_partners").insert({ requester_id: requesterId, ...p, name: p.name.trim() }).select("partner_id").single();
+  return { error, partnerId: (data as { partner_id: string } | null)?.partner_id ?? null };
 }
 
 export async function updatePartner(partnerId: string, p: { name: string; kind: PartnerKind; contact: string | null; note: string | null; instructor_id: string | null }) {

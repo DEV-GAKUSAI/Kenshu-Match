@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useConfirm } from "@/components/common/ConfirmDialog";
 import { useToast } from "@/components/common/Toast";
 import { createPartnerInvite, getPartnerInvite, unlinkPartner, type Invite, type Partner } from "@/lib/requester/partners";
-import { formatInviteCode, inviteLeftText, partnerErrorText } from "@/lib/requests/partner-flow";
+import { formatInviteCode, inviteLeftText, inviteMessage, partnerErrorText } from "@/lib/requests/partner-flow";
 
 /**
  * 協力会社のアカウント連携 (#53). On a partner company's card in 関係先の管理:
@@ -39,7 +39,7 @@ export function PartnerInvitePanel({ partner, onChanged }: { partner: Partner; o
 
   async function copy() {
     if (!invite) return;
-    const text = `Kenshu Linkの招待コード：${formatInviteCode(invite.code)}（${inviteLeftText(invite.expires_at)}・1回だけ使えます）\nKenshu Linkに協力会社のアカウントでログインし、マイページの「関係先の案件」タブでコードを入力してください。`;
+    const text = inviteMessage(window.location.origin, invite.code, inviteLeftText(invite.expires_at));
     try {
       await navigator.clipboard.writeText(text);
       showToast("案内文をコピーしました。");

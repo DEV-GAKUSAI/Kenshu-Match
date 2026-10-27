@@ -20,6 +20,7 @@ import { budgetText, costLines, type MoneyFields } from "@/lib/requests/money";
 import {
   canPropose,
   formatInviteCode,
+  INVITE_STORAGE_KEY,
   inviteReasonText,
   isCompleteInviteCode,
   normalizeInviteCode,
@@ -39,7 +40,7 @@ const STATUS: Record<string, { key: string; label: string }> = {
 type TabKey = "summary" | "days" | "speaker" | "money";
 
 /** 関係先の案件 (#53): the tab of a partner company. Enter a code, see the shared requests, propose a lecturer. */
-export function PartnerRequests({ onCount }: { onCount?: (n: number) => void }) {
+export function PartnerRequests({ onCount, onPendingCode }: { onCount?: (n: number) => void; /** A code from the invitation link is waiting: the parent can open this tab. */ onPendingCode?: () => void }) {
   const { showToast } = useToast();
   const confirm = useConfirm();
   const [links, setLinks] = useState<PartnerLink[] | null>(null);
@@ -91,6 +92,24 @@ export function PartnerRequests({ onCount }: { onCount?: (n: number) => void }) 
     showToast("連携をやめました。");
     await load();
   }
+
+  // A code that came with the invitation link (kept by the page /partner-invite while the partner logged in).
+  useEffect(() => {
+    (async () => {
+      let saved = "";
+      try {
+        saved = localStorage.getItem(INVITE_STORAGE_KEY) ?? "";
+        if (saved) localStorage.removeItem(INVITE_STORAGE_KEY);
+      } catch {
+        saved = "";
+      }
+      if (isCompleteInviteCode(saved)) {
+        setCode(normalizeInviteCode(saved));
+        setCodeOpen(true);
+        onPendingCode?.();
+      }
+    })();
+  }, [onPendingCode]);
 
   if (links === null || rows === null) return <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p>;
 

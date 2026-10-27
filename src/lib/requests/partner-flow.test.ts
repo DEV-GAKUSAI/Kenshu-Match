@@ -5,6 +5,8 @@ import {
   canPropose,
   countProposals,
   formatInviteCode,
+  inviteLink,
+  inviteMessage,
   inviteLeftText,
   inviteReasonText,
   isCompleteInviteCode,
@@ -70,4 +72,17 @@ test("proposal counts and the closed-request rule", () => {
   assert.equal(canPropose("accepted"), true);
   assert.equal(canPropose("cancelled"), false);
   assert.equal(canPropose("completed"), false);
+});
+
+test("the invitation link carries the normalized code", () => {
+  assert.equal(inviteLink("https://kenshu-match.vercel.app/", "xt9q-5yh7"), "https://kenshu-match.vercel.app/partner-invite?code=XT9Q5YH7");
+  assert.equal(inviteLink("https://example.com", "K7M29QXA"), "https://example.com/partner-invite?code=K7M29QXA");
+});
+
+test("the invitation message holds code, time left, link and the sign-up hint", () => {
+  const m = inviteMessage("https://example.com", "K7M29QXA", "あと7日");
+  assert.match(m, /K7M2-9QXA（あと7日・1回だけ使えます）/);
+  assert.match(m, /https:\/\/example\.com\/partner-invite\?code=K7M29QXA/);
+  assert.match(m, /新規登録/);
+  assert.equal(m.split("\n").length, 4);
 });

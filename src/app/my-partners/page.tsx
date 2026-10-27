@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { getInstructorNames } from "@/lib/instructor/profile";
 import { getBookEntries } from "@/lib/requester/book";
-import { addPartner, deletePartner, getPartners, PARTNER_KIND_TEXT, updatePartner, type Partner, type PartnerKind } from "@/lib/requester/partners";
+import { addPartner, createPartnerInvite, deletePartner, getPartners, PARTNER_KIND_TEXT, updatePartner, type Partner, type PartnerKind } from "@/lib/requester/partners";
 import "../mypage/mypage.css";
 import { Select } from "@/components/ui/Select";
 import { PartnerInvitePanel } from "@/components/requests/PartnerInvitePanel";
@@ -25,6 +25,7 @@ export default function MyPartnersPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
+  const [issueCode, setIssueCode] = useState(true);
   const [shown, setShown] = useState(10);
   const [linkable, setLinkable] = useState<{ id: string; name: string }[]>([]);
 
@@ -56,10 +57,27 @@ export default function MyPartnersPage() {
     if (!form.kind) return showToast("区分を選んでください。");
     setBusy(true);
     const payload = { name: form.name, kind: form.kind as PartnerKind, contact: form.contact.trim() || null, note: form.note.trim() || null, instructor_id: form.kind === "instructor" && form.instructorId ? form.instructorId : null };
-    const { error } = editId ? await updatePartner(editId, payload) : await addPartner(me.id, payload);
+    let error: unknown = null;
+    let newId: string | null = null;
+    if (editId) {
+      error = (await updatePartner(editId, payload)).error;
+    } else {
+      const added = await addPartner(me.id, payload);
+      error = added.error;
+      newId = added.partnerId;
+    }
+    if (error) {
+      setBusy(false);
+      return showToast("保存できませんでした。");
+    }
+    // A new 協力会社 gets its invitation code at once (one step instead of two).
+    let invited = false;
+    if (newId && payload.kind === "company" && issueCode) invited = !(await createPartnerInvite(newId)).error;
     setBusy(false);
-    if (error) return showToast("保存できませんでした。");
-    showToast(editId ? "更新しました。" : "関係先を登録しました。");
+    if (editId) showToast("更新しました。");
+    else if (invited) showToast("関係先を登録し、招待コードを発行しました。カードの「案内文をコピー」で相手に送れます。");
+    else if (newId && payload.kind === "company" && issueCode) showToast("関係先を登録しました。招待コードは、カードの「招待コードを発行」から作れます。");
+    else showToast("関係先を登録しました。");
     setForm(EMPTY);
     setEditId(null);
     setFormOpen(false);
@@ -116,6 +134,12 @@ export default function MyPartnersPage() {
             </Select>
           </div>
         </div>
+        {form.kind === "company" && !editId && (
+          <label style={{ display: "flex", gap: 6, alignItems: "center", fontWeight: 400, margin: "0 0 12px" }}>
+            <input type="checkbox" checked={issueCode} onChange={(e) => setIssueCode(e.target.checked)} />
+            登録と同時に招待コードを発行する（相手が自分のアカウントで案件を確認できるようにします）
+          </label>
+        )}
         {form.kind === "instructor" && (
           <div className="form-field">
             <label>Kenshu Linkの講師と紐づける（任意）</label>
