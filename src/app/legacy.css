@@ -2093,3 +2093,9 @@ input[type="checkbox"]:not(.toggle-switch *):disabled { cursor: not-allowed; opa
   .section__eyebrow, .auth-card__eyebrow, .status-tab__count,
   .instructor-card__tag, .site-footer__copy, .field-optional { font-size: 12px; }
 }
+
+/* Japanese headings/lead text: break at word boundaries, not in the middle of a word */
+h1, h2, h3, .hero__title, .section__title, .section__desc, .hero__lead {
+  word-break: auto-phrase;
+  text-wrap: balance;
+}
