@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/components/common/Toast";
 import { deleteBookEntry, getBookEntryFor, saveBookEntryFor, type BookEntry, type BookKind } from "@/lib/requester/book";
 import { Select } from "@/components/ui/Select";
+import { evaluationSummaryText, type EvalSummary } from "@/lib/requests/evaluation-calc";
+import { getMyEvaluationSummary } from "@/lib/requests/evaluations";
 
 /** 自社の講師台帳 on an instructor's page: only the company sees it (#55 評価・メモ, #57 候補・取引先). */
 export function InstructorBookCard({ requesterId, instructorId }: { requesterId: string; instructorId: string }) {
@@ -16,9 +18,11 @@ export function InstructorBookCard({ requesterId, instructorId }: { requesterId:
   const [rating, setRating] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [evalSummary, setEvalSummary] = useState<EvalSummary | undefined>(undefined);
 
   useEffect(() => {
     let alive = true;
+    void getMyEvaluationSummary().then((m) => alive && setEvalSummary(m[instructorId]));
     void getBookEntryFor(instructorId).then((e) => {
       if (!alive) return;
       setEntry(e);
@@ -65,6 +69,11 @@ export function InstructorBookCard({ requesterId, instructorId }: { requesterId:
       <p className="detail-block__text" style={{ fontSize: 12.5, color: "var(--color-ink-soft)" }}>
         この内容はあなたの会社だけに表示されます。講師や他の企業には見えません。
       </p>
+      {evaluationSummaryText(evalSummary) && (
+        <p className="detail-block__text" style={{ fontWeight: 700, color: "#0e7a5f" }}>
+          {evaluationSummaryText(evalSummary)}
+        </p>
+      )}
       {entry && !open && (
         <p className="detail-block__text" style={{ whiteSpace: "pre-wrap" }}>
           {entry.list_kind === "regular" ? "取引先" : "候補"}
