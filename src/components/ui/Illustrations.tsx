@@ -105,4 +105,17 @@ export function YenIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+/** An empty tray with a small sparkle: nothing here yet. */
+export function EmptyIllustration({ size = 72 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <circle cx="32" cy="32" r="30" fill={G_SOFT} />
+      <path d="M14 34l6-14a3 3 0 012.8-2h18.4a3 3 0 012.8 2l6 14" stroke={G} strokeWidth="2" strokeLinejoin="round" />
+      <path d="M14 34h10a8 8 0 0016 0h10v10a4 4 0 01-4 4H18a4 4 0 01-4-4z" fill="#fff" stroke={G} strokeWidth="2" strokeLinejoin="round" />
+      <path d="M46 12v6M43 15h6" stroke={G_MID} strokeWidth="2.2" strokeLinecap="round" />
+      <circle cx="18" cy="14" r="2" fill={G_MID} />
+    </svg>
+  );
+}
+
 export const ILLUSTRATION_INK = INK;

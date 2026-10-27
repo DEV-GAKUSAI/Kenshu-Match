@@ -29,9 +29,9 @@ import {
 } from "@/lib/requests/instructor-responses";
 import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
 import { DetailsView } from "@/components/requests/DetailsView";
-import { InvoicePanel } from "@/components/requests/InvoicePanel";
 import { DecidedTabs } from "@/components/requests/DecidedTabs";
-import { OrderPanel } from "@/components/requests/OrderPanel";
+import { ProgressStrip } from "@/components/requests/ProgressStrip";
+import { EmptyNote } from "@/components/ui/EmptyNote";
 import { FlowPanel } from "@/components/requests/FlowPanel";
 import { InternalNote } from "@/components/requests/InternalNote";
 import { ResponseManage } from "@/components/requests/ResponseManage";
@@ -291,6 +291,23 @@ function InstructorRequestCard({
   const myResponse = (r.instructor_responses || []).find((x) => x.instructor_id === userId) || null;
   const st = instructorDisplayStatus(r, myResponse);
   const meeting = myResponse ? meetings[myResponse.response_id] : undefined;
+  // 注文書・請求書 and 連絡先 sit together in tabs (same as on the company side).
+  const docsOnMine = r.status === "accepted" || r.status === "completed" || (r.status === "pending" && normalizeSlots(r.role_slots).length > 0);
+  const contactOnMine = st.key === "accepted" || st.key === "completed";
+  const requesterCompany = (requester as { company_name?: string | null } | undefined)?.company_name || null;
+  const requesterContactName = requesterCompany || requester?.name || "依頼者";
+  const requesterContactRole = requesterCompany ? (requester?.name ? `担当者：${requester.name}` : null) : r.requester_type === "individual" ? "ご依頼者" : null;
+  const progressHint = !myResponse
+    ? "承諾するか、見積りを送って応募しましょう。"
+    : myResponse.interview_status === "requested"
+    ? "企業から面談の依頼が届いています。同意すると氏名が企業に公開されます。"
+    : myResponse.is_selected
+    ? r.status === "completed"
+      ? "研修は完了しました。"
+      : "決定しました。注文書の確認と、研修の準備を進めてください。"
+    : myResponse.interview_status === "released"
+    ? "氏名を公開しました。企業の決定をお待ちください。"
+    : "企業からの連絡をお待ちください。";
 
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quotePrice, setQuotePrice] = useState("");
@@ -374,6 +391,17 @@ function InstructorRequestCard({
       </div>
       )}
 
+      {!r.target_instructor_id && myResponse?.action !== "reject" && myResponse?.action !== "withdrawn" && (
+        <ProgressStrip
+          input={{
+            status: r.status,
+            applied: !!myResponse && (myResponse.action === "accept" || myResponse.action === "quote"),
+            interviewReleased: myResponse?.interview_status === "released" || !!myResponse?.is_selected,
+            decided: !!myResponse?.is_selected,
+          }}
+          hint={progressHint}
+        />
+      )}
       <p className="request-card__desc">{r.description}</p>
       <div className="request-card__tags">
         <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
@@ -404,8 +432,22 @@ function InstructorRequestCard({
           )}
         </div>
       )}
-      {myResponse?.is_selected && (r.status === "accepted" || r.status === "completed" || (r.status === "pending" && normalizeSlots(r.role_slots).length > 0)) && <OrderPanel responseId={myResponse.response_id} role="instructor" />}
-      {myResponse?.is_selected && (r.status === "accepted" || r.status === "completed") && <InvoicePanel responseId={myResponse.response_id} role="instructor" />}
+      {myResponse?.is_selected && (docsOnMine || contactOnMine) && (
+        <DecidedTabs
+          responseId={myResponse.response_id}
+          role="instructor"
+          showDocs={docsOnMine}
+          showContact={contactOnMine}
+          showInvoice={r.status === "accepted" || r.status === "completed"}
+          contact={{
+            name: requesterContactName,
+            roleLabel: requesterContactRole,
+            email: requester ? requester.email || "未登録" : "読み込み中…",
+            phone: requester ? requester.phone || "未登録" : "読み込み中…",
+            hint: "依頼者への連絡先です。",
+          }}
+        />
+      )}
 
       {myResponse?.interview_status === "requested" && r.status === "pending" && (
         <div className="contact-box">
@@ -430,21 +472,6 @@ function InstructorRequestCard({
         <p className="request-card__desc" style={{ color: "var(--color-ink-soft)" }}>
           面談を辞退しました。
         </p>
-      )}
-
-      {(st.key === "accepted" || st.key === "completed") && (
-        <div className="contact-box">
-          <strong>連絡先：</strong>
-          {requester ? (
-            <>
-              <div>{(requester as { company_name?: string }).company_name ? `会社名：${(requester as { company_name?: string }).company_name}` : r.requester_type === "individual" ? `お名前：${requester.name}` : `担当者：${requester.name}`}</div>
-              <div>メール：{requester.email}</div>
-              <div>電話番号：{requester.phone || "未登録"}</div>
-            </>
-          ) : (
-            "読み込み中…"
-          )}
-        </div>
       )}
 
       {(r.status === "accepted" || r.status === "completed") && <InstructorSurveyPanel requestId={r.request_id} />}
@@ -686,9 +713,7 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
       {loadError && <p style={{ color: "var(--color-danger)", fontSize: 13 }}>読み込みエラー：{loadError}</p>}
       {!loadError && all === null && <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p>}
       {!loadError && all !== null && filtered.length === 0 && (
-        <div className="empty-state">
-          <p className="empty-state__title">該当する依頼はありません</p>
-        </div>
+        <EmptyNote title="該当する依頼はありません">絞り込みを変えるか、「案件を探す」で新しい依頼を探してみましょう。</EmptyNote>
       )}
       {(() => {
         const needs = (r: ReqWithJoins) => !!instructorAttention(r, (r.instructor_responses || []).find((x) => x.instructor_id === user.id) || null);
@@ -1181,6 +1206,17 @@ function RequesterRequestCard({
         <Link href={`/request-detail?id=${r.request_id}`} style={{ textDecoration: "underline", textUnderlineOffset: 3 }}>依頼の詳細ページを開く</Link>
       </div>
 
+      {isBroadcast && r.publish_state !== "draft" && (
+        <ProgressStrip
+          input={{
+            status: r.status,
+            applied: applicants.length > 0,
+            interviewReleased: applicants.some((x) => x.interview_status === "released") || selectedResps.length > 0,
+            decided: selectedResps.length > 0,
+          }}
+          hint={next ? `次の対応：${next}` : null}
+        />
+      )}
       <p className="request-card__desc">{r.description}</p>
       <div className="request-card__tags">
         <span className="instructor-card__tag">{FORMAT_LABEL[r.preferred_format] || r.preferred_format}</span>
@@ -1213,9 +1249,9 @@ function RequesterRequestCard({
         <>
           {applicants.length === 0 ? (
             <>
-              <p className="request-card__desc" style={{ color: "var(--color-ink-soft)" }}>
-                {r.publish_state === "draft" ? "下書きです。まだ講師には表示されていません。" : r.publish_state === "paused" ? "公開を停止中です。再開すると講師に表示されます。" : "まだ講師からの応募はありません。"}
-              </p>
+              <EmptyNote title={r.publish_state === "draft" ? "下書きです" : r.publish_state === "paused" ? "公開を停止中です" : "まだ講師からの応募はありません"}>
+                {r.publish_state === "draft" ? "まだ講師には表示されていません。公開すると、応募を受け付けられます。" : r.publish_state === "paused" ? "再開すると講師に表示されます。" : "応募が届くと、ここに表示されます。"}
+              </EmptyNote>
               {r.publish_state === "draft" ? (
                 <div className="request-card__actions">
                   <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => changePublish("published")}>
@@ -1728,10 +1764,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
       {loadError && <p style={{ color: "var(--color-danger)", fontSize: 13 }}>読み込みエラー：{loadError}</p>}
       {!loadError && all === null && <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p>}
       {!loadError && all !== null && filtered.length === 0 && (
-        <div className="empty-state">
-          <p className="empty-state__title">該当する依頼はありません</p>
-          <p className="empty-state__desc">「講師を探す」から気になる講師に依頼を送ってみましょう。</p>
-        </div>
+        <EmptyNote title="該当する依頼はありません">「講師を探す」から気になる講師に依頼を送ってみましょう。</EmptyNote>
       )}
       {filtered.map((r) => (
         <RequesterRequestCard

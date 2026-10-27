@@ -4,7 +4,7 @@ import { ContactIllustration, CopySmallIcon, MailIcon, PhoneIcon, UserIcon } fro
 import { useToast } from "@/components/common/Toast";
 
 /** The decided lecturer's contact details: one clear card with tap-to-mail / tap-to-call and a copy button. */
-export function ContactCard({ name, roleLabel, email, phone }: { name: string; roleLabel?: string | null; email: string; phone: string }) {
+export function ContactCard({ name, roleLabel, email, phone, hint = "決定した講師への連絡先です。" }: { name: string; roleLabel?: string | null; email: string; phone: string; hint?: string }) {
   const { showToast } = useToast();
   const isValue = (v: string) => v.includes("@") || /\d/.test(v);
 
@@ -45,7 +45,7 @@ export function ContactCard({ name, roleLabel, email, phone }: { name: string; r
             <UserIcon size={14} /> {name}
           </div>
           {roleLabel && <div className="cc__role">{roleLabel}</div>}
-          <div className="cc__hint">決定した講師への連絡先です。</div>
+          <div className="cc__hint">{hint}</div>
         </div>
       </div>
       {row(<MailIcon />, "メール", email, `mailto:${email}`)}
