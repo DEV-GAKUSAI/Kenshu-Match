@@ -334,6 +334,12 @@ function SummaryTab({ r }: { r: PartnerRequest }) {
 
 const yen = (n: number | null) => (n === null ? "—" : `¥${n.toLocaleString()}`);
 
+/** One 明細 line. Without a quantity (hour/day price) the unit price is shown with its unit and no total. */
+function lineText(l: { name: string; qty: number | null; qtyLabel: string; unitPrice: number | null; amount: number | null }) {
+  if (l.qty && l.amount !== null) return `${l.name}　${yen(l.unitPrice)} × ${l.qty}${l.qtyLabel}　＝　${yen(l.amount)}`;
+  return `${l.name}　${yen(l.unitPrice)}${l.qtyLabel ? `／${l.qtyLabel}` : ""}`;
+}
+
 /** 書類 (read only): the 注文書 and 請求書 of a request, for the contract party. No bank details, no receipts. */
 function DocsTab({ requestId }: { requestId: string }) {
   const [docs, setDocs] = useState<PartnerDocuments | null | undefined>(undefined);
@@ -365,11 +371,11 @@ function DocsTab({ requestId }: { requestId: string }) {
             <ul className="pa-lines">
               {t.lines.map((l, i) => (
                 <li key={i}>
-                  {l.name}　{l.qty ? `${l.qty}${l.qtyLabel} × ` : ""}{yen(l.unitPrice)}　＝　{yen(l.amount)}
+                  {lineText(l)}
                 </li>
               ))}
             </ul>
-            <div className="pa-doc__total">合計 {yen(t.total)}（{t.taxLabel}）</div>
+            <div className="pa-doc__total">{t.total === null ? `合計は未確定（${t.taxLabel}）` : `合計 ${yen(t.total)}（${t.taxLabel}）`}</div>
             {o.payment_terms ? <div className="pa-muted">支払条件：{String(o.payment_terms)}</div> : null}
           </div>
         );
@@ -389,11 +395,11 @@ function DocsTab({ requestId }: { requestId: string }) {
             <ul className="pa-lines">
               {t.lines.map((l, n) => (
                 <li key={n}>
-                  {l.name}　{l.qty ? `${l.qty}${l.qtyLabel} × ` : ""}{yen(l.unitPrice)}　＝　{yen(l.amount)}
+                  {lineText(l)}
                 </li>
               ))}
             </ul>
-            <div className="pa-doc__total">合計 {yen(t.total)}（{t.taxLabel}）</div>
+            <div className="pa-doc__total">{t.total === null ? `合計は未確定（${t.taxLabel}）` : `合計 ${yen(t.total)}（${t.taxLabel}）`}</div>
           </div>
         );
       })}
