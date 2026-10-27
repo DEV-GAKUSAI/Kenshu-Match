@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { ResponseAction } from "@/types/database";
+import type { ApplyAnswers } from "@/lib/requests/apply-diff";
 
 export async function submitInstructorResponse(
   requestId: string,
@@ -100,6 +101,8 @@ const REVISE_ERRORS: Record<string, string> = {
   bad_apply: "応募内容の入力を確認してください。",
   bad_price: "見積り金額は1円以上の整数で入力してください。",
   bad_message: "メッセージが長すぎます。",
+  bad_tax: "税の指定を確認してください。",
+  no_change: "変更された項目がありません。",
 };
 
 function reviseMessage(raw: string): string {
@@ -107,10 +110,29 @@ function reviseMessage(raw: string): string {
   return key ? REVISE_ERRORS[key] : "処理できませんでした。";
 }
 
-/** 見積りの変更（確定前のみ）: price, tax and message. The company sees it as NEW with a history row. */
-export async function reviseQuote(responseId: string, price: number, tax: "included" | "excluded" | null, message: string | null) {
+/** The five answers of an application, as the database function takes them (#54). */
+export type ApplyPayload = {
+  apply_all_days: string | null;
+  apply_role: string | null;
+  apply_experience: string | null;
+  apply_materials: string | null;
+  apply_prep: string | null;
+};
+
+/** 見積りの変更（確定前のみ）: price, tax, message and the application answers. The company sees it as NEW with a history row. */
+export async function reviseQuote(responseId: string, price: number | null, tax: "included" | "excluded" | null, message: string | null, apply: ApplyPayload) {
   const supabase = createClient() as unknown as SupabaseClient;
-  const { error } = await supabase.rpc("revise_instructor_quote", { p_response_id: responseId, p_price: price, p_tax: tax, p_message: message });
+  const { error } = await supabase.rpc("revise_instructor_quote", {
+    p_response_id: responseId,
+    p_price: price,
+    p_tax: price ? tax : null,
+    p_message: message,
+    p_all_days: apply.apply_all_days,
+    p_role: apply.apply_role,
+    p_experience: apply.apply_experience,
+    p_materials: apply.apply_materials,
+    p_prep: apply.apply_prep,
+  });
   return { error: error ? { message: reviseMessage(error.message) } : null };
 }
 
@@ -150,13 +172,24 @@ export async function reapplyResponse(
   return { error: error ? { message: reviseMessage(error.message) } : null };
 }
 
-export type ResponseChange = { change_id: string; kind: "revised" | "withdrawn" | "reapplied"; old_price: number | null; new_price: number | null; created_at: string };
+export type ResponseChange = {
+  change_id: string;
+  kind: "revised" | "withdrawn" | "reapplied";
+  old_price: number | null;
+  new_price: number | null;
+  old_message: string | null;
+  new_message: string | null;
+  /** The application answers before / after (rows saved before migration 189 have none). */
+  old_apply: ApplyAnswers | null;
+  new_apply: ApplyAnswers | null;
+  created_at: string;
+};
 
 export async function getResponseChanges(responseId: string): Promise<ResponseChange[]> {
   const supabase = createClient() as unknown as SupabaseClient;
   const { data } = await supabase
     .from("instructor_response_changes")
-    .select("change_id, kind, old_price, new_price, created_at")
+    .select("change_id, kind, old_price, new_price, old_message, new_message, old_apply, new_apply, created_at")
     .eq("response_id", responseId)
     .order("created_at", { ascending: false });
   return (data as unknown as ResponseChange[] | null) ?? [];
