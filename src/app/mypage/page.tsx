@@ -30,6 +30,7 @@ import {
 import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
 import { DetailsView } from "@/components/requests/DetailsView";
 import { InvoicePanel } from "@/components/requests/InvoicePanel";
+import { DecidedTabs } from "@/components/requests/DecidedTabs";
 import { OrderPanel } from "@/components/requests/OrderPanel";
 import { FlowPanel } from "@/components/requests/FlowPanel";
 import { InternalNote } from "@/components/requests/InternalNote";
@@ -924,6 +925,28 @@ function RequesterRequestCard({
   const newApplicants = applicants.filter((x) => x.requester_seen_at === null).length;
   const answerNeeded = applicants.filter((x) => applicantPriority(x, meetings[x.response_id]) === 0).length;
 
+  // Who is decided, and what to show for each (注文書・請求書 / 連絡先).
+  const inApplicantRows = isBroadcast && (st.key === "pending" || st.key === "quoted");
+  const docsOn = hasRoles ? (st.key === "accepted" || st.key === "completed" || r.status === "pending") && selectedResps.length >= 1 : st.key === "accepted" || st.key === "completed";
+  const contactOn = st.key === "accepted" || (hasRoles && r.status === "pending" && selectedResps.length >= 1);
+  const decidedSingle = !hasRoles ? selectedResp ?? (resp?.is_selected ? resp : null) : null;
+  const decidedPeople: { responseId: string; instructorId: string; name: string; roleLabel: string | null }[] = hasRoles
+    ? selectedResps.map((sr) => ({ responseId: sr.response_id, instructorId: sr.instructor_id, name: nameOfDecided(sr), roleLabel: sr.role_slot_id ? roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? null : null }))
+    : decidedSingle
+    ? [{ responseId: decidedSingle.response_id, instructorId: decidedSingle.instructor_id, name: instr.name || "講師", roleLabel: null }]
+    : [];
+  function decidedTabsFor(p: { responseId: string; instructorId: string; name: string; roleLabel: string | null }) {
+    const info = hasRoles || !decidedSingle ? instructorMap[p.instructorId] : instr;
+    return (
+      <DecidedTabs
+        responseId={p.responseId}
+        showDocs={docsOn}
+        showContact={contactOn}
+        requestOpen={hasRoles}
+        contact={{ name: p.name, roleLabel: p.roleLabel, email: contactOr(info?.contact_email), phone: contactOr(info?.contact_phone) }}
+      />
+    );
+  }
   const [busy, setBusy] = useState(false);
   // The applicants of a 公募依頼 stay closed until the company opens them (there can be many).
   const [listOpen, setListOpen] = useState(false);
@@ -1278,6 +1301,7 @@ function RequesterRequestCard({
                       stage={stageOf(a, st.key === "accepted" || st.key === "completed")}
                       onRequestInterview={st.key === "pending" || st.key === "quoted" ? () => askInterview(a.response_id) : undefined}
                       budget={r}
+                      extra={a.is_selected ? decidedTabsFor({ responseId: a.response_id, instructorId: a.instructor_id, name: nameOfDecided(a), roleLabel: a.role_slot_id ? roleSlots.find((x) => x.id === a.role_slot_id)?.name ?? null : null }) : undefined}
                       onStageChange={st.key === "accepted" || st.key === "completed" || a.is_selected ? undefined : (v) => changeStage(a.response_id, v)}
                       decidedLabel={a.is_selected ? `決定${hasRoles ? `：${roleSlots.find((x) => x.id === a.role_slot_id)?.name ?? ""}` : ""}` : null}
                       decideExtra={
@@ -1408,56 +1432,34 @@ function RequesterRequestCard({
         />
       )}
 
-      {(st.key === "accepted" || st.key === "completed" || r.status === "pending") && hasRoles && selectedResps.length >= 1
-        ? selectedResps.map((sr) => (
-            <div key={sr.response_id} style={{ marginTop: 10 }}>
-              <strong style={{ fontSize: 13 }}>
-                {nameOfDecided(sr)} 先生
-                {sr.role_slot_id ? `（${roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? ""}）` : ""}
-              </strong>
-              <OrderPanel responseId={sr.response_id} role="requester" requestOpen />
-              <InvoicePanel responseId={sr.response_id} role="requester" />
-            </div>
-          ))
-        : (st.key === "accepted" || st.key === "completed") && (selectedResp || (resp?.is_selected ? resp : null)) && (
-            <>
-              <OrderPanel responseId={(selectedResp ?? resp)!.response_id} role="requester" />
-              <InvoicePanel responseId={(selectedResp ?? resp)!.response_id} role="requester" />
-            </>
-          )}
-
-      {(st.key === "accepted" || (hasRoles && r.status === "pending" && selectedResps.length >= 1)) && (
+      {/* The decided lecturer(s): 注文書・請求書 and 連絡先 in tabs. With applicant rows they sit inside the lecturer's own row. */}
+      {!inApplicantRows && decidedPeople.length > 0 && (
         <>
-          {hasRoles && selectedResps.length > 1 ? (
-            <div className="contact-box">
-              <strong>連絡先：</strong>
-              {selectedResps.map((sr) => (
-                <div key={sr.response_id} style={{ marginTop: 6 }}>
-                  <div>
-                    {nameOfDecided(sr)} 先生
-                    {sr.role_slot_id ? `（${roleSlots.find((x) => x.id === sr.role_slot_id)?.name ?? ""}）` : ""}
-                  </div>
-                  <div>メール：{contactOr(instructorMap[sr.instructor_id]?.contact_email)}</div>
-                  <div>電話番号：{contactOr(instructorMap[sr.instructor_id]?.contact_phone)}</div>
+          {decidedPeople.map((p) => (
+            <section key={p.responseId} className="dt-person">
+              {hasRoles && (
+                <div className="dt-person__name">
+                  {p.name} 先生{p.roleLabel && <span className="dt-person__role">{p.roleLabel}</span>}
                 </div>
-              ))}
-            </div>
-          ) : (
-          <div className="contact-box">
-            <strong>連絡先：</strong>
-            <div>名前：{instr.name || "講師"}</div>
-            <div>メール：{contactOr(instr.contact_email)}</div>
-            <div>電話番号：{contactOr(instr.contact_phone)}</div>
-          </div>
-          )}
-          {st.key === "accepted" && (
-            <div className="request-card__actions">
+              )}
+              {decidedTabsFor(p)}
+            </section>
+          ))}
+          {contactOn && st.key === "accepted" && (
+            <div className="request-card__actions" style={{ marginTop: 14 }}>
               <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={handleComplete}>
                 研修完了として記録する
               </button>
             </div>
           )}
         </>
+      )}
+      {inApplicantRows && contactOn && st.key === "accepted" && (
+        <div className="request-card__actions">
+          <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={handleComplete}>
+            研修完了として記録する
+          </button>
+        </div>
       )}
 
       </div>
@@ -1505,14 +1507,16 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
     }
 
     // New applicants of open requests stay "unseen" (red dot) until the company opens that request's row;
-    // everything else is marked as seen right away.
+    // everything else (direct requests, declines, closed requests) is marked as seen right away.
     const isOpenRow = (r: ReqWithJoins) => {
       const key = requesterDisplayStatus(r).key;
-      return key === "pending" || key === "quoted";
+      return !r.target_instructor_id && (key === "pending" || key === "quoted");
     };
-    const unseenOf = (r: ReqWithJoins) => (r.instructor_responses || []).filter((x) => x.requester_seen_at === null).map((x) => x.response_id);
-    setUnseenCount(rows.filter(isOpenRow).flatMap(unseenOf).length);
-    markResponsesSeenByRequester(rows.filter((r) => !isOpenRow(r)).flatMap(unseenOf));
+    const isApplicant = (x: { action?: string | null }) => x.action === "accept" || x.action === "quote";
+    const keepUnseen = (r: ReqWithJoins, x: { action?: string | null }) => isOpenRow(r) && isApplicant(x);
+    const unseenAll = rows.flatMap((r) => (r.instructor_responses || []).filter((x) => x.requester_seen_at === null).map((x) => ({ r, x })));
+    setUnseenCount(unseenAll.filter(({ r, x }) => keepUnseen(r, x)).length);
+    markResponsesSeenByRequester(unseenAll.filter(({ r, x }) => !keepUnseen(r, x)).map(({ x }) => x.response_id));
 
     const allResponseInstructorIds = rows.flatMap((r) => (r.instructor_responses || []).map((x) => x.instructor_id));
     const targetIds = [...new Set([...rows.map((r) => resolveInstructorId(r)).filter((x): x is string => !!x), ...allResponseInstructorIds])];

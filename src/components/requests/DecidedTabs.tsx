@@ -1,0 +1,74 @@
+"use client";
+
+import { useState, type ReactNode } from "react";
+
+import { ContactCard } from "@/components/requests/ContactCard";
+import { InvoicePanel } from "@/components/requests/InvoicePanel";
+import { OrderPanel } from "@/components/requests/OrderPanel";
+import { CheckCircleIcon, DocIcon, DocIllustration, MailIcon, SendIcon, YenIcon } from "@/components/ui/Illustrations";
+
+type TabKey = "docs" | "contact";
+
+/**
+ * What belongs to ONE decided lecturer, in two tabs: 注文書・請求書 and 連絡先.
+ * Used inside the lecturer's own row (several lecturers) and on its own (one lecturer).
+ */
+export function DecidedTabs({
+  responseId,
+  showDocs,
+  showContact,
+  requestOpen,
+  contact,
+}: {
+  responseId: string;
+  showDocs: boolean;
+  showContact: boolean;
+  requestOpen?: boolean;
+  contact: { name: string; roleLabel?: string | null; email: string; phone: string };
+}) {
+  const tabs: { key: TabKey; label: string; icon: ReactNode }[] = [];
+  if (showDocs) tabs.push({ key: "docs", label: "注文書・請求書", icon: <DocIcon /> });
+  if (showContact) tabs.push({ key: "contact", label: "連絡先", icon: <MailIcon /> });
+  const [tab, setTab] = useState<TabKey | null>(null);
+  if (!tabs.length) return null;
+  const active = tab && tabs.some((t) => t.key === tab) ? tab : tabs[0].key;
+
+  return (
+    <div className="dt">
+      <div className="dt__tabs" role="tablist" aria-label="この講師の書類と連絡先">
+        {tabs.map((t) => (
+          <button key={t.key} type="button" role="tab" aria-selected={active === t.key} className={`dt__tab${active === t.key ? " is-on" : ""}`} onClick={() => setTab(t.key)}>
+            {t.icon}
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="dt__panel" role="tabpanel">
+        {active === "docs" && (
+          <>
+            <div className="dt__flow">
+              <DocIllustration size={46} />
+              <ol className="dt__steps" aria-label="書類の流れ">
+                <li>
+                  <SendIcon size={14} />
+                  <span>1. 注文書を発行</span>
+                </li>
+                <li>
+                  <CheckCircleIcon size={14} />
+                  <span>2. 講師が確認</span>
+                </li>
+                <li>
+                  <YenIcon size={14} />
+                  <span>3. 研修後に請求書</span>
+                </li>
+              </ol>
+            </div>
+            <OrderPanel responseId={responseId} role="requester" requestOpen={requestOpen} />
+            <InvoicePanel responseId={responseId} role="requester" />
+          </>
+        )}
+        {active === "contact" && <ContactCard name={contact.name} roleLabel={contact.roleLabel} email={contact.email} phone={contact.phone} />}
+      </div>
+    </div>
+  );
+}
