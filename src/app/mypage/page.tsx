@@ -639,6 +639,24 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
     })();
   }, [load, user.id]);
 
+  // An order / invoice changed inside a card: refresh the red dots and the 要対応 list right away.
+  useEffect(() => {
+    if (!all) return;
+    const ids = all.flatMap((r) => (r.instructor_responses || []).filter((x) => x.instructor_id === user.id && x.is_selected).map((x) => x.response_id));
+    if (ids.length === 0) return;
+    const refresh = () => {
+      getDocStates(ids)
+        .then(setDocStates)
+        .catch(() => undefined);
+    };
+    window.addEventListener("kl-doc-changed", refresh);
+    window.addEventListener("kl-order-changed", refresh);
+    return () => {
+      window.removeEventListener("kl-doc-changed", refresh);
+      window.removeEventListener("kl-order-changed", refresh);
+    };
+  }, [all, user.id]);
+
   const filtered = useMemo(() => {
     if (!all) return [];
     if (currentTab === "all") return all;
@@ -1658,6 +1676,24 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
       await load();
     })();
   }, [load]);
+
+  // An order / invoice changed inside a card: refresh the red dots and the 要対応 list right away.
+  useEffect(() => {
+    if (!all) return;
+    const ids = all.flatMap((r) => (r.instructor_responses || []).filter((x) => x.is_selected).map((x) => x.response_id));
+    if (ids.length === 0) return;
+    const refresh = () => {
+      getDocStates(ids)
+        .then(setDocStates)
+        .catch(() => undefined);
+    };
+    window.addEventListener("kl-doc-changed", refresh);
+    window.addEventListener("kl-order-changed", refresh);
+    return () => {
+      window.removeEventListener("kl-doc-changed", refresh);
+      window.removeEventListener("kl-order-changed", refresh);
+    };
+  }, [all]);
 
   const filtered = useMemo(() => {
     if (!all) return [];
