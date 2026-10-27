@@ -101,6 +101,7 @@ export function OrderPanel({ responseId, role, requestOpen = false }: { response
     showToast(order ? "注文書を更新して再発行しました。" : "注文書を発行しました。");
     setOpen(false);
     await load();
+    window.dispatchEvent(new Event("kl-doc-changed"));
   }
 
   async function respond(accept: boolean) {
@@ -118,6 +119,7 @@ export function OrderPanel({ responseId, role, requestOpen = false }: { response
     if (error) return showToast(error.message);
     showToast(accept ? "注文書を確認しました。" : "注文書を辞退しました。");
     await load();
+    window.dispatchEvent(new Event("kl-doc-changed"));
     // The invoice box on the same card depends on the order (declined → no invoice yet).
     window.dispatchEvent(new Event("kl-order-changed"));
   }

@@ -31,6 +31,8 @@ import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/compo
 import { DetailsView } from "@/components/requests/DetailsView";
 import { DecidedTabs } from "@/components/requests/DecidedTabs";
 import { ProgressStrip } from "@/components/requests/ProgressStrip";
+import { docWaits, hasUnseenWait, isWaitSeen, markWaitsSeen, type DocState, type Wait } from "@/lib/requests/docs-wait";
+import { getDocStates } from "@/lib/requests/docs-status";
 import { EmptyNote } from "@/components/ui/EmptyNote";
 import { FlowPanel } from "@/components/requests/FlowPanel";
 import { InternalNote } from "@/components/requests/InternalNote";
@@ -296,7 +298,7 @@ function InstructorRequestCard({
   const contactOnMine = st.key === "accepted" || st.key === "completed";
   const requesterCompany = (requester as { company_name?: string | null } | undefined)?.company_name || null;
   const requesterContactName = requesterCompany || requester?.name || "依頼者";
-  const requesterContactRole = requesterCompany ? (requester?.name ? `担当者：${requester.name}` : null) : r.requester_type === "individual" ? "ご依頼者" : null;
+  const requesterContactRole = requesterCompany ? (requester?.name && requester.name !== requesterCompany ? `担当者：${requester.name}` : null) : r.requester_type === "individual" ? "ご依頼者" : null;
   const progressHint = !myResponse
     ? "承諾するか、見積りを送って応募しましょう。"
     : myResponse.interview_status === "requested"
@@ -391,7 +393,7 @@ function InstructorRequestCard({
       </div>
       )}
 
-      {!r.target_instructor_id && myResponse?.action !== "reject" && myResponse?.action !== "withdrawn" && (
+      {!r.target_instructor_id && myResponse?.action !== "reject" && myResponse?.action !== "withdrawn" && !((r.status === "accepted" || r.status === "completed") && !myResponse?.is_selected) && (
         <ProgressStrip
           input={{
             status: r.status,
@@ -521,10 +523,15 @@ function InstructorRequestCard({
 }
 
 /** What needs the instructor's action right now (shown as a red dot). */
-function instructorAttention(r: ReqWithJoins, myResponse: InstructorResponseRow | null): { label: string } | null {
+function instructorAttention(r: ReqWithJoins, myResponse: InstructorResponseRow | null, doc?: DocState | null): { label: string; key: string } | null {
+  // A decided lecturer: an order to confirm, or an invoice sent back (these can happen when the request is already accepted).
+  if (myResponse?.is_selected) {
+    const w = docWaits("instructor", doc)[0];
+    if (w) return w;
+  }
   if (r.status !== "pending") return null;
-  if (!myResponse) return { label: "要対応" };
-  if (myResponse.interview_status === "requested") return { label: "面談の依頼" };
+  if (!myResponse) return { label: "要対応", key: "要対応" };
+  if (myResponse.interview_status === "requested") return { label: "面談の依頼", key: "面談の依頼" };
   return null;
 }
 
@@ -533,18 +540,20 @@ function InstructorRequestRow({
   userId,
   requester,
   meetings,
+  doc,
   onChanged,
 }: {
   r: ReqWithJoins;
   userId: string;
   requester: { name?: string; email?: string; phone?: string | null; company_name?: string | null } | undefined;
   meetings: Record<string, KenshuMineMeetingRow>;
+  doc?: DocState | null;
   onChanged: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const myResponse = (r.instructor_responses || []).find((x) => x.instructor_id === userId) || null;
   const st = instructorDisplayStatus(r, myResponse);
-  const attn = instructorAttention(r, myResponse);
+  const attn = instructorAttention(r, myResponse, doc);
   const meeting = myResponse ? meetings[myResponse.response_id] : undefined;
   const who = requester?.company_name || (r.requester_type === "company" ? "企業" : "生徒");
   const meetingText =
@@ -558,23 +567,12 @@ function InstructorRequestRow({
     fmtDate(r.created_at),
   ].filter(Boolean);
   // Only a small red dot marks "needs you"; it goes away once the lecturer opens the row (remembered in this browser).
-  const seenKey = attn ? `kl-seen:${r.request_id}:${attn.label}` : null;
-  const [seen, setSeen] = useState(() => {
-    if (!seenKey || typeof window === "undefined") return false;
-    try {
-      return window.localStorage.getItem(seenKey) === "1";
-    } catch {
-      return false; // storage not available: the dot just shows
-    }
-  });
+  const [seenTick, setSeenTick] = useState(0);
+  const seen = seenTick >= 0 && !!attn && isWaitSeen(r.request_id, attn.key);
   function toggleOpen() {
-    if (!open && seenKey && !seen) {
-      setSeen(true);
-      try {
-        window.localStorage.setItem(seenKey, "1");
-      } catch {
-        /* ignore */
-      }
+    if (!open && attn && !seen) {
+      markWaitsSeen(r.request_id, [attn.key]);
+      setSeenTick((n) => n + 1);
     }
     setOpen((v) => !v);
   }
@@ -611,6 +609,7 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
   const [requesterMap, setRequesterMap] = useState<Record<string, { name?: string; email?: string; phone?: string | null; company_name?: string | null }>>({});
   const [currentTab, setCurrentTab] = useState("all");
   const [shownCount, setShownCount] = useState(10);
+  const [docStates, setDocStates] = useState<Record<string, DocState>>({});
 
   const load = useCallback(async () => {
     flushMineNotices();
@@ -621,6 +620,12 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
     }
     const rows = (data || []) as unknown as ReqWithJoins[];
     setAll(rows);
+    const myDecidedIds = rows.flatMap((r) => (r.instructor_responses || []).filter((x) => x.instructor_id === user.id && x.is_selected).map((x) => x.response_id));
+    try {
+      setDocStates(await getDocStates(myDecidedIds));
+    } catch {
+      setDocStates({});
+    }
 
     const acceptedRequesterIds = rows.filter((r) => r.status === "accepted" || r.status === "completed").map((r) => r.requester_id);
     if (acceptedRequesterIds.length) {
@@ -716,13 +721,17 @@ function InstructorMypage({ user }: { user: CurrentUser }) {
         <EmptyNote title="該当する依頼はありません">絞り込みを変えるか、「案件を探す」で新しい依頼を探してみましょう。</EmptyNote>
       )}
       {(() => {
-        const needs = (r: ReqWithJoins) => !!instructorAttention(r, (r.instructor_responses || []).find((x) => x.instructor_id === user.id) || null);
+        const myOf = (r: ReqWithJoins) => (r.instructor_responses || []).find((x) => x.instructor_id === user.id) || null;
+        const needs = (r: ReqWithJoins) => {
+          const mine = myOf(r);
+          return !!instructorAttention(r, mine, mine ? docStates[mine.response_id] : null);
+        };
         const ordered = [...filtered.filter(needs), ...filtered.filter((r) => !needs(r))];
         const shown = ordered.slice(0, shownCount);
         const attnShown = shown.filter(needs);
         const restShown = shown.filter((r) => !needs(r));
         const row = (r: ReqWithJoins) => (
-          <InstructorRequestRow key={r.request_id} r={r} userId={user.id} requester={requesterMap[r.requester_id]} meetings={meetings} onChanged={load} />
+          <InstructorRequestRow key={r.request_id} r={r} userId={user.id} requester={requesterMap[r.requester_id]} meetings={meetings} doc={myOf(r) ? docStates[myOf(r)!.response_id] : null} onChanged={load} />
         );
         return (
           <>
@@ -876,6 +885,7 @@ function RequesterRequestCard({
   owner,
   proposals = 0,
   onSeen,
+  docs,
   onChanged,
 }: {
   r: ReqWithJoins;
@@ -889,6 +899,8 @@ function RequesterRequestCard({
   proposals?: number;
   /** Called with the number of NEW applicants that were just seen (opens the row). */
   onSeen?: (count: number) => void;
+  /** Order / invoice status of the decided replies (for the red dot). */
+  docs?: Record<string, DocState>;
   onChanged: () => void | Promise<void>;
 }) {
   const { showToast } = useToast();
@@ -957,8 +969,25 @@ function RequesterRequestCard({
   const [cardOpen, setCardOpen] = useState(false);
   // A red dot until the company opens the row for the first time.
   const [dotCleared, setDotCleared] = useState(false);
-  const attention = !dotCleared && (st.key === "pending" || st.key === "quoted") && (newApplicants > 0 || answerNeeded > 0);
+  // Things that wait inside the card: a lecturer who released the name (decide!), a declined order, a submitted invoice.
+  // Each has its own key, so a new event shows the dot again after the row was opened before.
+  const [waitTick, setWaitTick] = useState(0);
+  const openRequest = st.key === "pending" || st.key === "quoted";
+  const waits: Wait[] = [
+    ...(r.instructor_responses || []).filter((x) => x.is_selected).flatMap((x) => docWaits("requester", docs?.[x.response_id])),
+    ...(openRequest
+      ? applicants
+          .filter((x) => x.interview_status === "released" && !x.is_selected && x.stage !== "passed")
+          .map((x) => ({ key: `released:${x.response_id}`, label: "講師を決定する" }))
+      : []),
+  ];
+  const waitDot = waitTick >= 0 && hasUnseenWait(r.request_id, waits);
+  const attention = waitDot || (!dotCleared && openRequest && (newApplicants > 0 || answerNeeded > 0));
   function toggleRow() {
+    if (!cardOpen && waitDot) {
+      markWaitsSeen(r.request_id, waits.map((w) => w.key));
+      setWaitTick((n) => n + 1);
+    }
     if (!cardOpen && !dotCleared) {
       setDotCleared(true);
       const ids = applicants.filter((x) => x.requester_seen_at === null).map((x) => x.response_id);
@@ -1214,7 +1243,13 @@ function RequesterRequestCard({
             interviewReleased: applicants.some((x) => x.interview_status === "released") || selectedResps.length > 0,
             decided: selectedResps.length > 0,
           }}
-          hint={next ? `次の対応：${next}` : null}
+          hint={
+            hasRoles && openRequest && selectedResps.length > 0 && totalRemaining(slotStats) > 0
+              ? `決定した${selectedResps.length}名は研修の準備中です。あと${totalRemaining(slotStats)}名を募集しています。`
+              : next
+              ? `次の対応：${next}`
+              : null
+          }
         />
       )}
       <p className="request-card__desc">{r.description}</p>
@@ -1517,6 +1552,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
   const [roleFilter, setRoleFilter] = useState("");
   const [monthFilter, setMonthFilter] = useState("");
   const [unseenCount, setUnseenCount] = useState(0);
+  const [docStates, setDocStates] = useState<Record<string, DocState>>({});
   const [owners, setOwners] = useState<Record<string, string>>({});
   const [proposalCounts, setProposalCounts] = useState<Record<string, number>>({});
   const [view, setView] = useState<"mine" | "partner">("mine");
@@ -1532,6 +1568,11 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
     }
     const rows = (data || []) as unknown as ReqWithJoins[];
     setAll(rows);
+    try {
+      setDocStates(await getDocStates(rows.flatMap((r) => (r.instructor_responses || []).filter((x) => x.is_selected).map((x) => x.response_id))));
+    } catch {
+      setDocStates({});
+    }
     // 担当者 (company only): saved in the 社内メモ. Searched and shown in each row.
     if (user.role === "COMPANY") {
       const db = createBrowserClient() as unknown as { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => Promise<{ data: { request_id: string; owner_name: string | null }[] | null }> } } };
@@ -1777,6 +1818,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
           owner={owners[r.request_id]}
           onSeen={(n) => setUnseenCount((c) => Math.max(0, c - n))}
           proposals={proposalCounts[r.request_id] ?? 0}
+          docs={docStates}
           onChanged={load}
         />
       ))}
