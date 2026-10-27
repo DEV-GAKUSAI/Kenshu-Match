@@ -49,6 +49,7 @@ export function ApplicantRow({
   onStageChange,
   onRequestInterview,
   budget,
+  extra,
 }: {
   name: string;
   response: InstructorResponseRow;
@@ -71,6 +72,8 @@ export function ApplicantRow({
   onRequestInterview?: () => void;
   /** The request's budget, to say whether a quote is inside a range budget. */
   budget?: MoneyFields;
+  /** Shown at the end of the opened row (a decided lecturer's 注文書・請求書 and 連絡先 tabs). */
+  extra?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [changes, setChanges] = useState<ResponseChange[]>([]);
@@ -266,6 +269,7 @@ export function ApplicantRow({
               </button>
             )}
           </div>
+          {extra}
         </div>
       )}
     </div>
