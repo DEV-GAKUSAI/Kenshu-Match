@@ -4,6 +4,7 @@ import { useState } from "react";
 import { cleanDays, EMPTY_DAY, MAX_DAYS, type DayFormat, type ScheduleDay } from "@/lib/requests/schedule";
 import { Select } from "@/components/ui/Select";
 import { JP_PREFECTURES } from "@/lib/requests/prefectures";
+import { CONDITION_ITEMS, MAX_YEARS, conditionsPayload, type CondKey, type CondLevel, type Condition } from "@/lib/requests/conditions";
 import { DetailConditionsForm } from "@/components/requests/DetailConditionsForm";
 
 export type DetailsFormValue = {
@@ -14,9 +15,11 @@ export type DetailsFormValue = {
   /** 詳細条件 (ids from training_detail_options) and the typed-in other tools. */
   optionIds: string[];
   otherTools: string;
+  /** 必須／歓迎の条件 (#59). */
+  conditions: Condition[];
 };
 
-export const EMPTY_DETAILS: DetailsFormValue = { days: [], allDaysRequired: false, skills: "", prep: "", optionIds: [], otherTools: "" };
+export const EMPTY_DETAILS: DetailsFormValue = { days: [], allDaysRequired: false, skills: "", prep: "", optionIds: [], otherTools: "", conditions: [] };
 
 /** The fields to send with a new request. */
 export function detailsPayload(v: DetailsFormValue, alwaysSendDetails = false) {
@@ -26,6 +29,8 @@ export function detailsPayload(v: DetailsFormValue, alwaysSendDetails = false) {
     all_days_required: days.length > 1 && v.allDaysRequired,
     req_skills: v.skills.trim() || null,
     req_prep: v.prep.trim() || null,
+    // Only sent when used (or when editing, so they can be cleared) — keeps new requests working before migration 191 is run.
+    ...(alwaysSendDetails || v.conditions.length > 0 ? { req_conditions: conditionsPayload(v.conditions) } : {}),
     // Only sent when used (or when editing, so choices can be cleared) — keeps new requests working before migration 164 is run.
     ...(alwaysSendDetails || v.optionIds.length > 0 || v.otherTools.trim()
       ? { detail_option_ids: v.optionIds, detail_other_tools: v.otherTools.trim() || null }
@@ -167,6 +172,58 @@ export function DetailsForm({ value, onChange, idPrefix = "req" }: { value: Deta
         <label htmlFor={`${idPrefix}Prep`}>事前に対応してほしいこと（任意）</label>
         <textarea id={`${idPrefix}Prep`} rows={2} maxLength={1000} placeholder="例：事前打合せ1回、教材の作成、模擬講義" value={value.prep} onChange={(e) => set({ prep: e.target.value })} />
       </div>
+      <ConditionsForm value={value.conditions} onChange={(conditions) => set({ conditions })} />
     </>
+  );
+}
+
+const LEVEL_TEXT: Record<"" | CondLevel, string> = { "": "指定しない", must: "必須", nice: "歓迎" };
+
+/** 必須／歓迎の条件 (#59): each item is 指定しない / 必須 / 歓迎. Lecturers answer 可／不可／要相談 when applying. */
+function ConditionsForm({ value, onChange }: { value: Condition[]; onChange: (v: Condition[]) => void }) {
+  const get = (key: CondKey) => value.find((c) => c.key === key);
+  const setLevel = (key: CondKey, level: "" | CondLevel) => {
+    const rest = value.filter((c) => c.key !== key);
+    if (!level) return onChange(rest);
+    const prev = get(key);
+    onChange([...rest, { key, level, ...(key === "years" ? { years: prev?.years ?? 3 } : {}) }]);
+  };
+  const setYears = (n: number) => onChange(value.map((c) => (c.key === "years" ? { ...c, years: n } : c)));
+  return (
+    <div className="form-field">
+      <label>必須・歓迎の条件（任意）</label>
+      <p style={{ margin: "0 0 8px", fontSize: 12.5, color: "var(--color-ink-soft)" }}>
+        決めている条件だけ選んでください。応募する講師は、選んだ条件ごとに「可・不可・要相談」を答えます。
+      </p>
+      {CONDITION_ITEMS.map((item) => {
+        const c = get(item.key);
+        return (
+          <div key={item.key} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", margin: "0 0 8px" }}>
+            <span style={{ flex: "1 1 160px", fontSize: 13.5 }}>{item.label}</span>
+            {item.key === "years" && c && (
+              <span style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+                <input
+                  type="number"
+                  aria-label="経験年数"
+                  min={1}
+                  max={MAX_YEARS}
+                  value={c.years ?? ""}
+                  onChange={(e) => setYears(Math.max(1, Math.min(MAX_YEARS, Math.floor(Number(e.target.value)) || 1)))}
+                  style={{ width: 72 }}
+                />
+                年以上
+              </span>
+            )}
+            <Select aria-label={`${item.label}の指定`} value={c?.level ?? ""} onChange={(e) => setLevel(item.key, e.target.value as "" | CondLevel)} style={{ flex: "0 1 140px" }}>
+              {(Object.keys(LEVEL_TEXT) as ("" | CondLevel)[]).map((k) => (
+                <option key={k || "none"} value={k}>
+                  {LEVEL_TEXT[k]}
+                </option>
+              ))}
+            </Select>
+          </div>
+        );
+      })}
+    </div>
   );
 }

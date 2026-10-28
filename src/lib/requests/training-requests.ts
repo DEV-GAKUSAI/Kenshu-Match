@@ -28,6 +28,8 @@ export interface NewTrainingRequestInput {
   all_days_required: boolean;
   req_skills: string | null;
   req_prep: string | null;
+  /** 必須／歓迎の条件 (#59), see lib/requests/conditions.ts. Only sent when used (migration 191). */
+  req_conditions?: unknown;
   detail_option_ids?: string[];
   detail_other_tools?: string | null;
   publish_state?: PublishState;

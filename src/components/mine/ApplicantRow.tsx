@@ -2,7 +2,8 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
-import { ApplyItemsBox, QuoteHistoryBox } from "@/components/requests/ApplicationDetails";
+import { ApplyItemsBox, ConditionChecksBox, QuoteHistoryBox, conditionChip, statePill } from "@/components/requests/ApplicationDetails";
+import type { RequestLike } from "@/lib/requests/conditions";
 import { quoteText, quoteVsRange, type MoneyFields } from "@/lib/requests/money";
 import { getResponseChanges, type ResponseChange } from "@/lib/requests/instructor-responses";
 import { MineMeetingLine } from "@/components/mine/MineMeeting";
@@ -49,6 +50,7 @@ export function ApplicantRow({
   onStageChange,
   onRequestInterview,
   budget,
+  conditionRequest,
   extra,
 }: {
   name: string;
@@ -72,6 +74,8 @@ export function ApplicantRow({
   onRequestInterview?: () => void;
   /** The request's budget, to say whether a quote is inside a range budget. */
   budget?: MoneyFields;
+  /** The request's 必須・歓迎の条件 and 全日程の指定, to show 確認済み / 未確認 / 不一致 (#60). */
+  conditionRequest?: RequestLike;
   /** Shown at the end of the opened row (a decided lecturer's 注文書・請求書 and 連絡先 tabs). */
   extra?: ReactNode;
 }) {
@@ -93,6 +97,7 @@ export function ApplicantRow({
   // For a range budget, say whether the quote is inside it (a label only).
   const range = response.action === "accept" || !budget ? null : quoteVsRange(budget, response);
   const offer = response.action === "accept" ? "承諾" : `${quoteText(response)}${range === "in" ? "（予算の範囲内）" : range === "out" ? "（予算の範囲外）" : ""}`;
+  const chip = conditionRequest ? conditionChip(conditionRequest, response) : null;
   const message = (response.message ?? "").trim();
   const interview = response.interview_status;
   const declined = interview === "declined";
@@ -165,6 +170,7 @@ export function ApplicantRow({
               </a>
             </strong>
             <span style={pill("var(--color-accent-soft)", "var(--color-accent-text)")}>{offer}</span>
+            {chip && <span style={statePill(chip.state)}>{chip.text}</span>}
             {decidedLabel && <span style={pill("#17B08A", "#fff")}>{decidedLabel}</span>}
             {!decidedLabel && (stage === "screening" || stage === "negotiation") && <span style={pill("#EEF1FF", "#3B4BB8")}>{STAGE_LABEL[stage]}</span>}
             {!decidedLabel && stage === "passed" && <span style={pill("#EEE", "#666")}>見送り</span>}
@@ -207,6 +213,7 @@ export function ApplicantRow({
         <div style={{ borderTop: "1px solid var(--color-border)", padding: "12px 14px" }}>
           {message && <p style={{ margin: "0 0 10px", whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{message}</p>}
           <ApplyItemsBox response={response} />
+          {conditionRequest && <ConditionChecksBox request={conditionRequest} response={response} />}
           <QuoteHistoryBox changes={changes} response={response} />
           {meeting && <MineMeetingLine meeting={meeting} viewer="requester" compact />}
           {!declined && stage !== "passed" && (

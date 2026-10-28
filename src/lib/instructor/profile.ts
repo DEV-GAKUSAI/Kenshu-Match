@@ -117,7 +117,7 @@ export async function getMyMatchingProfile(instructorId: string) {
   const supabase = createClient();
   const { data: profile } = await supabase
     .from("instructor_profiles")
-    .select("work_style, desired_rate_min")
+    .select("work_style, desired_rate_min, prefectures")
     .eq("id", instructorId)
     .maybeSingle();
   const expertiseIds = await getInstructorExpertiseIds(instructorId);
@@ -125,6 +125,7 @@ export async function getMyMatchingProfile(instructorId: string) {
   return {
     workStyle: profile?.work_style ?? null,
     desiredRateMin: profile?.desired_rate_min ?? null,
+    prefectures: (profile?.prefectures as string[] | null | undefined) ?? [],
     expertiseIds: new Set(expertiseIds),
   };
 }

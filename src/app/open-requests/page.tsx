@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { budgetText, budgetUpper, isHourly, quoteText } from "@/lib/requests/money";
+import { areaState, isRecommendedMatch, referenceNote, withAreaReason } from "@/lib/requests/conditions";
 import { matchesPrefecture, normalizeDays, requestFormatLabel } from "@/lib/requests/schedule";
 import { JP_PREFECTURES } from "@/lib/requests/prefectures";
 import { matchesAmount, matchesMineState, matchesOpenState, matchesPeriod, matchesRole, MINE_STATE_TEXT, roleNamesOf, UNIT_FILTER_TEXT, type MineState, type OpenState } from "@/lib/requests/open-filters";
@@ -58,10 +59,9 @@ function getHiddenIds(): string[] {
   }
 }
 
-function matchReasons(
-  r: RequestWithJoins,
-  myProfile: { workStyle: string | null; desiredRateMin: number | null; expertiseIds: Set<string> } | null
-) {
+type MyProfile = { workStyle: string | null; desiredRateMin: number | null; expertiseIds: Set<string>; prefectures?: string[] };
+
+function matchReasons(r: RequestWithJoins, myProfile: MyProfile | null) {
   if (!myProfile) return [];
   const reasons: string[] = [];
   if (r.expertise_field && myProfile.expertiseIds.has(r.expertise_field)) reasons.push("分野");
@@ -71,11 +71,11 @@ function matchReasons(
     (r.preferred_format === "offline" && (myProfile.workStyle === "ONSITE" || myProfile.workStyle === "HYBRID"));
   if (formatOk) reasons.push("形態");
   if (isHourly(r) && budgetUpper(r) != null && myProfile.desiredRateMin != null && (budgetUpper(r) as number) >= myProfile.desiredRateMin) reasons.push("予算");
-  return reasons;
+  return withAreaReason(reasons, areaState(r, myProfile.prefectures));
 }
-// おすすめ = 専門分野が合う案件だけ。形態・予算だけ合う案件は「参考」(#60).
-function isRecommended(reasons: string[]) {
-  return reasons.includes("分野");
+// おすすめ = 専門分野が合い、実施場所が対応エリアと食い違わない案件。それ以外は「参考」(#60, #58).
+function isRecommended(reasons: string[], r: RequestWithJoins, myProfile: MyProfile | null) {
+  return isRecommendedMatch(reasons, areaState(r, myProfile?.prefectures));
 }
 
 function displayStatus(r: RequestWithJoins) {
@@ -170,7 +170,7 @@ export default function OpenRequestsPage() {
   const [requesterMap, setRequesterMap] = useState<
     Record<string, { name?: string; email?: string; phone?: string | null; company_name?: string | null }>
   >({});
-  const [myProfile, setMyProfile] = useState<{ workStyle: string | null; desiredRateMin: number | null; expertiseIds: Set<string> } | null>(null);
+  const [myProfile, setMyProfile] = useState<MyProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState<"recommended" | "open" | "mine">("recommended");
@@ -331,7 +331,7 @@ export default function OpenRequestsPage() {
         .sort((a, b) => {
           const ra = matchReasons(a, myProfile);
           const rb = matchReasons(b, myProfile);
-          const strongDiff = (isRecommended(rb) ? 1 : 0) - (isRecommended(ra) ? 1 : 0);
+          const strongDiff = (isRecommended(rb, b, myProfile) ? 1 : 0) - (isRecommended(ra, a, myProfile) ? 1 : 0);
           if (strongDiff !== 0) return strongDiff;
           return rb.length - ra.length;
         });
@@ -635,7 +635,7 @@ export default function OpenRequestsPage() {
         const reasons = currentTab === "recommended" ? matchReasons(r, myProfile) : [];
         const requester = requesterMap[r.requester_id];
         return (
-          <div className={`request-card request-card--open${reasons.length > 0 && isRecommended(reasons) ? " is-match" : ""}${leavingId === r.request_id ? " is-leaving" : ""}`} key={r.request_id}>
+          <div className={`request-card request-card--open${reasons.length > 0 && isRecommended(reasons, r, myProfile) ? " is-match" : ""}${leavingId === r.request_id ? " is-leaving" : ""}`} key={r.request_id}>
             <div className="request-card__top">
               <div>
                 <div className="request-card__title">
@@ -652,9 +652,9 @@ export default function OpenRequestsPage() {
             </div>
 
             {reasons.length > 0 && (
-              <div className={`match-banner${isRecommended(reasons) ? " is-strong" : ""}`}>
-                {isRecommended(reasons) && <span className="match-banner__star">★</span>}
-                <span className="match-banner__text">{isRecommended(reasons) ? "あなたにぴったりの案件です" : "参考：分野は一致していませんが、条件に一部合っています"}</span>
+              <div className={`match-banner${isRecommended(reasons, r, myProfile) ? " is-strong" : ""}`}>
+                {isRecommended(reasons, r, myProfile) && <span className="match-banner__star">★</span>}
+                <span className="match-banner__text">{isRecommended(reasons, r, myProfile) ? "あなたにぴったりの案件です" : `参考：${referenceNote(reasons, areaState(r, myProfile?.prefectures))}`}</span>
                 <span className="match-banner__chips">
                   {reasons.map((x) => (
                     <span className="match-chip" key={x}>{x} ✓</span>

@@ -6,10 +6,11 @@ import { useConfirm } from "@/components/common/ConfirmDialog";
 import { useToast } from "@/components/common/Toast";
 import { BudgetHint } from "@/components/requests/BudgetHint";
 import { amountError, MAX_AMOUNT, normalUnit, UNIT_OPTIONS, type MoneyFields } from "@/lib/requests/money";
-import { reviseQuote, withdrawResponse } from "@/lib/requests/instructor-responses";
+import { reviseQuote, saveConditionAnswers, withdrawResponse } from "@/lib/requests/instructor-responses";
 import type { InstructorResponseRow } from "@/types/database";
 import { Select } from "@/components/ui/Select";
-import { ApplyFields, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
+import { ApplyFields, applyPayload, conditionAnswersPayload, type ApplyValue } from "@/components/requests/ApplyFields";
+import { answersFor, normalizeConditions } from "@/lib/requests/conditions";
 import { normalizeSlots } from "@/lib/requests/roles";
 
 /**
@@ -22,7 +23,7 @@ export function ResponseManage({
   onChanged,
 }: {
   response: InstructorResponseRow;
-  request: MoneyFields & { status: string; role_slots?: unknown };
+  request: MoneyFields & { status: string; role_slots?: unknown; req_conditions?: unknown };
   onChanged: () => void;
 }) {
   const { showToast } = useToast();
@@ -37,6 +38,7 @@ export function ResponseManage({
     experience: response.apply_experience ?? "",
     materials: (response.apply_materials ?? "") as ApplyValue["materials"],
     prep: (response.apply_prep ?? "") as ApplyValue["prep"],
+    answers: answersFor(normalizeConditions(request.req_conditions), response.condition_answers),
   });
   const [busy, setBusy] = useState(false);
 
@@ -55,7 +57,14 @@ export function ResponseManage({
     }
     if (slotNames.length > 0 && !apply.role) return showToast("希望する役割を選んでください。");
     setBusy(true);
-    const { error } = await reviseQuote(response.response_id, hasPrice ? n : null, tax || null, message.trim() || null, applyPayload(apply));
+    const conditions = normalizeConditions(request.req_conditions);
+    const answers = conditionAnswersPayload(apply, conditions);
+    const answersChanged = JSON.stringify(answers) !== JSON.stringify(answersFor(conditions, response.condition_answers));
+    let { error } = await reviseQuote(response.response_id, hasPrice ? n : null, tax || null, message.trim() || null, applyPayload(apply));
+    // Only the condition answers changed: the quote function reports "no change", the answers are still saved below.
+    const onlyAnswers = !!error && error.message === "変更された項目がありません。" && answersChanged;
+    if (onlyAnswers) error = null;
+    if (!error && answersChanged) ({ error } = await saveConditionAnswers(response.response_id, answers));
     setBusy(false);
     if (error) return showToast(error.message);
     showToast("応募内容を変更しました。企業に新しい内容が届きます。");
@@ -110,7 +119,7 @@ export function ResponseManage({
             <label>メッセージ</label>
             <textarea rows={2} value={message} onChange={(e) => setMessage(e.target.value)} />
           </div>
-          <ApplyFields value={apply} onChange={setApply} roleOptions={slotNames} />
+          <ApplyFields value={apply} onChange={setApply} roleOptions={slotNames} conditions={normalizeConditions(request.req_conditions)} />
           <p style={{ margin: "0 0 10px", fontSize: 12, color: "var(--color-ink-soft)" }}>変更した項目は、企業の「見積りの変更履歴」に前の内容と一緒に表示されます。</p>
           <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={save}>
             この内容に変更する

@@ -10,6 +10,7 @@ import { getTrainingSubcategoryOptions, findOrCreateSubcategory, getOtherCategor
 import { createTrainingRequest } from "@/lib/requests/training-requests";
 import { flushMineNotices } from "@/lib/mine/flush-client";
 import type { RequestFormat } from "@/types/database";
+import { normalizeConditions } from "@/lib/requests/conditions";
 import { DetailsForm, EMPTY_DETAILS, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
 import { MoneyForm, EMPTY_MONEY, moneyError, moneyFromRow, moneyPayload, type MoneyFormValue } from "@/components/requests/MoneyForm";
 import { Select } from "@/components/ui/Select";
@@ -93,7 +94,7 @@ export default function PostRequestPage() {
           setSchedule(r.preferred_schedule ?? "");
           setParticipants(r.participant_count ? String(r.participant_count) : "");
           setMoney(moneyFromRow(r));
-          setDetails({ days: normalizeDays(r.schedule_days), allDaysRequired: !!r.all_days_required, skills: r.req_skills ?? "", prep: r.req_prep ?? "", optionIds: r.detail_option_ids ?? [], otherTools: r.detail_other_tools ?? "" });
+          setDetails({ days: normalizeDays(r.schedule_days), allDaysRequired: !!r.all_days_required, skills: r.req_skills ?? "", prep: r.req_prep ?? "", optionIds: r.detail_option_ids ?? [], otherTools: r.detail_other_tools ?? "", conditions: normalizeConditions(r.req_conditions) });
           setRoles(rolesToForm(normalizeSlots(r.role_slots)));
           showToast("元の依頼の内容をコピーしました。まだ保存・公開されていません。");
         }
