@@ -102,7 +102,7 @@ export function RequestCandidates({ requestId, requesterId, hideWhenEmpty = fals
                     </div>
                     {detail && <div className="request-card__meta" style={{ margin: 0 }}>{detail}</div>}
                     {shortSpeaking(e.speaking_record) && (
-                      <div className="request-card__meta" title={e.speaking_record ?? undefined} style={{ margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div className="request-card__meta" title={e.speaking_record ?? undefined} style={{ margin: 0, overflowWrap: "anywhere" }}>
                         登壇実績：{shortSpeaking(e.speaking_record)}
                       </div>
                     )}
