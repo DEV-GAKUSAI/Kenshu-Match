@@ -84,6 +84,14 @@ export async function deleteBookEntry(entryId: string) {
 
 // 案件別候補リスト (#57): the ledger entries a company picked as candidates for one request (migration 194).
 
+/** How many candidates each of my requests has (request_id -> count); requests without candidates are left out. */
+export async function getCandidateCounts(): Promise<Record<string, number>> {
+  const { data } = await db().from("request_candidates").select("request_id");
+  const counts: Record<string, number> = {};
+  for (const r of (data as { request_id: string }[] | null) ?? []) counts[r.request_id] = (counts[r.request_id] ?? 0) + 1;
+  return counts;
+}
+
 export async function getRequestCandidateIds(requestId: string): Promise<string[]> {
   const { data } = await db().from("request_candidates").select("entry_id").eq("request_id", requestId).order("created_at");
   return ((data as { entry_id: string }[] | null) ?? []).map((r) => r.entry_id);

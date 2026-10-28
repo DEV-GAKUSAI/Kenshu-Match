@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { addableCandidates, bookFieldsError, filterBook, MAX_SPEAKING, MAX_STRENGTHS, parsePastRate, pastRateText, type BookLike } from "./book-calc.ts";
+import { addableCandidates, bookFieldsError, filterBook, MAX_SPEAKING, MAX_STRENGTHS, parsePastRate, pastRateText, shortSpeaking, type BookLike } from "./book-calc.ts";
 
 const base: BookLike = {
   entry_id: "e1",
@@ -76,4 +76,23 @@ test("addable candidates skip the ones already on the request, favourites first"
   const c: BookLike = { ...base, entry_id: "c" };
   assert.deepEqual(addableCandidates([a, b, c], ["c"]).map((e) => e.entry_id), ["b", "a"]);
   assert.deepEqual(addableCandidates([a], ["a"]), []);
+});
+
+test("sort: default keeps favourites first; newest, rate and rating reorder", () => {
+  const a: BookLike = { ...base, entry_id: "a", external_name: "A", is_favorite: false, rating: 2, updated_at: "2026-10-01", past_rate_amount: 30000, past_rate_unit: "hour" };
+  const b: BookLike = { ...base, entry_id: "b", external_name: "B", is_favorite: true, rating: null, updated_at: "2026-09-01", past_rate_amount: null, past_rate_unit: null };
+  const c: BookLike = { ...base, entry_id: "c", external_name: "C", is_favorite: false, rating: 5, updated_at: "2026-10-20", past_rate_amount: 10000, past_rate_unit: "hour" };
+  const d: BookLike = { ...base, entry_id: "d", external_name: "D", is_favorite: false, rating: 3, updated_at: "2026-10-10", past_rate_amount: 50000, past_rate_unit: "day" };
+  const ids = (sort: "favorite" | "newest" | "rate" | "rating") => filterBook([a, b, c, d], { ...all, sort }, nameOf, fields).map((e) => e.entry_id).join("");
+  assert.equal(ids("favorite"), "bacd");
+  assert.equal(ids("newest"), "cdab");
+  // 時間 before 日, cheaper first inside a unit, no rate last
+  assert.equal(ids("rate"), "cadb");
+  assert.equal(ids("rating"), "cdab");
+});
+
+test("shortSpeaking: one line, cut when long", () => {
+  assert.equal(shortSpeaking(null), "");
+  assert.equal(shortSpeaking("  Oracle登壇\n新人研修3社 "), "Oracle登壇 新人研修3社");
+  assert.equal(shortSpeaking("あ".repeat(50), 10), `${"あ".repeat(10)}…`);
 });

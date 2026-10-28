@@ -67,6 +67,7 @@ import { VISIBILITY_TEXT } from "@/lib/requests/visibility";
 import { PartnerRequests } from "@/components/requests/PartnerRequests";
 import { TeachingRecord } from "@/components/instructors/TeachingRecord";
 import { getNewProposalCounts } from "@/lib/requester/partners";
+import { getCandidateCounts } from "@/lib/requester/book";
 import "./mypage.css";
 import { Select } from "@/components/ui/Select";
 
@@ -920,6 +921,8 @@ function RequesterRequestCard({
   mineLinked,
   owner,
   proposals = 0,
+  candidateCount = 0,
+  onCandidateCount,
   onSeen,
   docs,
   evaluated,
@@ -934,6 +937,9 @@ function RequesterRequestCard({
   owner?: string;
   /** Lecturer proposals from partner companies that wait for an answer (#53). */
   proposals?: number;
+  /** How many ledger candidates this request has (#57), shown in the row. */
+  candidateCount?: number;
+  onCandidateCount?: (requestId: string, count: number) => void;
   /** Called with the number of NEW applicants that were just seen (opens the row). */
   onSeen?: (count: number) => void;
   /** Order / invoice status of the decided replies (for the red dot). */
@@ -1087,6 +1093,7 @@ function RequesterRequestCard({
     isBroadcast && (st.key === "pending" || st.key === "quoted") ? allDaysWarning(!!r.all_days_required, applicants.map((x) => x.apply_all_days)) : null,
     hasRoles && (st.key === "pending" || st.key === "quoted") && totalRemaining(slotStats) > 0 ? `あと${totalRemaining(slotStats)}名` : null,
     owner ? `担当：${owner}` : null,
+    candidateCount > 0 ? `候補${candidateCount}名` : null,
     isBroadcast && r.visibility && r.visibility !== "public" ? VISIBILITY_TEXT[r.visibility] : null,
     fmtDate(r.created_at),
     `案件番号 ${r.request_id.slice(0, 8)}`,
@@ -1512,7 +1519,7 @@ function RequesterRequestCard({
       {(r.requester_type !== "individual" || (isBroadcast && r.publish_state !== "draft")) && (
         <div className="request-card__tools">
           {r.requester_type !== "individual" && <InternalNote requestId={r.request_id} requesterId={userId} onSaved={() => void onChanged()} />}
-          {r.requester_type !== "individual" && <RequestCandidates requestId={r.request_id} requesterId={userId} hideWhenEmpty={r.status === "cancelled" || r.status === "completed" || !!r.target_instructor_id} />}
+          {r.requester_type !== "individual" && <RequestCandidates requestId={r.request_id} requesterId={userId} onCountChange={(n) => onCandidateCount?.(r.request_id, n)} hideWhenEmpty={r.status === "cancelled" || r.status === "completed" || !!r.target_instructor_id} />}
           {r.requester_type !== "individual" && (
             <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} severalInstructors={hasRoles} onChanged={onChanged} />
           )}
@@ -1610,6 +1617,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
   const [evaluatedIds, setEvaluatedIds] = useState<Set<string> | undefined>(undefined);
   const [owners, setOwners] = useState<Record<string, string>>({});
   const [proposalCounts, setProposalCounts] = useState<Record<string, number>>({});
+  const [candidateCounts, setCandidateCounts] = useState<Record<string, number>>({});
   const [view, setView] = useState<"mine" | "partner">("mine");
   const [partnerCount, setPartnerCount] = useState(0);
   const openPartnerView = useCallback(() => setView("partner"), []);
@@ -1643,6 +1651,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
       for (const n of noteRows || []) if (n.owner_name?.trim()) map[n.request_id] = n.owner_name.trim();
       setOwners(map);
       setProposalCounts(await getNewProposalCounts(rows.map((x) => x.request_id)));
+      setCandidateCounts(await getCandidateCounts());
     }
 
     // New applicants of open requests stay "unseen" (red dot) until the company opens that request's row;
@@ -1898,6 +1907,8 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
           owner={owners[r.request_id]}
           onSeen={(n) => setUnseenCount((c) => Math.max(0, c - n))}
           proposals={proposalCounts[r.request_id] ?? 0}
+          candidateCount={candidateCounts[r.request_id] ?? 0}
+          onCandidateCount={(id, n) => setCandidateCounts((c) => ({ ...c, [id]: n }))}
           docs={docStates}
           evaluated={evaluatedIds}
           onChanged={load}

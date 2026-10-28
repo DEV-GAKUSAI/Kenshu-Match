@@ -20,6 +20,9 @@ export type BookLike = {
   past_rate_unit: string | null;
   speaking_record: string | null;
   is_favorite: boolean;
+  /** Optional: only needed for sorting. */
+  rating?: number | null;
+  updated_at?: string;
 };
 
 export type BookFormInput = { strengthIds: string[]; rateText: string; rateUnit: BudgetUnit; speaking: string };
@@ -73,9 +76,30 @@ export function bookSearchText(e: BookLike, name: string, fieldNames: Record<str
     .join(" ");
 }
 
-export type BookFilter = { query: string; kind: "all" | BookKindLike; favoriteOnly: boolean; fieldId: string };
+export type BookSort = "favorite" | "newest" | "rate" | "rating";
 
-/** The entries to show: filters applied, お気に入り first (the rest keep their order). */
+export type BookFilter = { query: string; kind: "all" | BookKindLike; favoriteOnly: boolean; fieldId: string; sort?: BookSort };
+
+const UNIT_ORDER: Record<string, number> = { hour: 0, day: 1, total: 2 };
+
+/** One line of the 登壇実績 for a list: spaces and line breaks flattened, cut with … when long. */
+export function shortSpeaking(text: string | null | undefined, max = 40): string {
+  const t = (text ?? "").replace(/\s+/g, " ").trim();
+  return t.length > max ? `${t.slice(0, max)}…` : t;
+}
+
+/** Sorts a copy. rate: by unit (時間 → 日 → 総額), then amount low to high; entries without a rate go last. rating: high to low, unrated last. */
+function sortBook<T extends BookLike>(list: T[], sort: BookSort): T[] {
+  if (sort === "newest") return [...list].sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
+  if (sort === "rating") return [...list].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+  if (sort === "rate") {
+    const key = (e: T) => (e.past_rate_amount === null || e.past_rate_amount === undefined ? [99, 0] : [UNIT_ORDER[e.past_rate_unit ?? ""] ?? 98, e.past_rate_amount]);
+    return [...list].sort((a, b) => key(a)[0] - key(b)[0] || key(a)[1] - key(b)[1]);
+  }
+  return [...list.filter((e) => e.is_favorite), ...list.filter((e) => !e.is_favorite)];
+}
+
+/** The entries to show: filters applied, then sorted (default: お気に入り first, the rest keep their order). */
 export function filterBook<T extends BookLike>(entries: T[], f: BookFilter, nameOf: (e: T) => string, fieldNames: Record<string, string>): T[] {
   const shown = entries.filter((e) => {
     if (f.kind !== "all" && e.list_kind !== f.kind) return false;
@@ -83,7 +107,7 @@ export function filterBook<T extends BookLike>(entries: T[], f: BookFilter, name
     if (f.fieldId && !e.strength_field_ids.includes(f.fieldId)) return false;
     return matchesSearch(f.query, bookSearchText(e, nameOf(e), fieldNames));
   });
-  return [...shown.filter((e) => e.is_favorite), ...shown.filter((e) => !e.is_favorite)];
+  return sortBook(shown, f.sort ?? "favorite");
 }
 
 /** Ledger entries that can still be added as a candidate of a request (not yet candidates), favourites first. */
