@@ -8,13 +8,13 @@ import { useToast } from "@/components/common/Toast";
 import { UsersIcon } from "@/components/requests/ToolIcons";
 import { Select } from "@/components/ui/Select";
 import { getInstructorNames } from "@/lib/instructor/profile";
-import { addableCandidates, pastRateText } from "@/lib/requests/book-calc";
+import { addableCandidates, pastRateText, shortSpeaking } from "@/lib/requests/book-calc";
 import { loadFieldNames } from "@/lib/requests/field-names";
 import { addRequestCandidate, getBookEntries, getRequestCandidateIds, KIND_TEXT, removeRequestCandidate, type BookEntry } from "@/lib/requester/book";
 
 /** 案件別候補リスト (#57): the lecturers from the company's own 講師台帳 that it keeps as candidates for this request. Only the company sees it. */
 /** hideWhenEmpty: a finished, cancelled or direct request has nothing to shortlist, so the button is hidden unless candidates were already saved. */
-export function RequestCandidates({ requestId, requesterId, hideWhenEmpty = false }: { requestId: string; requesterId: string; hideWhenEmpty?: boolean }) {
+export function RequestCandidates({ requestId, requesterId, hideWhenEmpty = false, onCountChange }: { requestId: string; requesterId: string; hideWhenEmpty?: boolean; onCountChange?: (count: number) => void }) {
   const { showToast } = useToast();
   const confirm = useConfirm();
   const [open, setOpen] = useState(false);
@@ -60,6 +60,7 @@ export function RequestCandidates({ requestId, requesterId, hideWhenEmpty = fals
     setBusy(false);
     if (error) return showToast("候補に追加できませんでした。");
     setIds([...picked, entryId]);
+    onCountChange?.(picked.length + 1);
   }
 
   async function remove(entryId: string) {
@@ -70,6 +71,7 @@ export function RequestCandidates({ requestId, requesterId, hideWhenEmpty = fals
     setBusy(false);
     if (error) return showToast("候補から外せませんでした。");
     setIds(picked.filter((id) => id !== entryId));
+    onCountChange?.(picked.length - 1);
   }
 
   // Wait until the saved list has loaded, so a request that already has candidates never loses its button.
@@ -99,6 +101,11 @@ export function RequestCandidates({ requestId, requesterId, hideWhenEmpty = fals
                       <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 600, color: "var(--color-ink-soft)" }}>{KIND_TEXT[e.list_kind]}</span>
                     </div>
                     {detail && <div className="request-card__meta" style={{ margin: 0 }}>{detail}</div>}
+                    {shortSpeaking(e.speaking_record) && (
+                      <div className="request-card__meta" title={e.speaking_record ?? undefined} style={{ margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        登壇実績：{shortSpeaking(e.speaking_record)}
+                      </div>
+                    )}
                   </div>
                   <button type="button" className="btn btn--ghost btn--sm" disabled={busy} onClick={() => void remove(e.entry_id)}>
                     外す

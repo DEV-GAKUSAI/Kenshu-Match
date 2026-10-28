@@ -10,7 +10,7 @@ import { getInstructorNames } from "@/lib/instructor/profile";
 import { getTrainingSubcategoryOptions } from "@/lib/instructor/expertise";
 import { evaluationSummaryText, type EvalSummary } from "@/lib/requests/evaluation-calc";
 import { getMyEvaluationSummary } from "@/lib/requests/evaluations";
-import { bookFieldsError, filterBook, parsePastRate, pastRateText, MAX_STRENGTHS, MAX_SPEAKING } from "@/lib/requests/book-calc";
+import { bookFieldsError, filterBook, parsePastRate, pastRateText, MAX_STRENGTHS, MAX_SPEAKING, type BookSort } from "@/lib/requests/book-calc";
 import { normalUnit, UNIT_OPTIONS, type BudgetUnit } from "@/lib/requests/money";
 import { addExternalEntry, deleteBookEntry, getBookEntries, KIND_TEXT, updateBookEntry, type BookEntry, type BookKind } from "@/lib/requester/book";
 import "../mypage/mypage.css";
@@ -28,6 +28,7 @@ export default function MyInstructorsPage() {
   const [query, setQuery] = useState("");
   const [favOnly, setFavOnly] = useState(false);
   const [fieldFilter, setFieldFilter] = useState("");
+  const [sort, setSort] = useState<BookSort>("favorite");
   const [fieldOptions, setFieldOptions] = useState<{ id: string; name: string; categoryName: string }[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -120,7 +121,7 @@ export default function MyInstructorsPage() {
   const fieldNames = Object.fromEntries(fieldOptions.map((f) => [f.id, f.name]));
   const nameOf = (e: BookEntry) => (e.instructor_id ? names[e.instructor_id] ?? "" : e.external_name ?? "");
   const filtersOn = query.trim() !== "" || favOnly || fieldFilter !== "";
-  const shown = filterBook(entries ?? [], { query, kind: filter, favoriteOnly: favOnly, fieldId: fieldFilter }, nameOf, fieldNames);
+  const shown = filterBook(entries ?? [], { query, kind: filter, favoriteOnly: favOnly, fieldId: fieldFilter, sort }, nameOf, fieldNames);
 
   return (
     <main className="mypage">
@@ -180,6 +181,20 @@ export default function MyInstructorsPage() {
               ))}
             </optgroup>
           ))}
+        </Select>
+        <Select
+          aria-label="並び順"
+          value={sort}
+          onChange={(e) => {
+            setSort(e.target.value as BookSort);
+            setLimit(10);
+          }}
+          style={{ flex: "1 1 180px", minWidth: 0 }}
+        >
+          <option value="favorite">並び順：お気に入り優先</option>
+          <option value="newest">並び順：更新が新しい順</option>
+          <option value="rate">並び順：過去単価が安い順</option>
+          <option value="rating">並び順：社内評価が高い順</option>
         </Select>
         <button
           type="button"
