@@ -38,6 +38,7 @@ import { getEvaluatedResponseIds } from "@/lib/requests/evaluations";
 import { EmptyNote } from "@/components/ui/EmptyNote";
 import { FlowPanel } from "@/components/requests/FlowPanel";
 import { InternalNote } from "@/components/requests/InternalNote";
+import { RequestCandidates } from "@/components/requests/RequestCandidates";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { deadlineShort, deadlinePassed } from "@/lib/requests/deadline";
 import { finalizeResponse, closeRecruiting } from "@/lib/requests/actions";
@@ -1511,6 +1512,7 @@ function RequesterRequestCard({
       {(r.requester_type !== "individual" || (isBroadcast && r.publish_state !== "draft")) && (
         <div className="request-card__tools">
           {r.requester_type !== "individual" && <InternalNote requestId={r.request_id} requesterId={userId} onSaved={() => void onChanged()} />}
+          {r.requester_type !== "individual" && <RequestCandidates requestId={r.request_id} requesterId={userId} />}
           {r.requester_type !== "individual" && (
             <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} severalInstructors={hasRoles} onChanged={onChanged} />
           )}
