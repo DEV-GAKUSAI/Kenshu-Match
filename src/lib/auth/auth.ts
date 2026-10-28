@@ -64,7 +64,7 @@ export type CurrentUser = Pick<UserRow, "id" | "role" | "name" | "status">;
 
 export async function loadUserProfile(
   session: Session | null
-): Promise<{ user: CurrentUser | null; needsProfileCompletion: boolean; foreignRole?: boolean }> {
+): Promise<{ user: CurrentUser | null; needsProfileCompletion: boolean; foreignRole?: boolean; failed?: boolean }> {
   if (!session) {
     return { user: null, needsProfileCompletion: false };
   }
@@ -82,5 +82,7 @@ export async function loadUserProfile(
     if (!isKenshuRole(data.role)) return { user: null, needsProfileCompletion: true, foreignRole: true };
     return { user: data, needsProfileCompletion: false };
   }
+  // The read itself failed (network, token being renewed…): not the same as "no profile". The caller may retry.
+  if (error) return { user: null, needsProfileCompletion: false, failed: true };
   return { user: null, needsProfileCompletion: true };
 }
