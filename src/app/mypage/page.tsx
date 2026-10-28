@@ -27,7 +27,8 @@ import {
   setResponseStage,
   requestInterview,
 } from "@/lib/requests/instructor-responses";
-import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
+import { ApplyFields, EMPTY_APPLY, applyPayload, conditionAnswersPayload, type ApplyValue } from "@/components/requests/ApplyFields";
+import { normalizeConditions } from "@/lib/requests/conditions";
 import { DetailsView } from "@/components/requests/DetailsView";
 import { DecidedTabs } from "@/components/requests/DecidedTabs";
 import { ProgressStrip } from "@/components/requests/ProgressStrip";
@@ -375,7 +376,7 @@ function InstructorRequestCard({
     if (priceErr) return showToast(priceErr);
     if (normalizeSlots(r.role_slots).length > 0 && !apply.role.trim()) return showToast("希望する役割・職種を選んでください");
     setBusy(true);
-    const { error } = await submitInstructorResponse(r.request_id, userId, "quote", { quote_price: price, quote_tax_mode: quoteTax || null, message: quoteMessage.trim() || null, ...applyPayload(apply) });
+    const { error } = await submitInstructorResponse(r.request_id, userId, "quote", { quote_price: price, quote_tax_mode: quoteTax || null, message: quoteMessage.trim() || null, ...applyPayload(apply), condition_answers: conditionAnswersPayload(apply, normalizeConditions(r.req_conditions)) });
     setBusy(false);
     if (error) return showToast(`エラー：${error.message}`);
     showToast("見積りを送信しました。");
@@ -519,7 +520,7 @@ function InstructorRequestCard({
               </div>
               <BudgetHint request={r} price={quotePrice} quoteTax={quoteTax} />
             </div>
-            <ApplyFields value={apply} onChange={setApply} roleOptions={normalizeSlots(r.role_slots).map((x) => x.name)} />
+            <ApplyFields value={apply} onChange={setApply} roleOptions={normalizeSlots(r.role_slots).map((x) => x.name)} conditions={normalizeConditions(r.req_conditions)} />
             <div className="form-field">
               <label>メッセージ</label>
               <textarea rows={2} placeholder="見積りの補足があればご記入ください" value={quoteMessage} onChange={(e) => setQuoteMessage(e.target.value)} />
@@ -1418,6 +1419,7 @@ function RequesterRequestCard({
                       stage={stageOf(a, st.key === "accepted" || st.key === "completed")}
                       onRequestInterview={st.key === "pending" || st.key === "quoted" ? () => askInterview(a.response_id) : undefined}
                       budget={r}
+                      conditionRequest={r}
                       extra={a.is_selected ? decidedTabsFor({ responseId: a.response_id, instructorId: a.instructor_id, name: nameOfDecided(a), roleLabel: a.role_slot_id ? roleSlots.find((x) => x.id === a.role_slot_id)?.name ?? null : null }) : undefined}
                       onStageChange={st.key === "accepted" || st.key === "completed" || a.is_selected ? undefined : (v) => changeStage(a.response_id, v)}
                       decidedLabel={a.is_selected ? `決定${hasRoles ? `：${roleSlots.find((x) => x.id === a.role_slot_id)?.name ?? ""}` : ""}` : null}

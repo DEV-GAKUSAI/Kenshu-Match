@@ -128,6 +128,8 @@ export type TrainingRequestRow = {
   all_days_required: boolean;
   req_skills: string | null;
   req_prep: string | null;
+  /** 必須／歓迎の条件 (#59), see lib/requests/conditions.ts. */
+  req_conditions: unknown;
   detail_option_ids: string[];
   detail_other_tools: string | null;
   publish_state: PublishState;
@@ -162,6 +164,8 @@ export type InstructorResponseRow = {
   stage: "screening" | "negotiation" | "passed" | null;
   apply_experience: string | null;
   apply_materials: "existing" | "create" | "either" | null;
+  /** 条件への答え (#59): {years|mock|kickoff|daily: yes|no|talk}. */
+  condition_answers: unknown;
   /** Can the instructor join a prep session (migration 173). */
   apply_prep: "yes" | "no" | "discuss" | null;
   message: string | null;
@@ -247,6 +251,8 @@ export type OpenRequestPublicPreviewRow = {
   all_days_required: boolean;
   req_skills: string | null;
   req_prep: string | null;
+  /** 必須／歓迎の条件 (#59), see lib/requests/conditions.ts. */
+  req_conditions: unknown;
   detail_option_ids: string[];
   detail_other_tools: string | null;
   publish_state: PublishState;

@@ -18,10 +18,11 @@ import { normalizeSlots } from "@/lib/requests/roles";
 import { STAGE_LABEL, stageOf } from "@/lib/requests/stage";
 import { deadlinePassed, deadlineShort } from "@/lib/requests/deadline";
 import { requestFormatLabel } from "@/lib/requests/schedule";
-import { ApplyFields, EMPTY_APPLY, applyPayload, type ApplyValue } from "@/components/requests/ApplyFields";
+import { ApplyFields, EMPTY_APPLY, applyPayload, conditionAnswersPayload, type ApplyValue } from "@/components/requests/ApplyFields";
+import { areaState, checkProfile, checksText, isRecommendedMatch, normalizeConditions, referenceNote, withAreaReason } from "@/lib/requests/conditions";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { MyResponseDetails } from "@/components/requests/ApplicationDetails";
-import { declineInterview, reapplyResponse, releaseInstructorName, submitInstructorResponse } from "@/lib/requests/instructor-responses";
+import { declineInterview, reapplyResponse, releaseInstructorName, saveConditionAnswers, submitInstructorResponse } from "@/lib/requests/instructor-responses";
 import { useConfirm } from "@/components/common/ConfirmDialog";
 import { flushMineNotices } from "@/lib/mine/flush-client";
 import { getRequesterContacts } from "@/lib/requester/profile";
@@ -314,10 +315,15 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
     }
     setBusy(true);
     const ap = applyPayload(apply);
-    const { error } =
+    const answers = conditionAnswersPayload(apply, normalizeConditions(r?.req_conditions));
+    let { error } =
       myResponse && myResponse.action === "withdrawn"
         ? await reapplyResponse(myResponse.response_id, { price, tax: quoteTax || null, message, ...ap })
-        : await submitInstructorResponse(requestId, instructorId, price ? "quote" : "accept", { quote_price: price, quote_tax_mode: quoteTax || null, message, ...ap });
+        : await submitInstructorResponse(requestId, instructorId, price ? "quote" : "accept", { quote_price: price, quote_tax_mode: quoteTax || null, message, ...ap, condition_answers: answers });
+    // Applying again goes through a database function; the answers are saved right after it.
+    if (!error && myResponse && myResponse.action === "withdrawn" && Object.keys(answers).length > 0) {
+      ({ error } = await saveConditionAnswers(myResponse.response_id, answers));
+    }
     setBusy(false);
     if (error) {
       showToast(`エラー：${error.message}`);
@@ -362,7 +368,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
               {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? quoteText(myResponse) : myResponse.action === "withdrawn" ? "取り下げ" : "却下"}
             </strong>
             {myResponse.message ? myResponse.message : "（メッセージなし）"}
-            <MyResponseDetails response={myResponse} />
+            <MyResponseDetails response={myResponse} request={r} />
             <ResponseManage response={myResponse} request={r} onChanged={load} />
             {(myResponse.action === "accept" || myResponse.action === "quote") && (
               <div style={{ marginTop: 6, fontSize: 12.5, color: "var(--color-ink-soft)" }}>
@@ -427,7 +433,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
                 </div>
                 <BudgetHint request={r} price={quotePrice} quoteTax={quoteTax} />
               </div>
-              <ApplyFields value={apply} onChange={setApply} roleOptions={normalizeSlots(r.role_slots).map((x) => x.name)} />
+              <ApplyFields value={apply} onChange={setApply} roleOptions={normalizeSlots(r.role_slots).map((x) => x.name)} conditions={normalizeConditions(r.req_conditions)} />
               <div className="form-field">
                 <label>
                   メッセージ<span className="field-optional">任意</span>
@@ -529,18 +535,18 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
           (row.preferred_format === "offline" && (ins.work_style === "ONSITE" || ins.work_style === "HYBRID"));
         if (formatOk) reasons.push("形態");
         if (isHourly(row) && budgetUpper(row) != null && ins.desired_rate_min != null && ins.desired_rate_min <= (budgetUpper(row) as number)) reasons.push("予算");
-        return reasons;
+        return withAreaReason(reasons, areaState(row, ins.prefectures));
       }
-      // おすすめ = 専門分野が合う講師だけ。形態・予算だけ合う講師は「参考候補」(#60).
-      function isRecommended(reasons: string[]) {
-        return reasons.includes("分野");
+      // おすすめ = 専門分野が合い、実施場所が対応エリアと食い違わない講師。それ以外は「参考候補」(#60, #58).
+      function isRecommended(reasons: string[], ins: InstructorPublicDirectoryRow) {
+        return isRecommendedMatch(reasons, areaState(row, ins.prefectures));
       }
       const shown = await withSurveySummary(await withMineDisplay(instructors as InstructorPublicDirectoryRow[]));
       const result = shown
         .map((ins) => ({ ins, reasons: reasonsFor(ins) }))
         .filter((x) => x.reasons.length > 0)
         .sort((a, b) => {
-          const strongDiff = (isRecommended(b.reasons) ? 1 : 0) - (isRecommended(a.reasons) ? 1 : 0);
+          const strongDiff = (isRecommended(b.reasons, b.ins) ? 1 : 0) - (isRecommended(a.reasons, a.ins) ? 1 : 0);
           if (strongDiff !== 0) return strongDiff;
           return b.reasons.length - a.reasons.length;
         })
@@ -603,7 +609,9 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
           {matched === null && <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>読み込み中…</p>}
           {matched?.length === 0 && <p style={{ color: "var(--color-ink-soft)", fontSize: 13 }}>現在、条件に合う講師が見つかりませんでした。</p>}
           {matched?.map(({ ins, reasons }) => {
-            const isRecommended = reasons.includes("分野");
+            const area = areaState(r, ins.prefectures);
+            const isRecommended = isRecommendedMatch(reasons, area);
+            const condText = checksText(checkProfile(r, ins));
             return (
               <Link href={`/instructor-detail?id=${ins.id}`} key={ins.id} style={{ display: "block", marginBottom: 10 }}>
                 <div className="request-card">
@@ -624,7 +632,9 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
                     className={`notice-banner${isRecommended ? " is-visible" : ""}`}
                     style={{ margin: "8px 0", fontSize: 12, ...(isRecommended ? {} : { opacity: 0.65, background: "var(--color-bg)" }) }}
                   >
-                    {isRecommended ? `おすすめ：${reasons.join("・")}が合致` : `参考候補（分野は未一致）：${reasons.join("・")}が合致`}
+                    {isRecommended ? `おすすめ：${reasons.join("・")}が合致` : `参考候補（${referenceNote(reasons, area)}）：${reasons.join("・")}が合致`}
+                    {area === "ng" && "　／　エリア：不一致"}
+                    {condText && `　／　${condText}`}
                   </div>
                   <p className="request-card__desc">{ins.self_pr || "自己紹介は未登録です。"}</p>
                 </div>

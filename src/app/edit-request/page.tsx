@@ -11,6 +11,7 @@ import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { createClient } from "@/lib/supabase/client";
 import { validateDays } from "@/lib/requests/schedule";
 import { todayJst } from "@/lib/requests/deadline";
+import { normalizeConditions } from "@/lib/requests/conditions";
 import { DetailsForm, detailsPayload, type DetailsFormValue } from "@/components/requests/DetailsForm";
 import { VisibilityForm, type VisibilityValue } from "@/components/requests/VisibilityForm";
 import { getInvites, saveInvites } from "@/lib/requests/invites";
@@ -84,7 +85,7 @@ function EditRequestInner() {
       setOrigDeadline(r.apply_deadline ?? "");
       setMoney(moneyFromRow(r));
       setHadBudgetMode(r.budget_mode !== undefined);
-      setDetails({ days: normalizeDays(r.schedule_days), allDaysRequired: !!r.all_days_required, skills: r.req_skills ?? "", prep: r.req_prep ?? "", optionIds: r.detail_option_ids ?? [], otherTools: r.detail_other_tools ?? "" });
+      setDetails({ days: normalizeDays(r.schedule_days), allDaysRequired: !!r.all_days_required, skills: r.req_skills ?? "", prep: r.req_prep ?? "", optionIds: r.detail_option_ids ?? [], otherTools: r.detail_other_tools ?? "", conditions: normalizeConditions(r.req_conditions) });
       setState("ok");
     })();
     return () => {

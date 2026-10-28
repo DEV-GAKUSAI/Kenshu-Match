@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { ResponseAction } from "@/types/database";
 import type { ApplyAnswers } from "@/lib/requests/apply-diff";
+import type { Answer, CondKey } from "@/lib/requests/conditions";
 
 export async function submitInstructorResponse(
   requestId: string,
@@ -16,6 +17,8 @@ export async function submitInstructorResponse(
     apply_experience?: string | null;
     apply_materials?: "existing" | "create" | "either" | null;
     apply_prep?: "yes" | "no" | "discuss" | null;
+    /** 条件への答え (#59). Only sent when something was answered (migration 191). */
+    condition_answers?: Partial<Record<CondKey, Answer>>;
   }
 ) {
   const supabase = createClient();
@@ -31,6 +34,7 @@ export async function submitInstructorResponse(
     apply_experience: extra?.apply_experience ?? null,
     apply_materials: extra?.apply_materials ?? null,
     apply_prep: extra?.apply_prep ?? null,
+    ...(extra?.condition_answers && Object.keys(extra.condition_answers).length > 0 ? { condition_answers: extra.condition_answers } : {}),
   });
   return { error: error && error.message.includes("deadline_passed") ? { ...error, message: "応募の締切を過ぎています。" } : error };
 }
@@ -200,4 +204,11 @@ export async function setResponseStage(responseId: string, stage: "screening" | 
   const supabase = createClient();
   const { error } = await supabase.rpc("set_response_stage", { p_response_id: responseId, p_stage: stage });
   return { error };
+}
+
+/** 条件への答えを保存（確定前のみ）. Used after changing a quote or applying again; a new application sends them with the insert. */
+export async function saveConditionAnswers(responseId: string, answers: Partial<Record<CondKey, Answer>>) {
+  const supabase = createClient() as unknown as SupabaseClient;
+  const { error } = await supabase.rpc("set_response_condition_answers", { p_response_id: responseId, p_answers: answers });
+  return { error: error ? { message: reviseMessage(error.message) } : null };
 }

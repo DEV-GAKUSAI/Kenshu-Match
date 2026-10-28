@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { formatMoney } from "@/lib/requests/money";
 import { applyDiff } from "@/lib/requests/apply-diff";
 import { getResponseChanges, type ResponseChange } from "@/lib/requests/instructor-responses";
+import { STATE_TEXT, checkResponse, summarizeChecks, type CheckState, type RequestLike } from "@/lib/requests/conditions";
 import type { InstructorResponseRow } from "@/types/database";
 
 const box = { margin: "0 0 12px", background: "#fff", border: "1px solid var(--color-border)", borderRadius: "var(--radius-s)", overflow: "hidden" } as const;
@@ -33,6 +34,46 @@ export function ApplyItemsBox({ response }: { response: InstructorResponseRow })
     </div>
   );
 }
+
+const STATE_STYLE: Record<CheckState, { background: string; color: string }> = {
+  ok: { background: "#E3F7F0", color: "#0E7A5F" },
+  unknown: { background: "#EEF0F0", color: "#5B6663" },
+  ng: { background: "#FDE8E6", color: "#B3261E" },
+};
+
+const statePill = (state: CheckState) =>
+  ({ display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-pill)", fontSize: 11, fontWeight: 700, ...STATE_STYLE[state] }) as const;
+
+/** 必須／歓迎の条件ごとの 確認済み・未確認・不一致 (#60). Nothing is shown when the request has no conditions. */
+export function ConditionChecksBox({ request, response }: { request: RequestLike; response: InstructorResponseRow }) {
+  const checks = checkResponse(request, response);
+  if (checks.length === 0) return null;
+  return (
+    <div style={box}>
+      <div style={boxTitle}>必須・歓迎の条件の確認</div>
+      {checks.map((c, i) => (
+        <div key={c.key} style={{ ...row, borderTop: i === 0 ? 0 : row.borderTop }}>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            {c.label}
+            <span style={{ marginLeft: 8, fontSize: 11.5, color: c.level === "must" ? "var(--color-danger, #c0392b)" : "var(--color-ink-soft)", fontWeight: 700 }}>{c.level === "must" ? "必須" : "歓迎"}</span>
+          </span>
+          <span style={statePill(c.state)}>{STATE_TEXT[c.state]}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The one-line chip shown on the closed applicant row: the worst thing first. Null when there is no 必須 condition. */
+export function conditionChip(request: RequestLike, response: InstructorResponseRow): { text: string; state: CheckState } | null {
+  const s = summarizeChecks(checkResponse(request, response));
+  if (s.mustOk + s.mustNg + s.mustUnknown === 0) return null;
+  if (s.mustNg > 0) return { text: `必須条件：不一致${s.mustNg}`, state: "ng" };
+  if (s.mustUnknown > 0) return { text: `必須条件：未確認${s.mustUnknown}`, state: "unknown" };
+  return { text: "必須条件：確認済み", state: "ok" };
+}
+
+export { statePill };
 
 const KIND_LABEL: Record<ResponseChange["kind"], string> = { revised: "見積り変更", withdrawn: "取り下げ", reapplied: "再応募" };
 
@@ -82,7 +123,7 @@ export function QuoteHistoryBox({ changes, response }: { changes: ResponseChange
 }
 
 /** The instructor's own view of what they sent: application items and the quote history. */
-export function MyResponseDetails({ response }: { response: InstructorResponseRow }) {
+export function MyResponseDetails({ response, request }: { response: InstructorResponseRow; request?: RequestLike }) {
   const [changes, setChanges] = useState<ResponseChange[]>([]);
   useEffect(() => {
     let alive = true;
@@ -94,6 +135,7 @@ export function MyResponseDetails({ response }: { response: InstructorResponseRo
   return (
     <div style={{ marginTop: 12 }}>
       <ApplyItemsBox response={response} />
+      {request && <ConditionChecksBox request={request} response={response} />}
       <QuoteHistoryBox changes={changes} response={response} />
     </div>
   );

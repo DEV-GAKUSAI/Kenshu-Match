@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { dayLine, normalizeDays } from "@/lib/requests/schedule";
 import { normalizeSlots, slotsSummary } from "@/lib/requests/roles";
 import { groupChosen, type DetailOption } from "@/lib/requests/detail-options";
+import { conditionLabel, normalizeConditions } from "@/lib/requests/conditions";
 import { loadDetailOptions } from "@/lib/requests/detail-options-load";
 
 /** Shows the day-by-day schedule and the required conditions of a request (only what was filled in). */
@@ -13,7 +14,7 @@ export function DetailsView({
 }: {
   /** 募集職種 is shown here unless the page shows it itself (the company card has its own progress block). */
   showRoles?: boolean;
-  r: { role_slots?: unknown; schedule_days?: unknown; all_days_required?: boolean | null; req_skills?: string | null; req_prep?: string | null; detail_option_ids?: string[] | null; detail_other_tools?: string | null };
+  r: { role_slots?: unknown; schedule_days?: unknown; all_days_required?: boolean | null; req_skills?: string | null; req_prep?: string | null; detail_option_ids?: string[] | null; detail_other_tools?: string | null; req_conditions?: unknown };
 }) {
   const [options, setOptions] = useState<DetailOption[]>([]);
   const hasIds = (r.detail_option_ids ?? []).length > 0;
@@ -31,7 +32,10 @@ export function DetailsView({
   const slots = showRoles ? normalizeSlots(r.role_slots) : [];
   const skills = (r.req_skills ?? "").trim();
   const prep = (r.req_prep ?? "").trim();
-  if (!days.length && !skills && !prep && !chosen.length && !otherTools && !slots.length) return null;
+  const conditions = normalizeConditions(r.req_conditions);
+  const must = conditions.filter((c) => c.level === "must").map(conditionLabel);
+  const nice = conditions.filter((c) => c.level === "nice").map(conditionLabel);
+  if (!days.length && !skills && !prep && !chosen.length && !otherTools && !slots.length && !conditions.length) return null;
   return (
     <div className="request-card__response" style={{ margin: "0 0 14px", fontSize: 13 }}>
       {slots.length > 0 && (
@@ -69,9 +73,16 @@ export function DetailsView({
         </div>
       )}
       {prep && (
-        <div style={{ whiteSpace: "pre-wrap" }}>
+        <div style={{ whiteSpace: "pre-wrap", marginBottom: conditions.length ? 8 : 0 }}>
           <strong>事前に対応してほしいこと</strong>
           {prep}
+        </div>
+      )}
+      {conditions.length > 0 && (
+        <div>
+          <strong>必須・歓迎の条件</strong>
+          {must.length > 0 && <div>必須：{must.join("・")}</div>}
+          {nice.length > 0 && <div>歓迎：{nice.join("・")}</div>}
         </div>
       )}
     </div>
