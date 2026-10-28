@@ -1512,7 +1512,7 @@ function RequesterRequestCard({
       {(r.requester_type !== "individual" || (isBroadcast && r.publish_state !== "draft")) && (
         <div className="request-card__tools">
           {r.requester_type !== "individual" && <InternalNote requestId={r.request_id} requesterId={userId} onSaved={() => void onChanged()} />}
-          {r.requester_type !== "individual" && <RequestCandidates requestId={r.request_id} requesterId={userId} />}
+          {r.requester_type !== "individual" && <RequestCandidates requestId={r.request_id} requesterId={userId} hideWhenEmpty={r.status === "cancelled" || r.status === "completed" || !!r.target_instructor_id} />}
           {r.requester_type !== "individual" && (
             <FlowPanel requestId={r.request_id} requesterId={userId} decidedName={(selectedResp ?? (resp?.is_selected ? resp : null)) ? "決定した講師" : null} severalInstructors={hasRoles} onChanged={onChanged} />
           )}

@@ -153,7 +153,7 @@ export default function MyInstructorsPage() {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "0 0 14px" }}>
         <input
           type="search"
-          placeholder="名前・得意領域・登壇実績・メモなどで探す"
+          placeholder="名前・分野・登壇実績で探す"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -282,7 +282,7 @@ export default function MyInstructorsPage() {
             <button
               type="button"
               className="req-row__head"
-              style={{ paddingLeft: 4 }}
+              style={{ paddingLeft: 4, flex: "1 1 0", minWidth: 0, width: "auto" }}
               aria-expanded={isOpen}
               onClick={() => {
                 setOpenId(isOpen ? null : e.entry_id);
@@ -352,7 +352,9 @@ export default function MyInstructorsPage() {
                     value=""
                     onChange={(ev) => {
                       const id = ev.target.value;
-                      if (id && !edit.strengthIds.includes(id) && edit.strengthIds.length < MAX_STRENGTHS) setEdit({ ...edit, strengthIds: [...edit.strengthIds, id] });
+                      if (!id || edit.strengthIds.includes(id)) return;
+                      if (edit.strengthIds.length >= MAX_STRENGTHS) return showToast(`得意領域は${MAX_STRENGTHS}件まで選べます。`);
+                      setEdit({ ...edit, strengthIds: [...edit.strengthIds, id] });
                     }}
                   >
                     <option value="">＋ 研修分野を選んで追加</option>
