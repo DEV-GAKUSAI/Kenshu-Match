@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/client";
+import type { BudgetUnit } from "@/lib/requests/money";
 
 // 自社の講師台帳 (#55 評価・メモ / #57 候補・取引先). Private to the company (migration 155).
 
@@ -14,12 +15,20 @@ export type BookEntry = {
   list_kind: BookKind;
   rating: number | null;
   note: string | null;
+  /** 得意領域: 研修分野 ids (migration 194) */
+  strength_field_ids: string[];
+  /** 過去単価: amount in yen + unit (hour / day / total) */
+  past_rate_amount: number | null;
+  past_rate_unit: BudgetUnit | null;
+  /** 登壇実績: free text */
+  speaking_record: string | null;
+  is_favorite: boolean;
   updated_at: string;
 };
 
 export const KIND_TEXT: Record<BookKind, string> = { candidate: "候補", regular: "取引先" };
 
-const COLS = "entry_id, instructor_id, external_name, external_contact, list_kind, rating, note, updated_at";
+const COLS = "entry_id, instructor_id, external_name, external_contact, list_kind, rating, note, strength_field_ids, past_rate_amount, past_rate_unit, speaking_record, is_favorite, updated_at";
 
 function db() {
   return createClient() as unknown as SupabaseClient;
@@ -54,12 +63,38 @@ export async function addExternalEntry(requesterId: string, name: string, contac
   return { error };
 }
 
-export async function updateBookEntry(entryId: string, patch: Partial<BookInput> & { external_name?: string; external_contact?: string | null }) {
+/** The ledger's own fields (#57, migration 194). */
+export type BookFieldsPatch = {
+  strength_field_ids?: string[];
+  past_rate_amount?: number | null;
+  past_rate_unit?: BudgetUnit | null;
+  speaking_record?: string | null;
+  is_favorite?: boolean;
+};
+
+export async function updateBookEntry(entryId: string, patch: Partial<BookInput> & BookFieldsPatch & { external_name?: string; external_contact?: string | null }) {
   const { error } = await db().from("requester_instructor_book").update(patch).eq("entry_id", entryId);
   return { error };
 }
 
 export async function deleteBookEntry(entryId: string) {
   const { error } = await db().from("requester_instructor_book").delete().eq("entry_id", entryId);
+  return { error };
+}
+
+// 案件別候補リスト (#57): the ledger entries a company picked as candidates for one request (migration 194).
+
+export async function getRequestCandidateIds(requestId: string): Promise<string[]> {
+  const { data } = await db().from("request_candidates").select("entry_id").eq("request_id", requestId).order("created_at");
+  return ((data as { entry_id: string }[] | null) ?? []).map((r) => r.entry_id);
+}
+
+export async function addRequestCandidate(requesterId: string, requestId: string, entryId: string) {
+  const { error } = await db().from("request_candidates").insert({ request_id: requestId, entry_id: entryId, requester_id: requesterId });
+  return { error };
+}
+
+export async function removeRequestCandidate(requestId: string, entryId: string) {
+  const { error } = await db().from("request_candidates").delete().eq("request_id", requestId).eq("entry_id", entryId);
   return { error };
 }
