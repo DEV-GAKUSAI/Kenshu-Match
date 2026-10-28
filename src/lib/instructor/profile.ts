@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { applyMineToMatching, type MatchingProfile, type MineMe } from "@/lib/mine/my-matching";
 import type { InstructorPublicDirectoryRow, WorkStyle } from "@/types/database";
 import { getInstructorExpertiseIds } from "./expertise";
 
@@ -99,10 +100,10 @@ export async function getMatchingCandidateInstructors() {
 }
 
 export async function getInstructorNames(ids: string[]) {
-  const map: Record<string, Pick<InstructorPublicDirectoryRow, "id" | "name">> = {};
+  const map: Record<string, Pick<InstructorPublicDirectoryRow, "id" | "name" | "expertise_fields">> = {};
   if (!ids.length) return map;
   const supabase = createClient();
-  const { data, error } = await supabase.from("instructor_public_directory").select("id, name").in("id", ids);
+  const { data, error } = await supabase.from("instructor_public_directory").select("id, name, expertise_fields").in("id", ids);
   if (error) {
     console.error("instructor_public_directory query error:", error);
   }
@@ -122,10 +123,20 @@ export async function getMyMatchingProfile(instructorId: string) {
     .maybeSingle();
   const expertiseIds = await getInstructorExpertiseIds(instructorId);
 
-  return {
+  const base: MatchingProfile = {
     workStyle: profile?.work_style ?? null,
     desiredRateMin: profile?.desired_rate_min ?? null,
     prefectures: (profile?.prefectures as string[] | null | undefined) ?? [],
     expertiseIds: new Set(expertiseIds),
+    skills: [],
   };
+  // A lecturer linked to Mine keeps these in Mine; the old columns above are only for accounts that are not linked.
+  let me: MineMe | null = null;
+  try {
+    const res = await fetch("/api/instructors/me", { cache: "no-store" });
+    if (res.ok) me = (await res.json()) as MineMe;
+  } catch {
+    me = null;
+  }
+  return applyMineToMatching(base, me);
 }

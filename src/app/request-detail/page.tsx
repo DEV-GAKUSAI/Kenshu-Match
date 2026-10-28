@@ -19,9 +19,10 @@ import { STAGE_LABEL, stageOf } from "@/lib/requests/stage";
 import { deadlinePassed, deadlineShort } from "@/lib/requests/deadline";
 import { requestFormatLabel } from "@/lib/requests/schedule";
 import { ApplyFields, EMPTY_APPLY, applyPayload, conditionAnswersPayload, type ApplyValue } from "@/components/requests/ApplyFields";
-import { areaState, checkProfile, checksText, isRecommendedMatch, normalizeConditions, referenceNote, withAreaReason } from "@/lib/requests/conditions";
+import { areaState, checkProfile, checksText, isRecommendedMatch, normalizeConditions, normalizeSkillItems, referenceNote, withAreaReason, type ProfileLike } from "@/lib/requests/conditions";
 import { ResponseManage } from "@/components/requests/ResponseManage";
-import { MyResponseDetails } from "@/components/requests/ApplicationDetails";
+import { MyResponseDetails, SkillConditionsNote } from "@/components/requests/ApplicationDetails";
+import { loadFieldNames } from "@/lib/requests/field-names";
 import { declineInterview, reapplyResponse, releaseInstructorName, saveConditionAnswers, submitInstructorResponse } from "@/lib/requests/instructor-responses";
 import { useConfirm } from "@/components/common/ConfirmDialog";
 import { flushMineNotices } from "@/lib/mine/flush-client";
@@ -29,8 +30,10 @@ import { getRequesterContacts } from "@/lib/requester/profile";
 import { withMineDisplay } from "@/lib/mine/display";
 import { withSurveySummary } from "@/lib/survey/summary-client";
 import { surveyScoreLabel } from "@/lib/survey/summary";
-import { getMatchingCandidateInstructors } from "@/lib/instructor/profile";
-import { getInstructorExpertiseInstructorIds } from "@/lib/instructor/expertise";
+import { getMatchingCandidateInstructors, getMyMatchingProfile } from "@/lib/instructor/profile";
+import { getInstructorExpertiseInstructorIds, getTrainingSubcategoryOptions } from "@/lib/instructor/expertise";
+import { loadDetailOptions } from "@/lib/requests/detail-options-load";
+import { skillReasons, toolNamesOf } from "@/lib/mine/my-matching";
 import type {
   InstructorPublicDirectoryRow,
   InstructorResponseRow,
@@ -163,6 +166,18 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
   const [quoteMessage, setQuoteMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [reapplying, setReapplying] = useState(false);
+  // What this lecturer saved in Mine (分野・ツール) and holds as Kenshu Link fields, to show where they stand on the 分野・ツールの条件.
+  const [myProfile, setMyProfile] = useState<ProfileLike>({});
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const [p, names] = await Promise.all([getMyMatchingProfile(instructorId), loadFieldNames()]);
+      if (alive) setMyProfile({ training_skills: p.skills, expertise_fields: [...p.expertiseIds].map((id) => names[id]).filter((n): n is string => !!n) });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [instructorId]);
   const actionsRef = useRef<HTMLDivElement>(null);
 
   async function load() {
@@ -368,7 +383,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
               {myResponse.action === "accept" ? "承諾" : myResponse.action === "quote" ? quoteText(myResponse) : myResponse.action === "withdrawn" ? "取り下げ" : "却下"}
             </strong>
             {myResponse.message ? myResponse.message : "（メッセージなし）"}
-            <MyResponseDetails response={myResponse} request={r} />
+            <MyResponseDetails response={myResponse} request={r} profile={myProfile} />
             <ResponseManage response={myResponse} request={r} onChanged={load} />
             {(myResponse.action === "accept" || myResponse.action === "quote") && (
               <div style={{ marginTop: 6, fontSize: 12.5, color: "var(--color-ink-soft)" }}>
@@ -433,6 +448,7 @@ function InstructorDetailView({ requestId, instructorId, focusRespond }: { reque
                 </div>
                 <BudgetHint request={r} price={quotePrice} quoteTax={quoteTax} />
               </div>
+              <SkillConditionsNote request={r} profile={myProfile} />
               <ApplyFields value={apply} onChange={setApply} roleOptions={normalizeSlots(r.role_slots).map((x) => x.name)} conditions={normalizeConditions(r.req_conditions)} />
               <div className="form-field">
                 <label>
@@ -526,9 +542,16 @@ function OwnerDetailView({ requestId, userId }: { requestId: string; userId: str
       if (row.expertise_field) {
         expertiseMatchIds = await getInstructorExpertiseInstructorIds(row.expertise_field);
       }
+      // The request's own field and ticked tools by name, to compare with what each lecturer saved in Mine.
+      const [detailOptionRows, { data: subRows }] = await Promise.all([loadDetailOptions(), getTrainingSubcategoryOptions()]);
+      const fieldName = ((subRows as unknown as { id: string; name: string }[] | null) ?? []).find((x) => x.id === row.expertise_field)?.name;
+      const toolById = Object.fromEntries(detailOptionRows.filter((o) => o.group_key === "tool").map((o) => [o.id, o.name]));
+      const requestTools = toolNamesOf(row.detail_option_ids, toolById);
       function reasonsFor(ins: InstructorPublicDirectoryRow) {
         const reasons: string[] = [];
-        if (expertiseMatchIds.has(ins.id)) reasons.push("分野");
+        const fromSkills = skillReasons(fieldName, requestTools, normalizeSkillItems(ins.training_skills));
+        if (expertiseMatchIds.has(ins.id) || fromSkills.field) reasons.push("分野");
+        if (fromSkills.tool) reasons.push("ツール");
         const formatOk =
           row.preferred_format === "both" ||
           (row.preferred_format === "online" && (ins.work_style === "ONLINE" || ins.work_style === "HYBRID")) ||

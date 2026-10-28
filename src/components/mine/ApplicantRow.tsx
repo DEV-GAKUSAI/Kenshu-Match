@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { ApplyItemsBox, ConditionChecksBox, QuoteHistoryBox, conditionChip, statePill } from "@/components/requests/ApplicationDetails";
-import type { RequestLike } from "@/lib/requests/conditions";
+import type { ProfileLike, RequestLike } from "@/lib/requests/conditions";
 import { quoteText, quoteVsRange, type MoneyFields } from "@/lib/requests/money";
 import { getResponseChanges, type ResponseChange } from "@/lib/requests/instructor-responses";
 import { MineMeetingLine } from "@/components/mine/MineMeeting";
@@ -51,6 +51,7 @@ export function ApplicantRow({
   onRequestInterview,
   budget,
   conditionRequest,
+  conditionProfile,
   extra,
 }: {
   name: string;
@@ -76,6 +77,8 @@ export function ApplicantRow({
   budget?: MoneyFields;
   /** The request's 必須・歓迎の条件 and 全日程の指定, to show 確認済み / 未確認 / 不一致 (#60). */
   conditionRequest?: RequestLike;
+  /** What the applicant saved in Mine (分野・ツール) and Kenshu Link's own fields, for the 分野・ツールの条件. */
+  conditionProfile?: ProfileLike;
   /** Shown at the end of the opened row (a decided lecturer's 注文書・請求書 and 連絡先 tabs). */
   extra?: ReactNode;
 }) {
@@ -97,7 +100,7 @@ export function ApplicantRow({
   // For a range budget, say whether the quote is inside it (a label only).
   const range = response.action === "accept" || !budget ? null : quoteVsRange(budget, response);
   const offer = response.action === "accept" ? "承諾" : `${quoteText(response)}${range === "in" ? "（予算の範囲内）" : range === "out" ? "（予算の範囲外）" : ""}`;
-  const chip = conditionRequest ? conditionChip(conditionRequest, response) : null;
+  const chip = conditionRequest ? conditionChip(conditionRequest, response, conditionProfile) : null;
   const message = (response.message ?? "").trim();
   const interview = response.interview_status;
   const declined = interview === "declined";
@@ -213,7 +216,7 @@ export function ApplicantRow({
         <div style={{ borderTop: "1px solid var(--color-border)", padding: "12px 14px" }}>
           {message && <p style={{ margin: "0 0 10px", whiteSpace: "pre-line", overflowWrap: "anywhere" }}>{message}</p>}
           <ApplyItemsBox response={response} />
-          {conditionRequest && <ConditionChecksBox request={conditionRequest} response={response} />}
+          {conditionRequest && <ConditionChecksBox request={conditionRequest} response={response} profile={conditionProfile} />}
           <QuoteHistoryBox changes={changes} response={response} />
           {meeting && <MineMeetingLine meeting={meeting} viewer="requester" compact />}
           {!declined && stage !== "passed" && (

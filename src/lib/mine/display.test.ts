@@ -97,3 +97,11 @@ test("スキル and 実績 from Mine are kept for keyword search; none means nul
   assert.equal(none.skill_names, null);
   assert.equal(none.experience_names, null);
 });
+
+test("教えられる分野・ツール from Mine reach the row; none means null", () => {
+  const list = [{ k: "tool" as const, n: "Oracle", y: 5, t: true }, { k: "field" as const, n: "ネットワーク" }];
+  const out = applyMineDisplay([row], { a: toDisplay("A.H.", { training_conditions: { training_skills: list } }) })[0] as unknown as Record<string, unknown>;
+  assert.deepEqual(out.training_skills, list);
+  const none = applyMineDisplay([row], { a: toDisplay("A.H.", { training_conditions: {} }) })[0] as unknown as Record<string, unknown>;
+  assert.equal(none.training_skills, null);
+});

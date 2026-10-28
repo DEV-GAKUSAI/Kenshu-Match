@@ -1,8 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  answersFor, areaState, isRecommendedMatch, referenceNote, withAreaReason, checkProfile, checkResponse, checksText, conditionLabel, normalizeAnswers, normalizeConditions, onSitePrefectures, summarizeChecks,
-} from "./conditions.ts";
+  answersFor, areaState, isRecommendedMatch, referenceNote, withAreaReason, checkProfile, checkResponse, checksText, conditionLabel, normalizeAnswers, normalizeConditions, onSitePrefectures, summarizeChecks, normalizeSkillItems, pruneSkillConditions, skillState } from "./conditions.ts";
 
 test("normalizeConditions keeps known keys once, in order, and checks years", () => {
   const out = normalizeConditions([
@@ -97,4 +96,73 @@ test("おすすめ needs the field and a place that is not 不一致", () => {
   assert.equal(referenceNote(["分野"], "ok"), null);
   assert.ok(referenceNote(["分野"], "ng")?.includes("対応エリア"));
   assert.ok(referenceNote(["形態"], "ok")?.includes("分野は一致していません"));
+});
+
+test("分野・ツールの条件は保存・整形される（種類・名前・年数・登壇実績、重複なし）", () => {
+  const list = normalizeConditions([
+    { key: "years", level: "must", years: 3 },
+    { key: "skill", level: "must", kind: "tool", name: "Oracle", years: 3, spoke: true },
+    { key: "skill", level: "nice", kind: "field", name: "データベース基礎・SQL・設計・運用", years: 5 },
+    { key: "skill", level: "must", kind: "tool", name: "Oracle" },
+    { key: "skill", level: "must", kind: "other", name: "X" },
+    { key: "skill", level: "must", kind: "tool", name: "  " },
+    { key: "skill", level: "must", kind: "tool", name: "Java", years: 99 },
+  ]);
+  assert.deepEqual(list, [
+    { key: "years", level: "must", years: 3 },
+    { key: "skill", level: "must", kind: "tool", name: "Oracle", years: 3, spoke: true },
+    { key: "skill", level: "nice", kind: "field", name: "データベース基礎・SQL・設計・運用", years: 5 },
+    { key: "skill", level: "must", kind: "tool", name: "Java" },
+  ]);
+  assert.equal(normalizeConditions(Array.from({ length: 40 }, (_, i) => ({ key: "skill", level: "must", kind: "tool", name: `T${i}` }))).length, 30);
+});
+
+test("講師の保存リストの整形", () => {
+  assert.deepEqual(normalizeSkillItems([{ k: "tool", n: "Oracle", y: 5, t: true }, { k: "tool", n: "Oracle" }, { k: "x", n: "A" }, { k: "field", n: "ネットワーク", y: "a" }, null]), [
+    { k: "tool", n: "Oracle", y: 5, t: true },
+    { k: "field", n: "ネットワーク" },
+  ]);
+  assert.deepEqual(normalizeSkillItems(undefined), []);
+});
+
+test("skillState: no list = 未確認, listed without the item = 不一致, years and 登壇実績 decide", () => {
+  const oracle = { key: "skill" as const, level: "must" as const, kind: "tool" as const, name: "Oracle", years: 3, spoke: true };
+  assert.equal(skillState(oracle, []), "unknown");
+  assert.equal(skillState(oracle, [{ k: "tool", n: "Java" }]), "ng");
+  assert.equal(skillState(oracle, [{ k: "tool", n: "Oracle", y: 5, t: true }]), "ok");
+  assert.equal(skillState(oracle, [{ k: "tool", n: "Oracle", y: 2, t: true }]), "ng");
+  assert.equal(skillState(oracle, [{ k: "tool", n: "Oracle", y: 5 }]), "ng");
+  assert.equal(skillState(oracle, [{ k: "tool", n: "Oracle", t: true }]), "unknown");
+  assert.equal(skillState({ ...oracle, years: undefined, spoke: undefined }, [{ k: "tool", n: "Oracle" }]), "ok");
+  const sql = { key: "skill" as const, level: "must" as const, kind: "field" as const, name: "データベース基礎・SQL・設計・運用", years: 3 };
+  assert.equal(skillState(sql, [], ["データベース基礎・SQL・設計・運用"]), "unknown"); // listed in Kenshu Link, but no years
+  assert.equal(skillState({ ...sql, years: undefined }, [], ["データベース基礎・SQL・設計・運用"]), "ok");
+});
+
+test("checkProfile uses the saved list: SQL years, Oracle 登壇実績, all days (her test case)", () => {
+  const req = {
+    all_days_required: true,
+    req_conditions: [
+      { key: "skill", level: "must", kind: "field", name: "データベース基礎・SQL・設計・運用", years: 3 },
+      { key: "skill", level: "must", kind: "tool", name: "Oracle", spoke: true },
+    ],
+  };
+  const good = checkProfile(req, { training_skills: [{ k: "field", n: "データベース基礎・SQL・設計・運用", y: 4 }, { k: "tool", n: "Oracle", t: true }] });
+  assert.deepEqual(good.map((c) => c.state), ["unknown", "ok", "ok"]); // 全日程 is only known from the application
+  assert.equal(good[1].label, "データベース基礎・SQL・設計・運用（3年以上）");
+  assert.equal(good[2].label, "Oracle（登壇実績）");
+  const weak = checkProfile(req, { training_skills: [{ k: "field", n: "データベース基礎・SQL・設計・運用", y: 1 }] });
+  assert.deepEqual(weak.map((c) => c.state), ["unknown", "ng", "ng"]);
+  assert.deepEqual(checkProfile(req, {}).map((c) => c.state), ["unknown", "unknown", "unknown"]);
+});
+
+test("a 分野・ツール condition is dropped when its tool is no longer chosen", () => {
+  const list = normalizeConditions([
+    { key: "years", level: "must", years: 2 },
+    { key: "skill", level: "must", kind: "tool", name: "Oracle", years: 3 },
+    { key: "skill", level: "nice", kind: "tool", name: "Java" },
+    { key: "skill", level: "must", kind: "field", name: "ネットワーク" },
+  ]);
+  const kept = pruneSkillConditions(list, [{ kind: "tool", name: "Java" }, { kind: "field", name: "ネットワーク" }]);
+  assert.deepEqual(kept.map((c) => c.name ?? c.key), ["years", "Java", "ネットワーク"]);
 });

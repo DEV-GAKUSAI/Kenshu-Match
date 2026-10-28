@@ -219,6 +219,8 @@ export type InstructorPublicDirectoryRow = {
   available_until?: string | null;
   training_languages?: string[] | null;
   roles?: string[] | null;
+  /** 教えられる分野・ツール from Mine (not a column of the view): [{ k: "field" | "tool", n, y?, t? }]. */
+  training_skills?: unknown;
   survey_avg?: number | null;
   survey_count?: number | null;
 };

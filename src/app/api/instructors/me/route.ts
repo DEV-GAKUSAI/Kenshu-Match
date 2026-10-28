@@ -43,6 +43,7 @@ export async function GET() {
       prefectures: conditions?.prefectures ?? [],
       hourly_rate: typeof conditions?.hourly_rate_min === "number" ? conditions.hourly_rate_min : null,
       work_style: conditions?.work_style ?? null,
+      training_skills: conditions?.training_skills ?? [],
       mine_url: `${mineAppOrigin()}/apps`,
     },
     { headers: noStore },

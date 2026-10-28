@@ -74,6 +74,7 @@ export function applyMineDisplay<T extends { id: string }>(rows: T[], map: MineD
       available_until: tc?.available_until ?? null,
       training_languages: tc?.training_languages?.length ? tc.training_languages : null,
       roles: tc?.roles?.length ? tc.roles : null,
+      training_skills: tc?.training_skills?.length ? tc.training_skills : null,
     };
   });
 }
