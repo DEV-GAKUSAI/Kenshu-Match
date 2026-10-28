@@ -77,6 +77,9 @@ function fmtDate(iso: string | null) {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** What the company マイページ knows about an applicant: initials, contacts once released, and the skills they saved in Mine. */
+type InstructorInfo = { name?: string | null; contact_email?: string | null; contact_phone?: string | null; training_skills?: unknown; expertise_fields?: string[] | null };
+
 type ReqWithJoins = TrainingRequestRow & { instructor_responses: InstructorResponseRow[] };
 
 /* ===================================================================
@@ -923,7 +926,7 @@ function RequesterRequestCard({
 }: {
   r: ReqWithJoins;
   userId: string;
-  instructorMap: Record<string, { name?: string | null; contact_email?: string | null; contact_phone?: string | null }>;
+  instructorMap: Record<string, InstructorInfo>;
   meetings: Record<string, KenshuMineMeetingRow>;
   mineLinked: Set<string>;
   /** 担当者 saved in 社内メモ (company only), shown in the row. */
@@ -1420,6 +1423,7 @@ function RequesterRequestCard({
                       onRequestInterview={st.key === "pending" || st.key === "quoted" ? () => askInterview(a.response_id) : undefined}
                       budget={r}
                       conditionRequest={r}
+                      conditionProfile={{ training_skills: instructorMap[a.instructor_id]?.training_skills, expertise_fields: instructorMap[a.instructor_id]?.expertise_fields }}
                       extra={a.is_selected ? decidedTabsFor({ responseId: a.response_id, instructorId: a.instructor_id, name: nameOfDecided(a), roleLabel: a.role_slot_id ? roleSlots.find((x) => x.id === a.role_slot_id)?.name ?? null : null }) : undefined}
                       onStageChange={st.key === "accepted" || st.key === "completed" || a.is_selected ? undefined : (v) => changeStage(a.response_id, v)}
                       decidedLabel={a.is_selected ? `決定${hasRoles ? `：${roleSlots.find((x) => x.id === a.role_slot_id)?.name ?? ""}` : ""}` : null}
@@ -1592,7 +1596,7 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
   const { byResponse: meetings } = useMineMeetings(user.id);
   const [all, setAll] = useState<ReqWithJoins[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [instructorMap, setInstructorMap] = useState<Record<string, { name?: string | null; contact_email?: string | null; contact_phone?: string | null }>>({});
+  const [instructorMap, setInstructorMap] = useState<Record<string, InstructorInfo>>({});
   const [currentTab, setCurrentTab] = useState("all");
   const [search, setSearch] = useState("");
   const [year, setYear] = useState("");
@@ -1653,13 +1657,13 @@ function RequesterMypage({ user }: { user: CurrentUser }) {
 
     const allResponseInstructorIds = rows.flatMap((r) => (r.instructor_responses || []).map((x) => x.instructor_id));
     const targetIds = [...new Set([...rows.map((r) => resolveInstructorId(r)).filter((x): x is string => !!x), ...allResponseInstructorIds])];
-    let map: Record<string, { name?: string | null; contact_email?: string | null; contact_phone?: string | null }> = {};
+    let map: Record<string, InstructorInfo> = {};
     if (targetIds.length) {
       map = await getInstructorNames(targetIds);
       // Show initials, not full names (Mine decides what else is public).
       const display = await fetchMineDisplay(targetIds);
       Object.keys(map).forEach((id) => {
-        map[id] = { ...map[id], name: display[id]?.initials || initialsFromName(map[id]?.name) || null };
+        map[id] = { ...map[id], name: display[id]?.initials || initialsFromName(map[id]?.name) || null, training_skills: display[id]?.training_conditions?.training_skills ?? null };
       });
     }
     // A released name belongs to ONE reply (one request), so it is not put into this

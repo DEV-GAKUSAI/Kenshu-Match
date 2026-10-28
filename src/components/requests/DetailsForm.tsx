@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cleanDays, EMPTY_DAY, MAX_DAYS, type DayFormat, type ScheduleDay } from "@/lib/requests/schedule";
 import { Select } from "@/components/ui/Select";
 import { JP_PREFECTURES } from "@/lib/requests/prefectures";
-import { CONDITION_ITEMS, MAX_YEARS, conditionsPayload, type CondKey, type CondLevel, type Condition } from "@/lib/requests/conditions";
+import { CONDITION_ITEMS, MAX_YEARS, conditionsPayload, pruneSkillConditions, type CondKey, type CondLevel, type Condition, type SkillKind } from "@/lib/requests/conditions";
+import { loadDetailOptions } from "@/lib/requests/detail-options-load";
+import { loadFieldNames } from "@/lib/requests/field-names";
+import type { DetailOption } from "@/lib/requests/detail-options";
 import { DetailConditionsForm } from "@/components/requests/DetailConditionsForm";
 
 export type DetailsFormValue = {
@@ -57,8 +60,32 @@ function daySummary(d: ScheduleDay): string {
 }
 
 /** 日ごとの日程・場所・実施形態 (#43/#58) と 必須条件・事前対応 (#59). */
-export function DetailsForm({ value, onChange, idPrefix = "req" }: { value: DetailsFormValue; onChange: (v: DetailsFormValue) => void; idPrefix?: string }) {
+export function DetailsForm({ value, onChange, idPrefix = "req", fieldId }: { value: DetailsFormValue; onChange: (v: DetailsFormValue) => void; idPrefix?: string; fieldId?: string }) {
   const set = (patch: Partial<DetailsFormValue>) => onChange({ ...value, ...patch });
+  // The request's own field and the ticked tools, by name: what a 分野・ツールの条件 can be set on.
+  const [options, setOptions] = useState<DetailOption[]>([]);
+  const [fieldNames, setFieldNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let active = true;
+    void loadDetailOptions().then((o) => active && setOptions(o));
+    void loadFieldNames().then((n) => active && setFieldNames(n));
+    return () => { active = false; };
+  }, []);
+  const fieldName = fieldId ? fieldNames[fieldId] : undefined;
+  const targets: SkillTarget[] = [
+    ...(fieldName ? [{ kind: "field" as const, name: fieldName }] : []),
+    ...options.filter((o) => o.group_key === "tool" && value.optionIds.includes(o.id)).map((o) => ({ kind: "tool" as const, name: o.name })),
+  ];
+  const targetsKey = targets.map((t) => `${t.kind}:${t.name}`).join("|");
+  // A condition on a tool or field that is no longer chosen is removed. Nothing is removed until the lists have loaded.
+  useEffect(() => {
+    if (options.length === 0) return;
+    const keepFields = !!fieldId && !fieldName;
+    const allowed = [...targets, ...(keepFields ? value.conditions.filter((c) => c.key === "skill" && c.kind === "field").map((c) => ({ kind: "field" as const, name: c.name as string })) : [])];
+    const kept = pruneSkillConditions(value.conditions, allowed);
+    if (kept.length !== value.conditions.length) onChange({ ...value, conditions: kept });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options.length, targetsKey, fieldId, fieldName, value.conditions]);
   // Which day rows are open. A newly added day opens so it can be filled in; the rest stay closed.
   const [openDays, setOpenDays] = useState<Set<number>>(() => new Set());
   const toggleDay = (i: number) => setOpenDays((prev) => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n; });
@@ -173,6 +200,7 @@ export function DetailsForm({ value, onChange, idPrefix = "req" }: { value: Deta
         <textarea id={`${idPrefix}Prep`} rows={2} maxLength={1000} placeholder="例：事前打合せ1回、教材の作成、模擬講義" value={value.prep} onChange={(e) => set({ prep: e.target.value })} />
       </div>
       <ConditionsForm value={value.conditions} onChange={(conditions) => set({ conditions })} />
+      <SkillConditionsForm targets={targets} value={value.conditions} onChange={(conditions) => set({ conditions })} />
     </>
   );
 }
@@ -215,6 +243,78 @@ function ConditionsForm({ value, onChange }: { value: Condition[]; onChange: (v:
               </span>
             )}
             <Select aria-label={`${item.label}の指定`} value={c?.level ?? ""} onChange={(e) => setLevel(item.key, e.target.value as "" | CondLevel)} style={{ flex: "0 1 140px" }}>
+              {(Object.keys(LEVEL_TEXT) as ("" | CondLevel)[]).map((k) => (
+                <option key={k || "none"} value={k}>
+                  {LEVEL_TEXT[k]}
+                </option>
+              ))}
+            </Select>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+type SkillTarget = { kind: SkillKind; name: string };
+
+/** 分野・ツールの条件 (#60): for the request's field and each ticked tool: 指定しない / 必須 / 歓迎, minimum years and 登壇実績. */
+function SkillConditionsForm({ targets, value, onChange }: { targets: SkillTarget[]; value: Condition[]; onChange: (v: Condition[]) => void }) {
+  if (targets.length === 0) return null;
+  const find = (t: SkillTarget) => value.find((c) => c.key === "skill" && c.kind === t.kind && c.name === t.name);
+  const replace = (t: SkillTarget, next: Condition | null) => {
+    const rest = value.filter((c) => !(c.key === "skill" && c.kind === t.kind && c.name === t.name));
+    onChange(next ? [...rest, next] : rest);
+  };
+  const setLevel = (t: SkillTarget, level: "" | CondLevel) => {
+    if (!level) return replace(t, null);
+    const prev = find(t);
+    replace(t, { key: "skill", level, kind: t.kind, name: t.name, ...(prev?.years ? { years: prev.years } : {}), ...(prev?.spoke ? { spoke: true } : {}) });
+  };
+  const patch = (t: SkillTarget, p: Partial<Condition>) => {
+    const c = find(t);
+    if (!c) return;
+    const next = { ...c, ...p };
+    if (!next.years) delete next.years;
+    if (!next.spoke) delete next.spoke;
+    replace(t, next);
+  };
+  return (
+    <div className="form-field">
+      <label>分野・ツールの条件（任意）</label>
+      <p style={{ margin: "0 0 8px", fontSize: 12.5, color: "var(--color-ink-soft)" }}>
+        この依頼の分野と、選んだツールについて、経験年数や登壇実績を求められます。講師が登録した内容と照らし合わせて「確認済み・未確認・不一致」が表示されます。
+      </p>
+      {targets.map((t) => {
+        const c = find(t);
+        return (
+          <div key={`${t.kind}:${t.name}`} style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", margin: "0 0 8px" }}>
+            <span style={{ flex: "1 1 160px", fontSize: 13.5, overflowWrap: "anywhere" }}>
+              {t.name}
+              <span style={{ marginLeft: 6, fontSize: 11.5, color: "var(--color-ink-soft)" }}>{t.kind === "field" ? "分野" : "ツール"}</span>
+            </span>
+            {c && (
+              <>
+                <span style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+                  <input
+                    type="number"
+                    aria-label={`${t.name}の経験年数`}
+                    min={1}
+                    max={MAX_YEARS}
+                    placeholder="任意"
+                    value={c.years ?? ""}
+                    onChange={(e) => patch(t, { years: e.target.value === "" ? undefined : Math.max(1, Math.min(MAX_YEARS, Math.floor(Number(e.target.value)) || 1)) })}
+                    style={{ width: 72 }}
+                  />
+                  年以上
+                </span>
+                <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+                  <input type="checkbox" checked={c.spoke === true} onChange={(e) => patch(t, { spoke: e.target.checked })} />
+                  登壇実績
+                </label>
+              </>
+            )}
+            <Select aria-label={`${t.name}の指定`} value={c?.level ?? ""} onChange={(e) => setLevel(t, e.target.value as "" | CondLevel)} style={{ flex: "0 1 140px" }}>
               {(Object.keys(LEVEL_TEXT) as ("" | CondLevel)[]).map((k) => (
                 <option key={k || "none"} value={k}>
                   {LEVEL_TEXT[k]}

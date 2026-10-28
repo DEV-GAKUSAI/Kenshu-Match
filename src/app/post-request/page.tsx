@@ -462,7 +462,7 @@ export default function PostRequestPage() {
             <VisibilityForm value={vis} onChange={setVis} />
 
             <RolesForm value={roles} onChange={setRoles} />
-            <DetailsForm value={details} onChange={setDetails} />
+            <DetailsForm value={details} onChange={setDetails} fieldId={expertise} />
 
             <div className={`form-field${descriptionHasError ? " has-error" : ""}`}>
               <label htmlFor="reqDescription">依頼内容の詳細（必須）</label>

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { formatMoney } from "@/lib/requests/money";
 import { applyDiff } from "@/lib/requests/apply-diff";
 import { getResponseChanges, type ResponseChange } from "@/lib/requests/instructor-responses";
-import { STATE_TEXT, checkResponse, summarizeChecks, type CheckState, type RequestLike } from "@/lib/requests/conditions";
+import { STATE_TEXT, checkProfile, checkResponse, summarizeChecks, type CheckState, type ProfileLike, type RequestLike } from "@/lib/requests/conditions";
 import type { InstructorResponseRow } from "@/types/database";
 
 const box = { margin: "0 0 12px", background: "#fff", border: "1px solid var(--color-border)", borderRadius: "var(--radius-s)", overflow: "hidden" } as const;
@@ -45,8 +45,8 @@ const statePill = (state: CheckState) =>
   ({ display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-pill)", fontSize: 11, fontWeight: 700, ...STATE_STYLE[state] }) as const;
 
 /** 必須／歓迎の条件ごとの 確認済み・未確認・不一致 (#60). Nothing is shown when the request has no conditions. */
-export function ConditionChecksBox({ request, response }: { request: RequestLike; response: InstructorResponseRow }) {
-  const checks = checkResponse(request, response);
+export function ConditionChecksBox({ request, response, profile }: { request: RequestLike; response: InstructorResponseRow; profile?: ProfileLike }) {
+  const checks = checkResponse(request, response, profile);
   if (checks.length === 0) return null;
   return (
     <div style={box}>
@@ -65,12 +65,41 @@ export function ConditionChecksBox({ request, response }: { request: RequestLike
 }
 
 /** The one-line chip shown on the closed applicant row: the worst thing first. Null when there is no 必須 condition. */
-export function conditionChip(request: RequestLike, response: InstructorResponseRow): { text: string; state: CheckState } | null {
-  const s = summarizeChecks(checkResponse(request, response));
+export function conditionChip(request: RequestLike, response: InstructorResponseRow, profile?: ProfileLike): { text: string; state: CheckState } | null {
+  const s = summarizeChecks(checkResponse(request, response, profile));
   if (s.mustOk + s.mustNg + s.mustUnknown === 0) return null;
   if (s.mustNg > 0) return { text: `必須条件：不一致${s.mustNg}`, state: "ng" };
   if (s.mustUnknown > 0) return { text: `必須条件：未確認${s.mustUnknown}`, state: "unknown" };
   return { text: "必須条件：確認済み", state: "ok" };
+}
+
+/**
+ * For a lecturer who is about to apply: where they stand on the request's 分野・ツールの条件, from what they saved in Mine.
+ * Nothing is shown when the request has none. These are not answered on the form: they come from the saved list.
+ */
+export function SkillConditionsNote({ request, profile }: { request: RequestLike; profile: ProfileLike }) {
+  const checks = checkProfile(request, profile).filter((c) => c.key === "skill");
+  if (checks.length === 0) return null;
+  const hasList = Array.isArray(profile.training_skills) && profile.training_skills.length > 0;
+  return (
+    <div style={box}>
+      <div style={boxTitle}>分野・ツールの条件（あなたの登録内容との照合）</div>
+      {checks.map((c, i) => (
+        <div key={c.label} style={{ ...row, borderTop: i === 0 ? 0 : row.borderTop }}>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            {c.label}
+            <span style={{ marginLeft: 8, fontSize: 11.5, color: c.level === "must" ? "var(--color-danger, #c0392b)" : "var(--color-ink-soft)", fontWeight: 700 }}>{c.level === "must" ? "必須" : "歓迎"}</span>
+          </span>
+          <span style={statePill(c.state)}>{STATE_TEXT[c.state]}</span>
+        </div>
+      ))}
+      <p style={{ margin: "8px 0 0", fontSize: 12, color: "var(--color-ink-soft)" }}>
+        {hasList
+          ? "経験年数や登壇実績は、Mineの「サービス」→ケンシュウリンクの「教えられる分野・ツール」で登録・変更できます。"
+          : "まだ登録がありません。Mineの「サービス」→ケンシュウリンクの「教えられる分野・ツール」で登録すると、条件に合うことが企業に伝わります。"}
+      </p>
+    </div>
+  );
 }
 
 export { statePill };
@@ -123,7 +152,7 @@ export function QuoteHistoryBox({ changes, response }: { changes: ResponseChange
 }
 
 /** The instructor's own view of what they sent: application items and the quote history. */
-export function MyResponseDetails({ response, request }: { response: InstructorResponseRow; request?: RequestLike }) {
+export function MyResponseDetails({ response, request, profile }: { response: InstructorResponseRow; request?: RequestLike; profile?: ProfileLike }) {
   const [changes, setChanges] = useState<ResponseChange[]>([]);
   useEffect(() => {
     let alive = true;
@@ -135,7 +164,7 @@ export function MyResponseDetails({ response, request }: { response: InstructorR
   return (
     <div style={{ marginTop: 12 }}>
       <ApplyItemsBox response={response} />
-      {request && <ConditionChecksBox request={request} response={response} />}
+      {request && <ConditionChecksBox request={request} response={response} profile={profile} />}
       <QuoteHistoryBox changes={changes} response={response} />
     </div>
   );

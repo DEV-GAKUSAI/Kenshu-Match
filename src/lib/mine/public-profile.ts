@@ -26,6 +26,8 @@ export type MinePublicProfile = {
     available_until?: string;
     training_languages?: string[];
     roles?: string[];
+    /** 教えられる分野・ツール (Mine migration 150): names from Kenshu Link's own lists, with optional years / 登壇実績. */
+    training_skills?: { k: "field" | "tool"; n: string; y?: number; t?: boolean }[];
   };
 };
 

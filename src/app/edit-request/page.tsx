@@ -44,6 +44,7 @@ function EditRequestInner() {
   const [origDeadline, setOrigDeadline] = useState("");
   const [money, setMoney] = useState<MoneyFormValue | null>(null);
   const [details, setDetails] = useState<DetailsFormValue | null>(null);
+  const [fieldId, setFieldId] = useState("");
   const [roles, setRoles] = useState<RolesFormValue>([]);
   const [hadRoles, setHadRoles] = useState(false);
   const [decidedBySlot, setDecidedBySlot] = useState<Record<string, number>>({});
@@ -85,6 +86,7 @@ function EditRequestInner() {
       setOrigDeadline(r.apply_deadline ?? "");
       setMoney(moneyFromRow(r));
       setHadBudgetMode(r.budget_mode !== undefined);
+      setFieldId(r.expertise_field ?? "");
       setDetails({ days: normalizeDays(r.schedule_days), allDaysRequired: !!r.all_days_required, skills: r.req_skills ?? "", prep: r.req_prep ?? "", optionIds: r.detail_option_ids ?? [], otherTools: r.detail_other_tools ?? "", conditions: normalizeConditions(r.req_conditions) });
       setState("ok");
     })();
@@ -229,7 +231,7 @@ function EditRequestInner() {
             </div>
             {hadVisibility && <VisibilityForm value={vis} onChange={setVis} />}
             <RolesForm value={roles} onChange={setRoles} decided={decidedBySlot} />
-            <DetailsForm value={details} onChange={setDetails} idPrefix="ed" />
+            <DetailsForm value={details} onChange={setDetails} idPrefix="ed" fieldId={fieldId} />
             <div className="form-field">
               <label htmlFor="edDescription">依頼内容の詳細（必須）</label>
               <textarea id="edDescription" rows={6} value={description} onChange={(e) => setDescription(e.target.value)} />

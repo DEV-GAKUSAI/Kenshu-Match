@@ -573,7 +573,7 @@ function InstructorDetailInner() {
               <input type="text" id="reqSchedule" placeholder="例：8月中旬 平日午後" value={reqSchedule} onChange={(e) => setReqSchedule(e.target.value)} />
             </div>
 
-            <DetailsForm value={reqDetails} onChange={setReqDetails} idPrefix="dreq" />
+            <DetailsForm value={reqDetails} onChange={setReqDetails} idPrefix="dreq" fieldId={reqExpertise} />
 
             <div className={`form-field${reqDescError ? " has-error" : ""}`}>
               <label htmlFor="reqDescription">依頼内容の詳細</label>

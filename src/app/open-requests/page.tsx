@@ -7,6 +7,7 @@ import { useRoleTheme } from "@/hooks/useRoleTheme";
 import { ResponseManage } from "@/components/requests/ResponseManage";
 import { budgetText, budgetUpper, isHourly, quoteText } from "@/lib/requests/money";
 import { areaState, isRecommendedMatch, referenceNote, withAreaReason } from "@/lib/requests/conditions";
+import { skillReasons, toolNamesOf, type MatchingProfile } from "@/lib/mine/my-matching";
 import { matchesPrefecture, normalizeDays, requestFormatLabel } from "@/lib/requests/schedule";
 import { JP_PREFECTURES } from "@/lib/requests/prefectures";
 import { matchesAmount, matchesMineState, matchesOpenState, matchesPeriod, matchesRole, MINE_STATE_TEXT, roleNamesOf, UNIT_FILTER_TEXT, type MineState, type OpenState } from "@/lib/requests/open-filters";
@@ -59,12 +60,14 @@ function getHiddenIds(): string[] {
   }
 }
 
-type MyProfile = { workStyle: string | null; desiredRateMin: number | null; expertiseIds: Set<string>; prefectures?: string[] };
+type MyProfile = MatchingProfile & { fieldNameById: Record<string, string>; toolNameById: Record<string, string> };
 
 function matchReasons(r: RequestWithJoins, myProfile: MyProfile | null) {
   if (!myProfile) return [];
   const reasons: string[] = [];
-  if (r.expertise_field && myProfile.expertiseIds.has(r.expertise_field)) reasons.push("分野");
+  const fromSkills = skillReasons(r.expertise_field ? myProfile.fieldNameById[r.expertise_field] : undefined, toolNamesOf(r.detail_option_ids, myProfile.toolNameById), myProfile.skills);
+  if ((r.expertise_field && myProfile.expertiseIds.has(r.expertise_field)) || fromSkills.field) reasons.push("分野");
+  if (fromSkills.tool) reasons.push("ツール");
   const formatOk =
     r.preferred_format === "both" ||
     (r.preferred_format === "online" && (myProfile.workStyle === "ONLINE" || myProfile.workStyle === "HYBRID")) ||
@@ -203,16 +206,20 @@ export default function OpenRequestsPage() {
       setHiddenIds(getHiddenIds());
 
       const profile = await getMyMatchingProfile(user.id);
-      setMyProfile(profile);
-      loadDetailOptions().then(setDetailOptions);
+      const options = await loadDetailOptions();
+      setDetailOptions(options);
       const { data: subs } = await getTrainingSubcategoryOptions();
-      setFieldOptions(
-        ((subs as unknown as { id: string; name: string; training_categories: { name: string } | null }[] | null) ?? []).map((x) => ({
-          id: x.id,
-          name: x.name,
-          categoryName: x.training_categories?.name || "",
-        })),
-      );
+      const fields = ((subs as unknown as { id: string; name: string; training_categories: { name: string } | null }[] | null) ?? []).map((x) => ({
+        id: x.id,
+        name: x.name,
+        categoryName: x.training_categories?.name || "",
+      }));
+      setFieldOptions(fields);
+      setMyProfile({
+        ...profile,
+        fieldNameById: Object.fromEntries(fields.map((f) => [f.id, f.name])),
+        toolNameById: Object.fromEntries(options.filter((o) => o.group_key === "tool").map((o) => [o.id, o.name])),
+      });
 
       const { data, error } = await getOpenRequestsForInstructor();
       if (error) {
