@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
+import { useConfirm } from "@/components/common/ConfirmDialog";
 import { useToast } from "@/components/common/Toast";
 import { UsersIcon } from "@/components/requests/ToolIcons";
 import { Select } from "@/components/ui/Select";
@@ -12,8 +13,10 @@ import { loadFieldNames } from "@/lib/requests/field-names";
 import { addRequestCandidate, getBookEntries, getRequestCandidateIds, KIND_TEXT, removeRequestCandidate, type BookEntry } from "@/lib/requester/book";
 
 /** 案件別候補リスト (#57): the lecturers from the company's own 講師台帳 that it keeps as candidates for this request. Only the company sees it. */
-export function RequestCandidates({ requestId, requesterId }: { requestId: string; requesterId: string }) {
+/** hideWhenEmpty: a finished, cancelled or direct request has nothing to shortlist, so the button is hidden unless candidates were already saved. */
+export function RequestCandidates({ requestId, requesterId, hideWhenEmpty = false }: { requestId: string; requesterId: string; hideWhenEmpty?: boolean }) {
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const [open, setOpen] = useState(false);
   const [ids, setIds] = useState<string[] | null>(null);
   const [entries, setEntries] = useState<BookEntry[]>([]);
@@ -60,12 +63,17 @@ export function RequestCandidates({ requestId, requesterId }: { requestId: strin
   }
 
   async function remove(entryId: string) {
+    const { ok } = await confirm({ title: "この候補を外しますか？", message: "この依頼の候補リストから外します。講師台帳の登録は残ります。", confirmLabel: "外す", cancelLabel: "やめる" });
+    if (!ok) return;
     setBusy(true);
     const { error } = await removeRequestCandidate(requestId, entryId);
     setBusy(false);
     if (error) return showToast("候補から外せませんでした。");
     setIds(picked.filter((id) => id !== entryId));
   }
+
+  // Wait until the saved list has loaded, so a request that already has candidates never loses its button.
+  if (hideWhenEmpty && (ids === null || ids.length === 0) && !open) return null;
 
   return (
     <div style={{ display: "contents" }}>
@@ -76,7 +84,7 @@ export function RequestCandidates({ requestId, requesterId }: { requestId: strin
             {candidates.length === 0 && <p className="request-card__meta" style={{ margin: "4px 0 8px" }}>まだ候補がいません。下から自社の講師台帳の講師を追加できます。</p>}
             {candidates.map((e) => {
               const detail = [
-                e.strength_field_ids?.length ? e.strength_field_ids.slice(0, 3).map((id) => fieldNames[id]).filter(Boolean).join("・") : "",
+                e.strength_field_ids?.length ? `${e.strength_field_ids.slice(0, 3).map((id) => fieldNames[id]).filter(Boolean).join("・")}${e.strength_field_ids.length > 3 ? "ほか" : ""}` : "",
                 pastRateText(e) ? `過去単価 ${pastRateText(e)}` : "",
                 e.rating ? "★".repeat(e.rating) : "",
               ]
