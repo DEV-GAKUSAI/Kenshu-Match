@@ -14,6 +14,7 @@ export const PUBLIC_PATHS = [
   "/instructor-detail",
   "/login",
   "/register",
+  "/for-instructors",
   "/forgot-password",
   "/terms",
   "/privacy",

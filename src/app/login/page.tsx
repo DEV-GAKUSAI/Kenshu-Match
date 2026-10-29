@@ -136,7 +136,10 @@ export default function LoginPage() {
           Mineでログイン（講師の方）
         </a>
         <p style={{ fontSize: 12.5, color: "var(--color-ink-soft)", margin: "8px 0 0", textAlign: "center" }}>
-          Mineに登録している講師の方は、Mineのアカウントでログインできます。
+          Mineに登録している講師の方は、Mineのアカウントでログインできます。{" "}
+          <Link href="/for-instructors" style={{ color: "var(--color-primary)", fontWeight: 700 }}>
+            くわしく
+          </Link>
         </p>
 
         <p className="auth-switch">
