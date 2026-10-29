@@ -75,6 +75,12 @@ export default function AdminHomePage() {
       desc: "ユーザーが追加した研修分野の名称変更・削除（未使用のもののみ）",
       badge: unusedSubs ? `未使用 ${unusedSubs}` : null,
     },
+    {
+      href: "/admin/payments-test",
+      title: "決済テスト（テストモード）",
+      desc: "¥1,100（税込）の料金のテスト決済と、支払い記録の確認",
+      badge: null,
+    },
   ];
 
   return (
