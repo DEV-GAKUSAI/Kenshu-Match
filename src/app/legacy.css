@@ -2074,6 +2074,10 @@ input[type="checkbox"]:not(.toggle-switch *):disabled { cursor: not-allowed; opa
   .brand__logo { width: 30px; height: 30px; }
   .brand__name { font-size: 14px; }
   .header-actions .btn { padding: 7px 10px; }
+  /* the narrowest phones: let the logo text shorten instead of pushing the buttons off screen */
+  .brand { flex-shrink: 1; min-width: 0; }
+  .brand > span { min-width: 0; }
+  .brand__name { display: block; overflow: hidden; text-overflow: ellipsis; }
 }
 
 /* ---- phone: buttons, tables, tap targets, small text ---- */
