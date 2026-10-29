@@ -1,4 +1,5 @@
 import { mineLoginUrl, mineRegisterUrl } from "@/lib/mine/login-url";
+import Image from "next/image";
 import "./for-instructors.css";
 
 export const metadata = {
@@ -7,9 +8,9 @@ export const metadata = {
 };
 
 const STEPS = [
-  { no: "1", label: "STEP 1", title: "Mine", text: "プロフィール・経歴・スキルを登録（初回だけ）", accent: false },
-  { no: "2", label: "STEP 2", title: "「ケンシュウリンク」を連携", text: "共有する内容を確認して、同意（初回だけ）", accent: false },
-  { no: "3", label: "STEP 3", title: "次からは「Mineでログイン」だけ", text: "押すと、そのままケンシュウリンクが開きます", accent: true },
+  { no: "1", label: "STEP 1", title: "Mine", text: "プロフィール・経歴・スキルを登録（初回だけ）", accent: false, logo: true },
+  { no: "2", label: "STEP 2", title: "「ケンシュウリンク」を連携", text: "共有する内容を確認して、同意（初回だけ）", accent: false, logo: false },
+  { no: "3", label: "STEP 3", title: "次からは「Mineでログイン」だけ", text: "押すと、そのままケンシュウリンクが開きます", accent: true, logo: false },
 ] as const;
 
 function FeatureIcon({ name }: { name: "search" | "reply" | "star" }) {
@@ -98,7 +99,10 @@ export default function ForInstructorsPage() {
               </span>
               <div className="fi-step__card">
                 <p className="fi-step__label">{step.label}</p>
-                <p className="fi-step__title">{step.title}</p>
+                <p className="fi-step__title">
+                  {step.logo && <Image className="fi-step__logo" src="/images/mine-mark.svg" alt="" width={24} height={24} unoptimized />}
+                  <span>{step.title}</span>
+                </p>
                 <p className="fi-step__text">{step.text}</p>
               </div>
             </li>

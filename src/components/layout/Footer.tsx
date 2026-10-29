@@ -29,7 +29,10 @@ export function Footer() {
           </div>
 
           <div className="site-footer__mine">
-            <p className="site-footer__mine-eyebrow">MINE</p>
+            <p className="site-footer__mine-eyebrow">
+              <Image src="/images/mine-mark-light.svg" alt="" width={24} height={24} unoptimized />
+              MINE
+            </p>
             <p className="site-footer__mine-title">はじめての方は、Mineで登録。</p>
             <p className="site-footer__mine-text">登録は数分。連携は、あとからでもできます。</p>
             <a className="site-footer__mine-btn" href={mineRegisterUrl(process.env.NEXT_PUBLIC_MINE_APP_URL)}>

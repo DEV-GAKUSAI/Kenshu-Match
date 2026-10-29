@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/common/Toast";
@@ -120,6 +121,7 @@ export default function CompleteProfilePage() {
     return (
       <main className="auth-page">
         <div className="auth-card">
+          <Image src="/images/mine-mark.svg" alt="Mine" width={40} height={40} unoptimized style={{ marginBottom: 12 }} />
           <p className="auth-card__eyebrow">講師の方へ</p>
           <h1 className="auth-card__title">ケンシュウリンクの講師は、「Mineでログイン」から。</h1>
           <p className="auth-card__desc">このアカウントはMineのものです。下のボタンを押すと、Mineのアカウントでそのままケンシュウリンクに入れます。</p>

@@ -127,6 +127,16 @@
   font-size: 17px;
   overflow-wrap: anywhere;
 }
+.fi-step__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fi-step__logo {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
 .fi-step__text {
   margin: 4px 0 0;
   font-size: 13.5px;
@@ -316,7 +326,10 @@
   box-sizing: border-box;
 }
 .site-footer__mine-eyebrow {
-  margin: 0 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: 11px;
