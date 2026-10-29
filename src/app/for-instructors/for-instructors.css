@@ -1,0 +1,315 @@
+/* 講師の方へ（/for-instructors）専用のスタイル。ほかのページには影響しません。 */
+.fi-page {
+  color: var(--color-ink);
+  background: var(--color-bg);
+  overflow-x: clip;
+}
+
+.fi-eyebrow {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  color: var(--color-accent-text);
+}
+
+/* hero */
+.fi-hero {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 48px;
+  align-items: center;
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 64px 24px 48px;
+  box-sizing: border-box;
+}
+.fi-hero__text {
+  flex: 1 1 460px;
+  min-width: 0;
+}
+.fi-title {
+  margin: 0 0 20px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 42px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.fi-lead {
+  margin: 0 0 28px;
+  font-size: 16px;
+  line-height: 1.9;
+  color: #4d5761;
+}
+.fi-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.fi-actions--center {
+  justify-content: center;
+}
+.fi-note {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--color-ink-soft);
+}
+
+/* buttons */
+.fi-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 28px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-size: 15px;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
+  border: 2px solid transparent;
+}
+.fi-btn--solid {
+  background: #0c7f62;
+  color: #fff;
+}
+.fi-btn--solid:hover {
+  background: #0a6c54;
+}
+.fi-btn--outline {
+  background: #fff;
+  color: #0c7f62;
+  border-color: #0c7f62;
+}
+.fi-btn--outline:hover {
+  background: #effaf6;
+}
+.fi-btn--white {
+  background: #fff;
+  color: #0c7f62;
+}
+.fi-btn--ghost-white {
+  color: #fff;
+  border-color: #fff;
+}
+.fi-btn:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+/* flow */
+.fi-flow {
+  flex: 1 1 360px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+.fi-flow__item {
+  display: flex;
+  flex-direction: column;
+}
+.fi-flow__card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-m);
+  padding: 22px 24px;
+  box-shadow: var(--shadow-card);
+}
+.fi-flow__card--accent {
+  background: var(--color-accent-soft);
+  border-color: #bfe4e9;
+  box-shadow: none;
+}
+.fi-flow__label {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #0c7f62;
+}
+.fi-flow__card--accent .fi-flow__label {
+  color: var(--color-accent-text);
+}
+.fi-flow__title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+.fi-flow__text {
+  margin: 4px 0 0;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--color-ink-soft);
+}
+.fi-flow__card--accent .fi-flow__text {
+  color: #4d5761;
+}
+.fi-flow__arrow {
+  text-align: center;
+  color: #0c7f62;
+  font-size: 22px;
+  line-height: 1;
+  padding: 8px 0;
+}
+
+/* sections */
+.fi-section {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 24px 24px 48px;
+  box-sizing: border-box;
+}
+.fi-section--narrow {
+  max-width: 860px;
+}
+.fi-h2 {
+  margin: 0 0 28px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 28px;
+  overflow-wrap: anywhere;
+}
+.fi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+.fi-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-m);
+  padding: 28px 26px;
+}
+.fi-card__title {
+  margin: 0 0 10px;
+  font-weight: 700;
+  font-size: 17px;
+}
+.fi-card__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.85;
+  color: #4d5761;
+}
+
+.fi-shared {
+  background: var(--color-accent-soft);
+  border-radius: var(--radius-m);
+  padding: 32px 36px;
+}
+.fi-shared__title {
+  margin: 0 0 8px;
+  font-weight: 700;
+  font-size: 18px;
+}
+.fi-shared__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.9;
+  color: #2f3a44;
+}
+
+.fi-faq {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.fi-faq__item {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 22px 26px;
+}
+.fi-faq__q {
+  margin: 0 0 8px;
+  font-weight: 700;
+  font-size: 15.5px;
+  line-height: 1.6;
+}
+.fi-faq__a {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.85;
+  color: #4d5761;
+}
+
+/* bottom call to action (for first-time users) */
+.fi-cta {
+  background: #0c7f62;
+  padding: 56px 24px;
+  text-align: center;
+}
+.fi-cta__title {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 28px;
+  color: #fff;
+}
+.fi-cta__text {
+  margin: 0 0 28px;
+  font-size: 14.5px;
+  line-height: 1.8;
+  color: #e6f6f0;
+}
+
+/* phones */
+@media (max-width: 640px) {
+  .fi-hero {
+    gap: 28px;
+    padding: 36px 16px 28px;
+  }
+  .fi-title {
+    font-size: 28px;
+  }
+  .fi-lead {
+    font-size: 14.5px;
+  }
+  .fi-actions {
+    flex-direction: column;
+  }
+  .fi-actions .fi-btn {
+    width: 100%;
+    padding: 0 16px;
+  }
+  .fi-flow__card {
+    padding: 18px 20px;
+    box-shadow: none;
+  }
+  .fi-flow__title {
+    font-size: 16px;
+  }
+  .fi-section {
+    padding: 8px 16px 28px;
+  }
+  .fi-h2 {
+    font-size: 22px;
+    margin-bottom: 18px;
+  }
+  .fi-card {
+    padding: 20px;
+  }
+  .fi-shared {
+    padding: 22px 20px;
+  }
+  .fi-faq__item {
+    padding: 18px 20px;
+  }
+  .fi-faq__q {
+    font-size: 14.5px;
+  }
+  .fi-cta {
+    padding: 40px 16px;
+  }
+  .fi-cta__title {
+    font-size: 22px;
+  }
+}

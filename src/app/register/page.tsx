@@ -172,7 +172,10 @@ export default function RegisterPage() {
               研修講師の方は、Mineで登録してください。{" "}
               <a href={mineRegisterUrl(process.env.NEXT_PUBLIC_MINE_APP_URL)} style={{ color: "var(--color-primary)", fontWeight: 700 }}>
                 Mineで講師として登録する
-              </a>
+              </a>{" "}
+              <Link href="/for-instructors" style={{ color: "var(--color-primary)", fontWeight: 700 }}>
+                くわしく
+              </Link>
             </p>
 
             <div className="form-actions">

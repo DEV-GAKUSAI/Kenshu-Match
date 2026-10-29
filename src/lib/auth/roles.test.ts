@@ -12,7 +12,7 @@ test("other roles (ENGINEER from Mine / Engineer Match), empty and odd values ar
 });
 
 test("public pages stay open for a Mine login; account pages do not", () => {
-  for (const path of ["/", "/instructors", "/instructor-detail", "/login", "/register", "/terms", "/privacy"]) {
+  for (const path of ["/", "/instructors", "/instructor-detail", "/login", "/register", "/for-instructors", "/terms", "/privacy"]) {
     assert.equal(isPublicPath(path), true, path);
   }
   for (const path of ["/mypage", "/post-request", "/open-requests", "/request-detail", "/complete-profile"]) {

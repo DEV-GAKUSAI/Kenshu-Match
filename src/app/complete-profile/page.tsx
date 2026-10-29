@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/common/Toast";
@@ -119,14 +120,17 @@ export default function CompleteProfilePage() {
     return (
       <main className="auth-page">
         <div className="auth-card">
-          <p className="auth-card__eyebrow">Mine</p>
-          <h1 className="auth-card__title">Mineのアカウントでログインしています</h1>
-          <p className="auth-card__desc">講師の方は、Mineから開くと、これまでの情報がそのまま使えます。</p>
+          <p className="auth-card__eyebrow">講師の方へ</p>
+          <h1 className="auth-card__title">ケンシュウリンクの講師は、「Mineでログイン」から。</h1>
+          <p className="auth-card__desc">このアカウントはMineのものです。下のボタンを押すと、Mineのアカウントでそのままケンシュウリンクに入れます。</p>
           <a className="btn btn--primary btn--block" href={mineLoginUrl(process.env.NEXT_PUBLIC_MINE_APP_URL)}>
-            Mineでログインする
+            Mineでログイン
           </a>
           <p style={{ fontSize: 12.5, color: "var(--color-ink-soft)", margin: "14px 0 0" }}>
-            企業・生徒として新しく登録する場合は、別のメールアドレスで登録してください。
+            企業・生徒として新しく登録する場合は、別のメールアドレスで登録してください。{" "}
+            <Link href="/for-instructors" style={{ color: "var(--color-primary)", fontWeight: 700 }}>
+              講師の方への案内
+            </Link>
           </p>
           <button
             type="button"
@@ -137,7 +141,7 @@ export default function CompleteProfilePage() {
               router.replace("/");
             }}
           >
-            別のアカウントでログインする
+            ログアウトして別のアカウントを使う
           </button>
         </div>
       </main>

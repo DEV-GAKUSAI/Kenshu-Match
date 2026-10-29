@@ -19,7 +19,7 @@ function getNavLinks(user: CurrentUser | null) {
     return [
       { href: "/", label: "トップ" },
       { href: "/instructors", label: "講師を探す" },
-      { href: "/open-requests", label: "講師の方へ" },
+      { href: "/for-instructors", label: "講師の方へ" },
     ];
   }
 
